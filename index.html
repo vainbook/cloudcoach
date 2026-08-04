@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#131B2E">
+<title>UC — 牌組原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Serif+Display&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* UC Training 品牌視覺 — 依 uc-training/references/UC_brand-desigh.md */
+:root{
+  --navy:#131B2E; --navy-3:#1E2740;
+  --beige:#E8E4DC; --white:#FFFFFF; --salmon:#E8A898;
+  --b-70:rgba(232,228,220,.70); --b-50:rgba(232,228,220,.50);
+  --b-34:rgba(232,228,220,.34); --b-18:rgba(232,228,220,.18); --b-10:rgba(232,228,220,.10);
+  --n-60:rgba(19,27,46,.60); --n-40:rgba(19,27,46,.40); --n-14:rgba(19,27,46,.14);
+  --r:6px; --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px);
+  --mono:"Space Grotesk",ui-monospace,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{background:#0C1220;font-family:"Noto Sans TC",system-ui,sans-serif;font-size:16px;line-height:1.7;
+  color:var(--beige);-webkit-font-smoothing:antialiased;display:flex;justify-content:center}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+.app{position:relative;width:100%;max-width:430px;height:100dvh;background:var(--navy);
+  overflow:hidden;display:flex;flex-direction:column}
+.grain{position:absolute;inset:0;pointer-events:none;z-index:95;mix-blend-mode:overlay;opacity:.05}
+
+/* 四角 L 型方括號 */
+.bk{position:absolute;width:16px;height:16px;border:1px solid var(--b-18);pointer-events:none;z-index:5}
+.bk.tl{top:calc(var(--st) + 12px);left:14px;border-right:0;border-bottom:0}
+.bk.tr{top:calc(var(--st) + 12px);right:14px;border-left:0;border-bottom:0}
+.bk.bl{bottom:calc(var(--sb) + 12px);left:14px;border-right:0;border-top:0}
+.bk.br{bottom:calc(var(--sb) + 12px);right:14px;border-left:0;border-top:0}
+
+/* ── 頂 ── */
+.top{flex:none;padding:calc(var(--st) + 22px) 24px 0;display:flex;align-items:center;gap:12px;z-index:6}
+.uc-logo{font-family:var(--mono);font-weight:600;font-size:12px;letter-spacing:.04em;
+  border:1.5px solid var(--b-50);border-radius:50%;width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;flex:none}
+.rv{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  color:#A2502C;background:rgba(232,168,152,.22);border:.5px solid var(--salmon);
+  border-radius:99px;padding:5px 11px;display:none}
+.rv:active{background:rgba(232,168,152,.36)}
+.sync{margin-left:14px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  color:var(--b-34);display:flex;align-items:center;gap:6px;
+  border:.5px solid var(--b-10);border-radius:99px;padding:6px 11px}
+.sync:active{background:var(--b-10)}
+.sync::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--b-34)}
+.sync[data-s="ok"]::before{background:#5C8A6B}
+.sync[data-s="queued"]::before{background:var(--salmon)}
+.sync[data-s="busy"]::before{background:var(--salmon);animation:pulse 1.1s ease-in-out infinite}
+.sync[data-s="offline"]::before,.sync[data-s="off"]::before{background:var(--b-18)}
+.sync[data-s="err"]::before{background:#C4452B}
+.sync[data-s="err"]{color:#D98878}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.top .ct{margin-left:14px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--b-34)}
+.top .ct b{color:var(--beige);font-weight:500;font-size:13px}
+.icb{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);
+  margin-right:-8px;color:var(--b-50)}
+.icb:active{background:var(--b-10)}
+
+.segwrap{flex:none;position:relative;padding:22px 24px 0;z-index:6}
+.segs{display:flex;gap:3px;align-items:flex-end}
+.seg{position:relative;height:3px;background:var(--b-18);overflow:hidden;border-radius:1px;
+  transition:opacity .3s,height .3s;padding:0;min-width:6px}
+.seg.now{height:5px}
+.seg.full{opacity:1}
+.seg u,.seg i{position:absolute;left:0;top:0;height:100%;width:0;
+  transition:width .55s cubic-bezier(.3,.8,.3,1)}
+.seg u{opacity:.34}
+.segcur{position:absolute;top:13px;width:1px;height:7px;background:var(--salmon);
+  transition:left .34s cubic-bezier(.3,.9,.3,1);pointer-events:none}
+@keyframes segFlash{0%,100%{box-shadow:none}40%{box-shadow:0 0 0 2px rgba(232,168,152,.5)}}
+.seg.flash{animation:segFlash .9s ease}
+
+.theme{flex:none;padding:26px 24px 2px;text-align:center;min-height:78px;z-index:6}
+.theme .mod{font-family:var(--mono);font-size:9.5px;letter-spacing:.4em;color:var(--b-34);margin-bottom:8px}
+.theme h1{font-family:"Noto Serif TC",serif;font-size:26px;font-weight:700;line-height:1.35;letter-spacing:.01em}
+.theme.sw .mod,.theme.sw h1{opacity:0;transform:translateY(5px)}
+.theme .mod,.theme h1{transition:opacity .2s,transform .2s}
+
+/* ── 牌列 ── */
+.stage{flex:1;position:relative;perspective:1250px;overflow:hidden;touch-action:pan-y;
+  display:flex;align-items:center;justify-content:center}
+.deck{position:absolute;inset:0;transform-style:preserve-3d}
+.cd{position:absolute;left:50%;top:50%;width:212px;height:296px;margin:-148px 0 0 -106px;
+  will-change:transform,opacity;transform-style:preserve-3d}
+.cd.hide{display:none}
+.breathe{position:absolute;inset:0;transform-style:preserve-3d}
+.cd.mid .breathe{animation:bob 5s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+.flip{position:absolute;inset:0;transform-style:preserve-3d;
+  transition:transform .62s cubic-bezier(.32,.72,0,1)}
+.cd.flipped .flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:var(--r);backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--navy-3);border:.5px solid var(--b-10);
+  box-shadow:0 2px 3px rgba(0,0,0,.28), 0 18px 40px -14px rgba(0,0,0,.6);
+  transition:background .5s,border-color .5s}
+.face.back{transform:rotateY(180deg);background:var(--beige);border-color:transparent;color:var(--navy)}
+.cd.open .face.front{background:var(--beige);border-color:transparent}
+
+.frame{position:absolute;inset:9px;border:.5px solid var(--b-10);border-radius:2px;
+  transition:border-color .5s;pointer-events:none}
+
+/* 狀態圓標：只出現在已送出的故事卡上 */
+.pip{position:absolute;top:15px;right:15px;width:16px;height:16px;border-radius:50%;
+  border:1px dashed var(--n-40);display:none;align-items:center;justify-content:center;
+  transition:border-color .4s,background .4s}
+.cd.open .face.front .pip{display:flex}
+.cd.revise .face.front .pip{border-style:solid;border-color:var(--salmon);background:rgba(232,168,152,.2)}
+.cd.ok .face.front .pip{border-style:solid;border-color:var(--h)}
+.pip .tick,.pip .dash{display:none}
+.cd.ok .pip .tick{display:block;width:8px;height:8px;color:var(--h)}
+.cd.revise .pip .dash{display:block;width:7px;height:1.5px;background:var(--salmon);border-radius:1px}
+/* 知識卡與挑戰卡的圓標，顏色跟著卡型走 */
+.face.movie .pip,.face.trial .pip{border-color:rgba(19,27,46,.28)}
+.cd.ok .face.movie .pip{border-style:solid;border-color:#C9A227}
+.cd.ok .face.movie .pip .tick{display:block;width:8px;height:8px;color:#C9A227}
+.cd.ok .face.trial .pip{border-style:solid;border-color:#C4452B}
+.cd.ok .face.trial .pip .tick{display:block;width:8px;height:8px;color:#C4452B}
+
+/* 底部字樣：未開顯示動作，開過顯示狀態 */
+.foot .f1{display:none}
+.cd.open .face.front .foot .f0{display:none}
+.cd.open .face.front .foot .f1{display:inline}
+.cd.ok .face.movie .foot{color:#9C7C1B}
+.cd.ok .face.trial .foot{color:#A03A22}
+
+/* 有教練留言：圓標右下角一顆小點 */
+.cd.fb .face.front .pip::after{content:"";position:absolute;right:-3px;bottom:-3px;
+  width:6px;height:6px;border-radius:50%;background:var(--salmon);
+  box-shadow:0 0 0 1.5px var(--beige)}
+.pip{position:relative}
+/* 尚未送達伺服器 */
+.cd.q .face.front .pip{border-style:dotted;border-color:var(--salmon)}
+.cd.q .face.front::after{content:"";position:absolute;top:19px;right:36px;width:4px;height:4px;
+  border-radius:50%;background:var(--salmon)}
+/* 需修改：左緣一道鮭粉 */
+.cd.revise .face.front::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--salmon);border-radius:var(--r) 0 0 var(--r)}
+
+/* 卡型裝飾邊框：故事＝素框，電影＝黃銅藤蔓，挑戰＝炙紅火焰。
+   顏色固定不隨狀態變，因為它代表的是「這是哪一種牌」，不是進度。 */
+.deco{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
+  opacity:.5;transition:opacity .5s}
+.cd.open .deco,.face.back .deco{opacity:1}
+.face.movie .deco{color:#C9A227}
+.face.trial .deco{color:#C4452B}
+
+.en{flex:none;padding:5px 20px 0;text-align:center;font-family:"DM Serif Display",serif;
+  font-size:13.5px;letter-spacing:.01em;transition:color .5s;line-height:1.35;color:var(--b-34)}
+.face.movie .en{color:#C9A227}
+.face.back.movie .en{color:#9C7C1B}
+.cd.ok .face.front .frame{border-color:var(--h-soft)}
+.face.back .frame{border-color:var(--h-soft)}
+
+.kind{position:absolute;top:20px;left:0;right:0;text-align:center;font-family:var(--mono);
+  font-size:8.5px;letter-spacing:.42em;color:var(--b-34);transition:color .5s}
+.cd.open .face.front .kind{color:var(--n-40)}
+.face.back .kind{color:var(--n-40)}
+
+.no{position:absolute;top:36px;left:0;right:0;text-align:center;font-family:var(--mono);
+  font-weight:500;font-size:10.5px;letter-spacing:.3em;color:var(--b-34);transition:color .5s}
+.cd.ok .face.front .no{color:var(--h)}
+
+.art{flex:1;display:flex;align-items:center;justify-content:center;padding:58px 24px 0;
+  color:var(--b-34);transition:color .5s}
+.face.movie .art,.face.trial .art{padding-top:52px}
+.face.movie .ttl{font-size:15.5px;padding-bottom:0}
+.face.movie .foot{padding-top:14px}
+.cd.ok .face.front .art{color:var(--h)}
+.glyph{width:50px;height:50px}
+
+.ttl{flex:none;padding:0 22px 4px;font-family:"Noto Serif TC",serif;font-size:16.5px;font-weight:400;
+  line-height:1.55;text-align:center;color:var(--b-50);transition:color .5s}
+.cd.open .face.front .ttl{color:var(--navy);font-weight:700}
+
+.rule{flex:none;width:22px;height:.5px;background:var(--b-18);margin:14px auto 0;transition:background .5s}
+.cd.ok .face.front .rule{background:var(--h-soft)}
+
+.foot{flex:none;padding:12px 18px 22px;text-align:center;font-size:9px;letter-spacing:.3em;
+  color:var(--b-34);transition:color .5s}
+.cd.open .face.front .foot{color:var(--n-40)}
+
+/* 卡背（電影／挑戰翻開後） */
+.face.back .bd{flex:1;display:flex;flex-direction:column;justify-content:center;padding:54px 22px 12px}
+.face.back .quote{font-family:"Noto Serif TC",serif;font-size:15px;font-weight:400;line-height:1.9;
+  text-align:center;color:var(--navy)}
+.face.back .ins{font-size:11.5px;line-height:1.75;color:var(--n-60);margin-top:14px;text-align:center}
+.face.back .src{flex:none;padding:0 18px 22px;text-align:center;font-size:9px;letter-spacing:.3em;color:var(--n-40)}
+.face.back .pass{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:#4E7A5E;text-align:center;margin-bottom:10px}
+
+/* ── 卡下 ── */
+.meta{flex:none;padding:10px 24px 0;text-align:center;min-height:48px;z-index:6}
+.meta .g{font-size:12.5px;color:var(--b-70)}
+.meta .s{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;color:var(--b-34);margin-top:4px}
+.acts{flex:none;display:flex;gap:9px;align-items:center;justify-content:center;
+  padding:16px 24px calc(26px + var(--sb));z-index:6}
+.btn{min-height:50px;border-radius:var(--r);font-size:15px;display:flex;align-items:center;
+  justify-content:center;gap:8px;border:.5px solid var(--b-18);color:var(--b-70);
+  transition:transform .1s cubic-bezier(.2,.9,.3,1),background .18s}
+.btn:active{transform:scale(.965)}
+.btn.pri{flex:1;background:var(--salmon);border-color:var(--salmon);color:var(--navy);
+  font-weight:500;letter-spacing:.05em}
+.btn.pri:active{background:#DC9585}
+.btn.sq{width:50px}
+#sortBtn .r1,#sortBtn .r2{transform-box:fill-box;transform-origin:center;
+  transition:transform .38s cubic-bezier(.3,.9,.3,1)}
+#sortBtn[data-mode="mix"]{border-color:var(--b-50);color:var(--beige)}
+#sortBtn[data-mode="mix"] .r1{transform:rotate(-13deg)}
+#sortBtn[data-mode="mix"] .r2{transform:rotate(13deg)}
+
+/* ── 展開頁 ── */
+.sheet{position:fixed;z-index:80;background:var(--beige);border-radius:var(--r);overflow:hidden;
+  display:none;flex-direction:column;color:var(--navy)}
+.sheet.on{display:flex}
+.sheet.anim{transition:left .44s cubic-bezier(.32,.72,0,1),top .44s cubic-bezier(.32,.72,0,1),
+  width .44s cubic-bezier(.32,.72,0,1),height .44s cubic-bezier(.32,.72,0,1),border-radius .44s}
+.sheet .inner{flex:1;overflow-y:auto;padding:calc(var(--st) + 28px) 24px 10px;opacity:0;
+  transition:opacity .22s .18s}
+.sheet.open .inner{opacity:1}
+.sheet .wno{font-family:var(--mono);font-size:9.5px;letter-spacing:.4em;color:var(--n-40)}
+.sheet h2{font-family:"Noto Serif TC",serif;font-size:22px;font-weight:700;line-height:1.5;margin:12px 0 18px}
+.tips{list-style:none;display:grid;gap:9px;margin-bottom:20px}
+.tips li{font-size:13.5px;color:var(--n-60);line-height:1.8;padding-left:16px;position:relative}
+.tips li::before{content:"";position:absolute;left:0;top:12px;width:8px;height:.5px;background:var(--n-40)}
+textarea{width:100%;min-height:190px;padding:15px;border:.5px solid var(--n-14);border-radius:var(--r);
+  background:var(--white);color:var(--navy);font-family:"Noto Serif TC",serif;font-size:16px;
+  line-height:2;resize:none}
+textarea:focus{outline:none;border-color:var(--navy)}
+textarea::placeholder{color:var(--n-40);font-family:"Noto Sans TC",sans-serif;font-size:14px}
+/* 教練回饋 */
+.fb{border:.5px solid var(--n-14);border-radius:var(--r);padding:13px 15px;margin-bottom:18px;
+  background:#F1EEE7}
+.fb.revise{border-color:var(--salmon);background:#F8EDE9}
+.fb .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.badge{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;padding:3px 10px;
+  border-radius:99px;border:.5px solid}
+.badge.pending{border-color:var(--n-40);color:var(--n-60)}
+.badge.revise{border-color:var(--salmon);color:#A2502C;background:rgba(232,168,152,.22)}
+.badge.approved{border-color:#4E7A5E;color:#3D6A4D}
+.fb .when{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--n-40)}
+.fb .tx{font-size:14px;line-height:1.9;color:var(--navy)}
+.fb .src{font-size:11px;letter-spacing:.06em;color:var(--n-40);margin-top:9px;
+  padding-top:9px;border-top:.5px solid var(--n-14)}
+.fb .wait{font-size:13.5px;line-height:1.8;color:var(--n-60)}
+textarea[readonly]{background:#F1EEE7;color:var(--n-60)}
+
+.opts{display:grid;gap:9px;margin-bottom:8px}
+.opt{text-align:left;font-size:14.5px;line-height:1.75;padding:13px 15px;border:.5px solid var(--n-14);
+  border-radius:var(--r);background:var(--white);color:var(--navy);min-height:48px}
+.opt:active{background:#F4F1EA}
+.opt .fb{display:block;font-size:12.5px;color:var(--n-60);margin-top:7px}
+.opt.right{border-color:#4E7A5E;background:#E9EFE9}
+.opt.wrong{border-color:var(--salmon);background:#F7EAE6}
+.sheet .wfoot{flex:none;padding:14px 24px calc(20px + var(--sb));display:flex;gap:9px;
+  border-top:.5px solid var(--n-14);opacity:0;transition:opacity .22s .18s}
+.sheet.open .wfoot{opacity:1}
+.sheet .btn{border-color:var(--n-14);color:var(--n-60)}
+.sheet .btn.pri{background:var(--navy);border-color:var(--navy);color:var(--beige)}
+.sheet .btn.pri:active{background:#25314E}
+
+/* 完成蓋章 */
+.stamp{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:5;
+  pointer-events:none;background:rgba(232,228,220,.72)}
+.stamp.on{display:flex}
+.stamp span{font-family:var(--mono);font-size:11px;letter-spacing:.42em;color:var(--navy);
+  border:1.5px solid var(--navy);border-radius:99px;padding:12px 26px;
+  animation:stampIn .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes stampIn{0%{transform:scale(1.6) rotate(-8deg);opacity:0}
+  60%{transform:scale(.94) rotate(-2deg);opacity:1}100%{transform:scale(1) rotate(-2deg);opacity:1}}
+
+/* ── 全覽 ── */
+.grid{position:absolute;inset:0;z-index:70;background:var(--navy);display:none;flex-direction:column}
+.grid.on{display:flex;animation:fade .22s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.grid .gh{flex:none;display:flex;align-items:center;gap:10px;padding:calc(var(--st) + 22px) 24px 14px}
+.grid .gh h2{font-family:"Noto Serif TC",serif;font-size:17px;font-weight:700}
+.grid .gh .lnk{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--b-34);
+  border:.5px solid var(--b-18);border-radius:99px;padding:5px 11px}
+.grid .gh .gtot{margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--b-34)}
+.grid .gh .gtot b{color:var(--beige);font-weight:500;font-size:14px}
+.grid .gs{flex:1;overflow-y:auto;padding:0 24px calc(30px + var(--sb))}
+
+.gstat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.gstat div{border:.5px solid var(--b-10);border-radius:var(--r);padding:11px 12px 12px}
+.gstat .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.3em;color:var(--b-34)}
+.gstat .v{font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px;line-height:1}
+.gstat .v small{font-size:11px;color:var(--b-34);font-weight:400;letter-spacing:.04em}
+
+.gchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:16px;scrollbar-width:none}
+.gchips::-webkit-scrollbar{display:none}
+.gchip{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;padding:0 14px;
+  border:.5px solid var(--b-18);border-radius:99px;color:var(--b-50);height:34px;
+  display:flex;align-items:center;transition:background .16s}
+.gchip[aria-pressed="true"]{background:var(--beige);border-color:var(--beige);color:var(--navy);font-weight:500}
+
+.gsec{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
+.gsec .nm{font-family:"Noto Serif TC",serif;font-size:13px;color:var(--b-70)}
+.gsec .bar{flex:1;height:1px;background:var(--b-10)}
+.gsec .bar i{display:block;height:100%;transition:width .4s}
+.gsec .ct{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--b-34)}
+
+.gg{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+.gc{aspect-ratio:.72;border-radius:3px;border:.5px solid var(--b-18);position:relative;
+  display:flex;align-items:center;justify-content:center;transition:transform .12s}
+.gc:active{transform:scale(.93)}
+.gc .n{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;color:var(--b-34)}
+.gc svg{width:15px;height:15px;color:var(--b-34)}
+.gc::after{content:"";position:absolute;inset:3px;border:.5px solid var(--b-10);border-radius:1px}
+.gc.st-approved{border-color:transparent}
+.gc.st-approved .n,.gc.st-approved svg{color:var(--navy)}
+.gc.st-approved::after{border-color:rgba(19,27,46,.16)}
+.gc.st-pending .n,.gc.st-pending svg{color:var(--b-50)}
+.gc.movie{border-color:rgba(201,162,39,.55)}
+.gc.movie svg{color:rgba(201,162,39,.85)}
+.gc.trial{border-color:rgba(196,69,43,.55)}
+.gc.trial svg{color:rgba(196,69,43,.9)}
+.gc.movie.st-approved,.gc.trial.st-approved{border-color:transparent}
+.gc.movie.st-approved svg,.gc.trial.st-approved svg{color:var(--navy)}
+.gc.cur{box-shadow:0 0 0 1px var(--salmon)}
+.gempty{font-size:13px;color:var(--b-34);padding:26px 0;text-align:center}
+
+.toast{position:absolute;left:50%;bottom:calc(106px + var(--sb));transform:translateX(-50%) translateY(6px);
+  background:var(--beige);color:var(--navy);font-size:12.5px;letter-spacing:.04em;padding:9px 18px;
+  border-radius:99px;opacity:0;pointer-events:none;transition:.28s;z-index:85;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+
+  <div class="top">
+    <span class="uc-logo">uc</span>
+    <button class="rv" id="rv"></button>
+    <button class="sync" id="sync" data-s="off"></button>
+    <span class="ct">翻開 <b id="cDone">0</b> / <span id="cAll">0</span></span>
+    <button class="icb" id="toGrid" aria-label="全覽">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    </button>
+  </div>
+
+  <div class="segwrap" id="segwrap">
+    <div class="segs" id="segs"></div>
+    <span class="segcur" id="segCur"></span>
+  </div>
+
+  <div class="theme" id="theme">
+    <div class="mod" id="tMod"></div>
+    <h1 id="tName"></h1>
+  </div>
+
+  <div class="stage" id="stage"><div class="deck" id="deck"></div></div>
+
+  <div class="meta">
+    <div class="g" id="mTitle"></div>
+    <div class="s" id="mState"></div>
+  </div>
+
+  <div class="acts">
+    <button class="btn sq" id="sortBtn" data-mode="seq" aria-label="切換為隨機洗牌">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.7" stroke-linejoin="round">
+        <rect class="r1" x="3.5" y="5" width="10" height="14" rx="1.5"/>
+        <rect class="r2" x="10.5" y="5" width="10" height="14" rx="1.5"/>
+      </svg>
+    </button>
+    <button class="btn pri" id="act">設計故事</button>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <div class="inner" id="sinner"></div>
+    <div class="wfoot">
+      <button class="btn sq" id="sClose" aria-label="關閉">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <button class="btn" id="sEdit" style="flex:1;display:none">我想再修改</button>
+      <button class="btn pri" id="sSave">完成，收進牌組</button>
+    </div>
+    <div class="stamp" id="stamp"><span id="stampTx">已收進牌組</span></div>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="gh">
+      <button class="icb" id="gClose" aria-label="返回">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h2>整副牌</h2>
+      <button class="lnk" id="setApi">連結試算表</button>
+      <span class="gtot" id="gTot"></span>
+    </div>
+    <div class="gs">
+      <div class="gstat" id="gStat"></div>
+      <div class="gchips" id="gChips"></div>
+      <div id="gBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <svg class="grain" preserveAspectRatio="none">
+    <filter id="g"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="4" seed="4"/>
+      <feColorMatrix type="saturate" values="0"/></filter>
+    <rect width="100%" height="100%" filter="url(#g)" opacity=".55"/>
+  </svg>
+</div>
+
+<script>
+/* ══ 課程內容 ══
+   真正的來源是 content/*.json — 要改題目、提示、電影金句、情境題，改那些檔案就好。
+   開發預覽會讀取 JSON；build-single-file.mjs 會把最新內容包進公開的 index.html。
+   預覽載入順序：先抓最新 JSON，抓不到就用上次快取，再不行才用內建備份。
+   ponytail: 四支檔案並行抓，沒有打包步驟。
+   天花板＝首次開啟需要網路；升級路徑＝加 service worker 預先快取。 */
+const FALLBACK = {"groups":[{"module":"必修課","group":"設定目標"},{"module":"必修課","group":"戀愛三步驟 — 邂逅吸引"},{"module":"必修課","group":"戀愛三步驟 — 走入心房"},{"module":"必修課","group":"戀愛三步驟 — 親密關係"},{"module":"必修課","group":"限制性信念覺察"},{"module":"必修課","group":"受害者故事翻轉"},{"module":"必修課","group":"感情價值觀"},{"module":"個人準備","group":"社交故事庫"},{"module":"個人準備","group":"想嘗試的興趣活動"},{"module":"個人準備","group":"想去的地方"}],"assignments":[{"id":1,"group":"設定目標","name":"理想感情目標","scaffold":{"title":"🎯 設定目標 01 ── 理想感情目標","tips":["💡 **自信精神**：自信來源於知道自己要什麼，並且在追求的過程中，你會有屬於自己的魅力。","1. 寫下你期待在這堂課程中創造的感情結果。"]}},{"id":2,"group":"設定目標","name":"健康/生活習慣","scaffold":{"title":"💪 設定目標 02 ── 健康 / 生活習慣","tips":["💡 **自信精神**：照顧好自己的身體與生活，是散發吸引力與充沛能量的最強基石。","1. 你希望建立什麼樣的體態、作息或運動習慣？","2. 這個習慣會讓你帶來什麼樣的改變？"]}},{"id":3,"group":"設定目標","name":"事業/工作/成就","scaffold":{"title":"💼 設定目標 03 ── 事業 / 工作 / 個人成就","tips":["💡 **自信精神**：專注追求事業成長或個人成就的人，自帶一股令人敬佩的沉穩魅力。","1. 近期你在工作、事業或個人成就上最想達成的指標是什麼？","2. 你希望累積什麼樣的能力或成果？"]}},{"id":4,"group":"設定目標","name":"夢想/興趣/愛好","scaffold":{"title":"🎨 設定目標 04 ── 夢想 / 興趣 / 愛好","tips":["💡 **自信精神**：對世界保有好奇心與熱情的人，眼睛裡總是有光的，這是極具感染力的特質。","1. 你目前最熱愛的休閒興趣是什麼？","2. 有沒有一件事是你一直很想嘗試但還沒去做的夢想清單？"]}},{"id":5,"group":"設定目標","name":"人際關係/家庭","scaffold":{"title":"🤝 設定目標 05 ── 人際關係 / 家庭","tips":["💡 **自信精神**：擁有健康優質的人際與家庭關係，能讓你保持充沛的情感狀態，進而更容易吸引到好的感情與伴侶。","1. 寫下你期待建立的優質社交圈或理想的家庭互動。"]}},{"id":6,"group":"戀愛三步驟 — 邂逅吸引","name":"故事：興趣","scaffold":{"title":"✨ 邂逅吸引 ── 故事 01：興趣相關具體事件","tips":["⚠️ **作答規範**：請寫下該主題中**印象最深刻的具體事件**。","💡 **提醒**：在寫的時候不需要跟別人比較，只要這件事情是你自己有感覺、印象深刻的就可以！","❌ 請勿只填寫抽象名詞或單字（例如：「興趣」不能只填寫「打球」，而要寫出具體事件：例如「大學系籃差點拿掉冠軍」）。"]}},{"id":7,"group":"戀愛三步驟 — 邂逅吸引","name":"故事：生活","scaffold":{"title":"🌿 邂逅吸引 ── 故事 02：生活奇遇與特別經歷","tips":["⚠️ **作答規範**：請寫下你生活中印象最深刻、最想跟別人分享的一件事！"]}},{"id":8,"group":"戀愛三步驟 — 邂逅吸引","name":"故事：專業","scaffold":{"title":"💼 邂逅吸引 ── 故事 03：事業/工作/專業突破事件","tips":["⚠️ **作答規範**：請寫下你在工作、學業或專業技能中，克服難關或獲得成就感的具體事件！"]}},{"id":9,"group":"戀愛三步驟 — 邂逅吸引","name":"故事：學涯","scaffold":{"title":"🎓 邂逅吸引 ── 故事 04：學生時期與學習經歷事件","tips":["⚠️ **作答規範**：請寫下你在學生時期或學習技能歷程中最熱血或難忘的具體事件！"]}},{"id":10,"group":"戀愛三步驟 — 走入心房","name":"故事：人際","scaffold":{"title":"🤝 走入心房 ── 故事 05：深刻人際與死黨夥伴事件","tips":["⚠️ **作答規範**：請寫下你與朋友、死黨或夥伴之間建立深厚信任或共同經歷風雨的具體事件！"]}},{"id":11,"group":"戀愛三步驟 — 走入心房","name":"故事：家庭","scaffold":{"title":"🏡 走入心房 ── 故事 06：家庭記憶與成長經驗事件","tips":["⚠️ **作答規範**：請寫下與家人之間最具代表性、影響你最深或感到溫暖的具體事件！"]}},{"id":12,"group":"戀愛三步驟 — 走入心房","name":"故事：脆弱","scaffold":{"title":"⛈️ 走入心房 ── 故事 07：人生挫折與低潮走出來事件","tips":["⚠️ **作答規範**：請寫下你人生曾經歷過挫折、迷惘或展現內心脆弱面的真實事件（不一定要成功振作，能真實面對自己的脆弱就很棒）！"]}},{"id":13,"group":"戀愛三步驟 — 走入心房","name":"故事：童年","scaffold":{"title":"🎈 走入心房 ── 故事 08：童年深刻回憶與啟蒙經歷","tips":["⚠️ **作答規範**：請寫下小時候最具畫面感、形塑你個性特質的童年具體事件！"]}},{"id":14,"group":"戀愛三步驟 — 親密關係","name":"故事：初戀","scaffold":{"title":"💌 親密關係 ── 故事 09：初戀與青澀告白故事","tips":["⚠️ **作答規範**：請寫下你第一次心動、青澀暗戀或初戀事件（若沒有戀愛經驗，可以描述第一次情竇初開或對某人產生心動的經驗）！"]}},{"id":15,"group":"戀愛三步驟 — 親密關係","name":"故事：浪漫","scaffold":{"title":"💖 親密關係 ── 故事 10：最浪漫或心動的具體事件","tips":["⚠️ **作答規範**：請寫下你做過最浪漫的事（若沒有相關經驗，也可以寫下你未來最想為對方做的浪漫心意）！"]}},{"id":16,"group":"戀愛三步驟 — 親密關係","name":"故事：情傷","scaffold":{"title":"🥀 親密關係 ── 故事 11：過去情傷與感情領悟事件","tips":["⚠️ **作答規範**：請寫下過去感情離別、失意或傷痛中，讓你學到最寶貴愛情觀的事件！"]}},{"id":17,"group":"戀愛三步驟 — 親密關係","name":"故事：情趣","scaffold":{"title":"🥂 親密關係 ── 故事 12：性、情趣拉扯或性幻想事件","tips":["⚠️ **作答規範**：請寫下性相關的故事，或是你單純對性／情趣相關的想像與幻想經驗！"]}},{"id":18,"group":"限制性信念覺察","name":"限制性信念 01","scaffold":{"title":"🔍 必修二《信念行為結果》 ── 限制性信念覺察 01","tips":["寫下你覺得「女生不會喜歡你」的原因。這會構成是你心中的「限制性信念」。","請條列式填寫以下 4 個覺察項目：","1. 影響你的感情信念（例：『女生最終只看條件/錢』）","2. 信念是如何形成的（例：高中被暗戀對象拒絕）","3. 信念的正面影響（例：提醒我努力賺錢獨立）","4. 信念的負面影響（例：不敢真實坦露內心，防禦心重）"]}},{"id":19,"group":"限制性信念覺察","name":"限制性信念 02","scaffold":{"title":"🔍 必修二《信念行為結果》 ── 限制性信念覺察 02","tips":["寫下你覺得「女生不會喜歡你」的原因。這會構成是你心中的「限制性信念」。","請條列式填寫以下 4 個覺察項目：","1. 影響你的感情信念（例：『只要顯露內心脆弱，對方就會離開我』）","2. 信念是如何形成的（例：從小父母常說男孩子哭很丟臉，不可以展現軟弱）","3. 信念的正面影響（例：讓我平時看起來非常堅強獨立、有安全感）","4. 信念的負面影響（例：在親密關係中無法深刻連結，對方覺得我有距離感）"]}},{"id":20,"group":"限制性信念覺察","name":"限制性信念 03","scaffold":{"title":"🔍 必修二《信念行為結果》 ── 限制性信念覺察 03","tips":["寫下你覺得「女生不會喜歡你」的原因。這會構成是你心中的「限制性信念」。","請條列式填寫以下 4 個覺察項目：","1. 影響你的感情信念（例：『年紀過了35歲，要找到真心相愛的對象太難了』）","2. 信念是如何形成的（例：身邊同齡朋友離婚案例與網路負面文章的重複影響）","3. 信念的正面影響（例：降低過度不切實際的幻想，保持理性謹慎）","4. 信念的負面影響（例：容易患得患失，在剛認識時就預設失敗而放棄嘗試）"]}},{"id":21,"group":"受害者故事翻轉","name":"受害者故事 01","scaffold":{"title":"🛡️ 必修三《負責任心態》 ── 受害者故事翻轉 01","tips":["寫下一段受害者故事，並進行負責任版本的重構拆解。","請填寫【受害者版本】與【負責任版本】兩大部分：","🔹 【受害者版本】：受害內容 (人/事/時/地/物)、你的感受","🔹 【負責任版本】：真實經過、警訊徵兆、有做/沒做、自動化信念、總結你有什麼發現"]}},{"id":22,"group":"受害者故事翻轉","name":"受害者故事 02","scaffold":{"title":"🛡️ 必修三《負責任心態》 ── 受害者故事翻轉 02","tips":["寫下一段受害者故事，並進行負責任版本的重構拆解。","請填寫【受害者版本】與【負責任版本】兩大部分：","🔹 【受害者版本】：受害內容 (人/事/時/地/物)、你的感受","🔹 【負責任版本】：真實經過、警訊徵兆、有做/沒做、自動化信念、總結你有什麼發現"]}},{"id":23,"group":"受害者故事翻轉","name":"受害者故事 03","scaffold":{"title":"🛡️ 必修三《負責任心態》 ── 受害者故事翻轉 03","tips":["寫下一段受害者故事，並進行負責任版本的重構拆解。","請填寫【受害者版本】與【負責任版本】兩大部分：","🔹 【受害者版本】：受害內容 (人/事/時/地/物)、你的感受","🔹 【負責任版本】：真實經過、警訊徵兆、有做/沒做、自動化信念、總結你有什麼發現"]}},{"id":24,"group":"感情價值觀","name":"父母感情故事 01","scaffold":{"title":"💎 必修四《感情價值觀》 ── 父母感情故事採訪與覺察","tips":["請採訪父母（或觀察紀錄）並填寫以下 3 個核心覺察維度：","1. **採訪故事**：父母當初是如何相識、相愛與建立家庭的感情故事？","2. **發現與學習**：從他們的感情相處、溝通模式與衝突處理中，你有什麼新的發現與學習？","3. **對你的影響**：這段家庭感情經驗，對你目前的情感價值觀、擇偶條件或安全感造成了什麼深層影響？"]}},{"id":25,"group":"感情價值觀","name":"感情第一門","scaffold":{"title":"💎 必修四《感情價值觀》 ── 感情第一門：認識吸引","tips":["💡 **提醒**：這不是用來拿著清單條款去篩選人，而是幫助你釐清心意，帶著積極好奇的心態去認識人。","什麼類型的人會吸引你？","1. 外在氣質與風格","2. 內在性格與談吐","3. 其他條件"]}},{"id":26,"group":"感情價值觀","name":"感情第二門","scaffold":{"title":"💎 必修四《感情價值觀》 ── 感情第二門：經營關係","tips":["你理想的感情狀態是什麼樣？","1. 你們在一起時，最享受的日常相處氛圍是什麼樣的？","2. 面對不同意見或衝突時，你期待彼此能建立什麼樣的雙向溝通默契？"]}},{"id":27,"group":"感情價值觀","name":"感情第三門","scaffold":{"title":"💎 必修四《感情價值觀》 ── 感情第三門：終身伴侶","tips":["交往後，什麼情況你會覺得對方就是對的人？","1. 哪 2-3 個關鍵品格或價值觀，讓你願意與對方步入婚姻或共同建立家庭？","2. 當遇到人生風浪或重大考驗時，對方展現什麼樣的態度會讓你產生堅定的信任？"]}},{"id":28,"group":"社交故事庫","name":"社交故事庫 01","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":29,"group":"社交故事庫","name":"社交故事庫 02","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":30,"group":"社交故事庫","name":"社交故事庫 03","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":31,"group":"社交故事庫","name":"社交故事庫 04","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":32,"group":"社交故事庫","name":"社交故事庫 05","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":33,"group":"社交故事庫","name":"社交故事庫 06","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":34,"group":"社交故事庫","name":"社交故事庫 07","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":35,"group":"社交故事庫","name":"社交故事庫 08","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":36,"group":"社交故事庫","name":"社交故事庫 09","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":37,"group":"社交故事庫","name":"社交故事庫 10","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":38,"group":"社交故事庫","name":"社交故事庫 11","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":39,"group":"社交故事庫","name":"社交故事庫 12","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":40,"group":"社交故事庫","name":"社交故事庫 13","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":41,"group":"社交故事庫","name":"社交故事庫 14","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":42,"group":"社交故事庫","name":"社交故事庫 15","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":43,"group":"社交故事庫","name":"社交故事庫 16","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":44,"group":"社交故事庫","name":"社交故事庫 17","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":45,"group":"社交故事庫","name":"社交故事庫 18","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":46,"group":"社交故事庫","name":"社交故事庫 19","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":47,"group":"社交故事庫","name":"社交故事庫 20","scaffold":{"title":"✍️ 社交故事庫盤點 ── 寫下值得分享的故事","tips":["請寫下可以幫助別人快速認識你的人生故事，寫下吸引人的頭條式標題即可！","📌 **【重要備註】**：在此階段先進行初步故事盤點，之後會再帶領學員補充細節。"]}},{"id":48,"group":"想嘗試的興趣活動","name":"興趣活動 01","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":49,"group":"想嘗試的興趣活動","name":"興趣活動 02","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":50,"group":"想嘗試的興趣活動","name":"興趣活動 03","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":51,"group":"想嘗試的興趣活動","name":"興趣活動 04","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":52,"group":"想嘗試的興趣活動","name":"興趣活動 05","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":53,"group":"想嘗試的興趣活動","name":"興趣活動 06","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":54,"group":"想嘗試的興趣活動","name":"興趣活動 07","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":55,"group":"想嘗試的興趣活動","name":"興趣活動 08","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":56,"group":"想嘗試的興趣活動","name":"興趣活動 09","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":57,"group":"想嘗試的興趣活動","name":"興趣活動 10","scaffold":{"title":"🎨 理想生活 ── 想嘗試的興趣活動","tips":["單純紀錄你近期最想嘗試或參與的興趣活動與原因：","1. **活動名稱**與**為什麼想嘗試**"]}},{"id":58,"group":"想去的地方","name":"地點踩點 01","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":59,"group":"想去的地方","name":"地點踩點 02","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":60,"group":"想去的地方","name":"地點踩點 03","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":61,"group":"想去的地方","name":"地點踩點 04","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":62,"group":"想去的地方","name":"地點踩點 05","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":63,"group":"想去的地方","name":"地點踩點 06","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":64,"group":"想去的地方","name":"地點踩點 07","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":65,"group":"想去的地方","name":"地點踩點 08","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":66,"group":"想去的地方","name":"地點踩點 09","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}},{"id":67,"group":"想去的地方","name":"地點踩點 10","scaffold":{"title":"📍 約會踩點 ── 想去的地方","tips":["單純紀錄你未來最想去探店、旅遊或約會的私房地點：","1. **地點名稱**與**用一句話寫下來為什麼想去**","2. **參考連結 / 照片**：貼上 Google Map 連結、IG 打卡網址或照片連結"]}}],"movies":[{"title":"🎬 愛在黎明破曉時 (Before Sunrise)","desc":"「我相信如果世上真的有神，神不會在你我身上，而是在我們之間的這點空間裡。」\u003cbr>\u003cbr>【啟發】：展現脆弱性、深度對話的藝術、專注當下的互動。"},{"title":"🎬 真愛每一天 (About Time)","desc":"「生活是一連串的選擇，而最重要的是你選擇了誰陪你一起度過。」\u003cbr>\u003cbr>【啟發】：接受約會中的不完美、專注當下的心態、長期關係的平淡與幸福。"},{"title":"🎬 我的失憶女友 (50 First Dates)","desc":"「沒關係，我明天會再讓你愛上我一次。」\u003cbr>\u003cbr>【啟發】：長期關係的經營（愛是每天的選擇與行動，不是一次性的追求）。"},{"title":"🎬 全民情聖 (Hitch)","desc":"「人生的意義不在於你呼吸了多少次，而在於那些讓你無法呼吸的瞬間。」\u003cbr>\u003cbr>【啟發】：打破招式迷思（真誠勝過套路）、創造張力與情緒波動、約會的基本自信心態。"},{"title":"🎬 我們的愛情一言難盡 (Newness)","desc":"「我們都有缺陷，但最難的是找到一個願意看著你的缺陷不逃跑的人。」\u003cbr>\u003cbr>【啟發】：現代交友軟體的焦慮、親密關係中的陰暗面與接納、進入長期穩定關係的真實代價。"},{"title":"🎬 戀夏500日 (500 Days of Summer)","desc":"「不要因為某個女孩喜歡和你一樣奇怪的東西，就認定她是你的靈魂伴侶。」\u003cbr>\u003cbr>【啟發】：破除真命天女症、區分「想像」與「真實」、失戀後的重建與成長。"},{"title":"🎬 派特的幸福劇本 (Silver Linings Playbook)","desc":"「愛就是找到那個即使看穿了你的破碎，依然覺得你美麗的人。」\u003cbr>\u003cbr>【啟發】：展現真實自我、接納脆弱、共同成長與互相治癒。"},{"title":"🎬 雲端情人 (Her)","desc":"「謝謝你教會我如何去愛，因為你，我才成為現在的我。」\u003cbr>\u003cbr>【啟發】：情緒價值與共鳴、處理孤獨感、理解親密關係的本質。"},{"title":"🎬 真愛挑日子 (One Day)","desc":"「只要你還願意對我笑，我就覺得這世界還不算太糟。」\u003cbr>\u003cbr>【啟發】：時機（Timing）的重要性、從朋友到戀人的界線、把握當下不留遺憾。"},{"title":"🎬 樂來越愛你 (La La Land)","desc":"「有些人走進你的生命，是為了幫助你成為更好的自己，而不是為了永遠留下。」\u003cbr>\u003cbr>【啟發】：自我價值與關係的平衡、成熟地看待分手、感謝過去的戀情。"},{"title":"🎬 王牌冤家 (Eternal Sunshine of the Spotless Mind)","desc":"「如果你可以把某個人從記憶中抹去，這是否意味著你從未愛過他？」\u003cbr>\u003cbr>【啟發】：面對失戀的痛苦、成長需要接納受傷、勇敢去愛的本質。"},{"title":"🎬 手札情緣 (The Notebook)","desc":"「我不是什麼大人物，只是個凡人。但我全心全意地愛過另一個人，對我而言，這就足夠了。」\u003cbr>\u003cbr>【啟發】：長期關係的承諾、克服現實阻礙、純粹的激情與付出。"},{"title":"🎬 熟男型不型 (Crazy, Stupid, Love)","desc":"「女人是會被傾聽者吸引的。」\u003cbr>\u003cbr>【啟發】：建立高價值展示與自信、招式與真誠的平衡、破除「靈魂伴侶」的浪漫迷思。"},{"title":"🎬 曼哈頓戀習曲 (Begin Again)","desc":"「我們都是迷失的星星，試圖點亮黑暗。」\u003cbr>\u003cbr>【啟發】：失戀的修復、尋找個人熱情（高價值展示）、不強求結果的關係。"},{"title":"🎬 新娘百分百 (Notting Hill)","desc":"「你不可能永遠躲在電影的幻想裡，有時候你必須勇敢面對現實的愛情。」\u003cbr>\u003cbr>【啟發】：剝除對方的身分光環、真誠展現脆弱、勇敢爭取所愛。"},{"title":"🎬 鐵達尼號 (Titanic)","desc":"「贏得這張船票，是我一生中最美好的事，因為它讓我遇見了妳。」\u003cbr>\u003cbr>【啟發】：突破世俗眼光、愛情帶來的自我覺醒、讓每一天都過得有意義。"},{"title":"🎬 傲慢與偏見 (Pride & Prejudice)","desc":"「我們的傲慢與偏見，差點讓我們錯過了彼此。」\u003cbr>\u003cbr>【啟發】：放下防備機制、不以第一印象評斷人、在關係中承認自己的錯誤。"},{"title":"🎬 愛在日落巴黎時 (Before Sunset)","desc":"「即使只是和你坐在一起聊天，也比世界上任何事情都來得有意義。」\u003cbr>\u003cbr>【啟發】：成熟的情感交流、面對遺憾與現實、高質量的思想碰撞與吸引。"},{"title":"🎬 愛情藥不藥 (Love & Other Drugs)","desc":"「我愛你，不是因為你完美，而是儘管你不完美，我依然選擇你。」\u003cbr>\u003cbr>【啟發】：從外在吸引過渡到深層羈絆、接納伴侶的缺陷與脆弱、親密關係中的責任感。"},{"title":"🎬 P.S. 我愛你 (P.S. I Love You)","desc":"「留住愛最美的方式，是讓自己勇敢迎向沒有我的明天。」\u003cbr>\u003cbr>【啟發】：告別過往悲傷、勇敢重拾愛人的能力、學會放手與祝福。"}],"trials":[{"title":"🎯 交友軟體開場白實戰","desc":"對方自介特別說「不要只回安安你好」，你能展現觀察力並用一句話讓她願意回覆嗎？"},{"title":"🎯 玩咖框架破解術","desc":"對方半開玩笑說你看起來像玩咖，你能用幽默化解並維持高價值框架嗎？"},{"title":"🎯 邀約被婉拒應對","desc":"提出邀約被說「還不熟」，你能撤回壓力、展現無需求感並保持關係繼續嗎？"},{"title":"🎯 冷場短句處理術","desc":"對方連續三次回覆「哈哈」「是喔」「對啊」，你能識別信號並做出正確回應嗎？"},{"title":"🎯 回覆節奏校準挑戰","desc":"對方半天回一次，你的回覆節奏怎麼抓才不扣分、展現豐富生活感？"},{"title":"🎯 傾聽前任抱怨框架","desc":"對方開始大肆抱怨前任，你能當有界線的傾聽者並提供情緒價值嗎？"},{"title":"🎯 臨時爽約應對術","desc":"約好週末見面，對方在前一天說要加班取消，你能展現同理心並維持好感嗎？"},{"title":"🎯 消失後突然復出處理","desc":"曖昧期對方突然不回訊息，幾天後又自然打招呼，你能情緒穩定地應對嗎？"},{"title":"🎯 吸引力底層邏輯測驗","desc":"女生最終選擇跟你在一起，最關鍵的核心原因是什麼？測試你的兩性觀念。"},{"title":"🎯 開場白目的釐清測驗","desc":"搭訕或配對的第一句話，其最主要的目的究竟是什麼？打破過高的心理負擔。"},{"title":"🎯 真誠三在乎原則測驗","desc":"高情商溝通的「真誠三在乎」原則，你能正確辨別哪一個不屬於其中嗎？"},{"title":"🎯 模糊邀約話術識別","desc":"為了降低對方防備心的「模糊邀約」話術，你能從四個選項中選出最正確的用法嗎？"},{"title":"🎯 初期聊天核心目的","desc":"初期跟女生聊天最核心的目的是什麼？釐清心態，才能聊得自然無壓力。"},{"title":"🎯 冷讀術技巧識別","desc":"你能從對話範例中辨認出哪一句運用了「冷讀術」的技巧嗎？"},{"title":"🎯 正妹保護色理解測驗","desc":"剛認識條件好的女生時對方表現冷淡，你知道最主要的原因是什麼嗎？"}],"quiz":[{"scenario":"1. 剛配對成功，對方自介特別註明「不要只回安安你好」，你的第一句話怎麼開場最能吸引注意？","options":[{"text":"A. 「嗨！看你自介說不要安安你好，那我就說早安吃飯沒？」","isCorrect":false,"feedback":"略顯無聊，還是落入俗套"},{"text":"B. 「安安你好，我偏要這樣說哈哈哈，想認識你。」","isCorrect":false,"feedback":"自以為幽默，容易惹人厭"},{"text":"C. 「哇你長得好有氣質，我們滿有緣的，平常週末喜歡做什麼？」","isCorrect":false,"feedback":"老套讚美加查戶口提問"},{"text":"D. 針對她的照片或自介細節發問：「發現你照片背景在冰島！那邊的極光真的像照片一樣誇張嗎？」","isCorrect":true,"feedback":"展現觀察力並自然引導話題"}]},{"scenario":"2. 聊天氣氛不錯時，對方突然半開玩笑地說：「你照片看起來很像玩咖耶，應該很有經驗吧？」","options":[{"text":"A. 急忙澄清：「哪有！我超乖的，我已經單身兩年了，你可以去問我朋友。」","isCorrect":false,"feedback":"顯得急躁心虛"},{"text":"B. 嚴肅反問：「你這樣以貌取人不太好吧？我們才剛認識捏。」","isCorrect":false,"feedback":"太過情緒化，破壞曖昧氣氛"},{"text":"C. 順著話誇耀：「對啊，我看過很多女生，但你確實滿特別的。」","isCorrect":false,"feedback":"容易顯得油膩且自大"},{"text":"D. 幽默誇大翻轉：「被你發現了，我週末都在各大公園玩溜滑梯，超級玩咖。」","isCorrect":true,"feedback":"不落入陷阱，用幽默化解並維持高價值框架"}]},{"scenario":"3. 聊了幾天後你嘗試提出邀約，對方卻猶豫地說：「我們還不熟吧？還是再聊聊看？」","options":[{"text":"A. 試圖說服：「見面聊不是比較快熟嗎？」","isCorrect":false,"feedback":"給予壓力，展現強烈需求感"},{"text":"B. 繼續追問：「那你覺得要聊到什麼程度才算熟？不然下個月呢？」","isCorrect":false,"feedback":"窮追猛打，讓女生想逃"},{"text":"C. 直接冷淡：「喔好吧，那算了吧。」","isCorrect":false,"feedback":"情緒化、玻璃心"},{"text":"D. 退回安全距離：「沒關係，我也覺得網路上遇到怪人滿可怕的，那我們就先當網友慢慢聊囉～」","isCorrect":true,"feedback":"同理對方感受，撤回壓力，展現無需求感"}]},{"scenario":"4. 對方連續三次用「哈哈」、「是喔」、「對啊」這類極短句回覆，你該採取什麼行動？","options":[{"text":"A. 關心對方：「你今天是不是心情不好？還是工作太累了？」","isCorrect":true,"feedback":"輕鬆關心，核對狀態"},{"text":"B. 換個話題：「那你週末有去哪裡玩嗎？」","isCorrect":false,"feedback":"無視對方冷淡，繼續硬聊只會更煩"},{"text":"C. 質疑對方：「你是不是不想跟我聊天啊？」","isCorrect":false,"feedback":"情緒勒索，暴露低情商"},{"text":"D. 暫停對話主動離場：「看來你現在滿忙的，那你先忙，改天聊！」","isCorrect":false,"feedback":"結束對話沒有幫助"}]},{"scenario":"5. 剛加 Line 初期，對方回訊息的速度大約是「半天回一次」，你的回覆節奏該怎麼抓最不扣分？","options":[{"text":"A. 為了展現誠意，不管她多久回，你都保持「秒回」。","isCorrect":false,"feedback":"暴露極高需求感，看似沒有自己的生活"},{"text":"B. 故意算準時間，她過 12 小時回，你一定要過 12 小時零 1 分鐘才回。","isCorrect":false,"feedback":"太過刻意且僵化，容易錯失自然互動的時機"},{"text":"C. 故意放著兩天不回，讓她體會等待的感覺。","isCorrect":false,"feedback":"過度欲擒故縱，在前期只會讓對方直接冷掉"},{"text":"D. 根據我的生活節奏回覆：差不多半天到幾小時回覆即可，如果有空剛好秒回一次也無妨。不急著推進。","isCorrect":true,"feedback":"展現豐富生活與從容"}]},{"scenario":"6. 對方在聊天時開始大肆抱怨前任很渣、對她不好，這時候你該扮演什麼角色？","options":[{"text":"A. 趁機展現自己：「他真的很糟糕耶，如果是我的話絕對不會這樣對你。」","isCorrect":false,"feedback":"意圖太明顯，像在刻意討好"},{"text":"B. 幫她一起痛罵前任：「那種男人真的是垃圾，你早該離開他了！」","isCorrect":false,"feedback":"過度捲入負面情緒，容易變成純粹的情緒垃圾桶"},{"text":"C. 理性分析對錯：「其實你也有不對的地方，當時你應該...」","isCorrect":false,"feedback":"直男說教，完全破壞共鳴氣氛"},{"text":"D. 當個有界線的傾聽者：「聽起來真的滿辛苦的，幸好都過去了。」並適當引導回正向話題。","isCorrect":true,"feedback":"提供情緒價值但不過度涉入負面情緒"}]},{"scenario":"7. 約好週末要見面，對方卻在週五晚上突然傳訊說：「抱歉明天突然要加班，要先取消」，你該如何應對？","options":[{"text":"A. 「喔，好喔。」","isCorrect":false,"feedback":"表面沒事，其實讓對方明顯感受到你的不爽"},{"text":"B. 「太可惜了吧，我原本超級期待的說，餐廳都訂好了...」","isCorrect":false,"feedback":"情緒勒索"},{"text":"C. 「還是你下週六有空嗎？還是週日？」","isCorrect":false,"feedback":"急於確認會製造壓力"},{"text":"D. 「辛苦了～你被老闆壓榨嗎！？」","isCorrect":true,"feedback":"展現同理心並開啟新話題"}]},{"scenario":"8. 在曖昧期，對方突然不回訊息，過幾天又突然說「早安」，你該怎麼回應？","options":[{"text":"A. 馬上秒回：「早安啊！你昨天去哪裡了怎麼都沒回？」","isCorrect":false,"feedback":"暴露極高需求感與患得患失"},{"text":"B. 故意已讀不回她兩天，讓她也嘗嘗等待的滋味。","isCorrect":false,"feedback":"幼稚的報復心態，直接破壞關係"},{"text":"C. 帶著情緒酸她：「原來你還活著啊大忙人。」","isCorrect":false,"feedback":"展現被對方行為嚴重影響的低價值框架"},{"text":"D. 當作沒事發生，過一陣子再以自己當下生活的狀態自然回覆：「早啊，剛喝到一杯超讚的咖啡！」","isCorrect":true,"feedback":"情緒穩定，不受對方節奏影響"}]},{"scenario":"9. 在兩性吸引的底層邏輯中，女生最終會選擇跟你在一起，最關鍵的核心原因通常是什麼？","options":[{"text":"A. 因為你對她付出最多，每天溫馨接送情、隨叫隨到。","isCorrect":false,"feedback":"過度付出的好人卡陷阱"},{"text":"B. 因為你的硬價值（學歷、收入、身高）完全符合她清單上的擇偶條件。","isCorrect":false,"feedback":"硬價值只是門檻，非決定性因素"},{"text":"C. 因為你死纏爛打，用不屈不撓的毅力感動了她。","isCorrect":false,"feedback":"感動不等於心動，容易變成騷擾"},{"text":"D. 因為跟你在相處與互動時，能產生讓她心動與舒服的「感覺」。","isCorrect":true,"feedback":"感覺與情緒價值才是吸引力的核心"}]},{"scenario":"10. 在使用交友軟體或搭訕時，我們絞盡腦汁想出第一句「開場白」，其最主要的目的究竟是什麼？","options":[{"text":"A. 為了立刻展現你的幽默感跟高智商，讓她崇拜你。","isCorrect":false,"feedback":"目標放太高，容易顯得用力過猛"},{"text":"B. 為了讓她立刻知道你的背景條件與真誠交往的誠意。","isCorrect":false,"feedback":"初期太過沉重，會嚇跑對方"},{"text":"C. 為了在第一句話就決定雙方未來的關係走向。","isCorrect":false,"feedback":"不可能一句話定生死"},{"text":"D. 僅僅是為了「讓女生注意到你」並願意給出第一次回覆。","isCorrect":true,"feedback":"降低開場白壓力，門檻其實沒那麼高"}]},{"scenario":"11. 在溝通與建立關係時，我們強調高情商的「真誠三在乎」原則，以下哪一個選項不屬於這三在乎之中？","options":[{"text":"A. 在乎我的感受（照顧好自己的情緒與界線）。","isCorrect":false,"feedback":"這是三在乎之一"},{"text":"B. 在乎對方的感受（同理對方的情緒狀態）。","isCorrect":false,"feedback":"這是三在乎之一"},{"text":"C. 在乎當下情境與關係（顧全大局與兩人之間的連結）。","isCorrect":false,"feedback":"這是三在乎之一"},{"text":"D. 在乎真實（追求客觀事實的對錯與真理）。","isCorrect":true,"feedback":"溝通重在感受與關係，非爭辯客觀事實的對錯"}]},{"scenario":"12. 為了降低女生防備心並測試意願，我們常使用「模糊邀約」，以下哪一句話是典型的模糊邀約？","options":[{"text":"A. 「你這禮拜六晚上七點有空嗎？我們去東區吃燒肉。」","isCorrect":false,"feedback":"極具壓力的明確邀約"},{"text":"B. 「我買了兩張明天晚上的電影票，你要不要陪我去看？」","isCorrect":false,"feedback":"目的性極強的明確邀約"},{"text":"C. 「你平時週末都在幹嘛？會出門嗎？」","isCorrect":false,"feedback":"單純探問，不算邀約"},{"text":"D. 「聽說最近信義區新開了一家很讚的咖啡廳，找天我們一起去踩點啊！」","isCorrect":true,"feedback":"無明確時間地點的問句，可安全測試對方反應"}]},{"scenario":"13. 剛認識一個女生時，我們花時間跟她「聊天」，這個初期階段最核心的目的是什麼？","options":[{"text":"A. 為了不斷展現自己的優點與才華，極力「吸引對方」。","isCorrect":false,"feedback":"過度展現自我會變成自大狂"},{"text":"B. 為了調查她的感情狀態、家庭背景與價值觀，像面試一樣。","isCorrect":false,"feedback":"查戶口會讓人壓力很大"},{"text":"C. 為了證明自己是個幽默風趣、不會讓場子冷掉的聊天高手。","isCorrect":false,"feedback":"聊天不是表演秀"},{"text":"D. 單純為了「認識彼此」，交換資訊並建立初步的安全感與熟悉感。","isCorrect":true,"feedback":"放寬心態，不帶過強目的性才是好聊天的開始"}]},{"scenario":"14. 聊天時常會用到「冷讀術」來引起對方好奇與共鳴，以下哪一個對話運用了典型的冷讀技巧？","options":[{"text":"A. 「請問你有養寵物嗎？我也有一隻貓喔。」","isCorrect":false,"feedback":"這是一般的提問與分享"},{"text":"B. 「你平常下班都在做什麼休閒活動啊？」","isCorrect":false,"feedback":"身家調查式提問"},{"text":"C. 「我覺得你的眼睛很大、長得很漂亮！」","isCorrect":false,"feedback":"直接讚美，沒有讀取特質"},{"text":"D. 「看你的穿搭風格，你應該是個很注重細節、且對美感有要求的人吧？」","isCorrect":true,"feedback":"利用觀察細節，做出猜測性的陳述"}]},{"scenario":"15. 剛認識條件不錯的女生時，對方常常表現得冷淡或讓人有「距離感」，最主要的原因通常是什麼？","options":[{"text":"A. 因為她天生個性高傲，看不起條件比她差的人。","isCorrect":false,"feedback":"過度投射自卑心態"},{"text":"B. 因為她在第一秒鐘就已經徹底判定你完全沒有吸引力。","isCorrect":false,"feedback":"還沒互動前通常不會直接判死刑"},{"text":"C. 因為她想故意考驗你，看你能堅持討好她多久。","isCorrect":false,"feedback":"過度解讀"},{"text":"D. 這是一種「正妹保護色」，為了快速過濾掉大量帶有強烈目的性、隨意搭訕的蒼蠅。","isCorrect":true,"feedback":"理解防備機制，不急著自責或退縮"}]}]};
+const DATA = FALLBACK;
+main();
+
+function main(){
+
+/* 十階主題色：鮭粉 → 霧藍，全在品牌色域內 */
+const HUE = ['#E8A898','#E0A497','#D6A199','#C89F9F','#B79DA6',
+             '#A59CAD','#949CB2','#869EB4','#7BA0B3','#74A2AF'];
+const soft = hex => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},.42)`;
+};
+/* 主題圖示佔位，之後換成紙雕插畫 */
+const GLYPH = [
+  'M4 20h16M7 20V9l5-4 5 4v11M10 20v-5h4v5',
+  'M12 3v18M5 8l7-5 7 5M7 21h10',
+  'M4 18c4-8 12-8 16 0M12 6v6',
+  'M5 20V11l7-6 7 6v9M9 20v-6h6v6',
+  'M6 3v18M18 3v18M6 9h12M6 15h12',
+  'M12 4a8 8 0 108 8M12 4v8l6 3',
+  'M4 20h16M8 20V8M16 20V8M6 8h12L12 3z',
+  'M3 20h18M6 20V10l6-5 6 5v10M10 20v-5h4v5',
+  'M12 21c4-6 7-9 7-12a7 7 0 10-14 0c0 3 3 6 7 12z',
+  'M5 20l4-14 6 4 4-8v18z'
+];
+const G_MOVIE = 'M3 5h18v14H3zM3 9h18M3 15h18M7 5v4M7 15v4M17 5v4M17 15v4';
+
+/* 卡片固定 212×296，所以邊框直接照實際尺寸畫，不必縮放 */
+const VINE_CORNER = [
+  '<path d="M7.5 44C7.5 24 24 7.5 44 7.5" stroke-width="1.3"/>',
+  '<path d="M33 7.5c8.5 0 13.8 6.2 13.8 12.8 0 5.2-4.2 8.8-8.8 7.7-3.6-.9-5.1-5.2-2-7.4 2.6-1.9 5.7.3 4.9 3.1" stroke-width="1"/>',
+  '<path d="M20 20.5c-5.6-2.6-11.2.5-12.7 6.7 5.6 2.6 11.2-.5 12.7-6.7z" fill="currentColor" fill-opacity=".3" stroke-width=".8"/>',
+  '<path d="M28 12.5c-2.6-5.6.5-11.2 6.7-12.7-2.6 5.6-1.6 11.2-6.7 12.7z" fill="currentColor" fill-opacity=".3" stroke-width=".8"/>',
+  '<circle cx="52" cy="9.5" r="1.6" fill="currentColor" stroke="none"/>',
+  '<circle cx="9.5" cy="52" r="1.6" fill="currentColor" stroke="none"/>'
+].join('');
+
+const MIRRORS = [[0,0,1,1],[212,0,-1,1],[0,296,1,-1],[212,296,-1,-1]];
+
+const VINE = '<svg class="deco" viewBox="0 0 212 296" fill="none" aria-hidden="true">' +
+  '<rect x="7.5" y="7.5" width="197" height="281" rx="3" stroke="currentColor" stroke-width=".9" opacity=".5"/>' +
+  MIRRORS.map(m => '<g transform="translate(' + m[0] + ',' + m[1] + ') scale(' + m[2] + ',' + m[3] + ')" ' +
+    'stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' + VINE_CORNER + '</g>').join('') +
+  '<path d="M98 7.5c4-4.5 10-4.5 14 0-4 4.5-10 4.5-14 0z" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width=".8"/>' +
+  '<path d="M98 288.5c4-4.5 10-4.5 14 0-4 4.5-10 4.5-14 0z" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width=".8"/>' +
+  '</svg>';
+
+/* 火焰：沿上下邊各排一串舌狀曲線，高度不等才像火 */
+function flamePath(y, dir, lift){
+  const x0 = 7.5, w = 197, n = 9, s = w / n;
+  const hs = [11, 16, 12, 18, 13, 17, 11, 15, 12];
+  let d = 'M' + x0 + ' ' + y;
+  for (let i = 0; i < n; i++) {
+    const x = x0 + s * i, hh = (hs[i] + (lift || 0)) * dir;
+    d += ' Q' + (x + s * .18).toFixed(1) + ' ' + (y - hh).toFixed(1) +
+         ' ' + (x + s * .5).toFixed(1) + ' ' + (y - hh * .58).toFixed(1) +
+         ' Q' + (x + s * .82).toFixed(1) + ' ' + (y - hh * .12).toFixed(1) +
+         ' ' + (x + s).toFixed(1) + ' ' + y;
+  }
+  return d;
+}
+
+const FLAME = '<svg class="deco" viewBox="0 0 212 296" fill="none" aria-hidden="true">' +
+  '<rect x="7.5" y="7.5" width="197" height="281" rx="3" stroke="currentColor" stroke-width=".9" opacity=".4"/>' +
+  '<path d="' + flamePath(288.5, 1, 0) + '" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' +
+  '<path d="' + flamePath(7.5, -1, 0) + '" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' +
+  '<path d="' + flamePath(285, 1, -5) + '" stroke="#E8A898" stroke-width=".85" opacity=".75" stroke-linejoin="round"/>' +
+  '<path d="' + flamePath(11, -1, -5) + '" stroke="#E8A898" stroke-width=".85" opacity=".75" stroke-linejoin="round"/>' +
+  '</svg>';
+const G_TRIAL = 'M12 3l7 4v6c0 4-3 6.5-7 8-4-1.5-7-4-7-8V7z';
+
+const clean = s => s.replace(/^[\u{1F300}-\u{1FAFF}☀-➿]\s*/u, '');
+const strip = s => s.replace(/\*\*(.+?)\*\*/g, '$1');
+
+/* ── 組牌：每兩張故事卡插一張換氣卡，兩種牌序共用 ── */
+const THEMES = DATA.groups.map(g => g.group);
+const themeIdx = g => THEMES.indexOf(g);
+
+const MOVIES = DATA.movies.map((m, mi) => {
+  const p = (m.desc || '').split('<br><br>');
+  const full = clean(m.title);
+  const mt = full.match(/^(.+?)\s*[（(](.+)[）)]\s*$/);
+  return { type:'movie', seq:String(mi + 1).padStart(2,'0'), title:mt ? mt[1] : full,
+    en:mt ? mt[2] : '', quote:p[0]||'', ins:(p[1]||'').replace('【啟發】：','') };
+});
+const TRIALS = DATA.trials.map((t, i) =>
+  ({ type:'trial', title:clean(t.title), seq:String(i + 1).padStart(2,'0'),
+     desc:t.desc, quiz:DATA.quiz[i] }));
+
+const shuffled = arr => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+/* mix=false → 課程順序；mix=true → 打亂，但換氣卡仍每兩張穿插一次 */
+function buildDeck(mix){
+  const stories = DATA.assignments.map(a =>
+    ({ type:'write', group:a.group, id:a.id, title:a.name, scaffold:a.scaffold }));
+  const st = mix ? shuffled(stories) : stories;
+  const mv = mix ? shuffled(MOVIES) : MOVIES;
+  const tr = mix ? shuffled(TRIALS) : TRIALS;
+  const out = [];
+  let mi = 0, ci = 0, w = 0, lastG = THEMES[0];
+  const take = (src, g) => { if (!src.group) src.group = g; return { ...src }; };
+  const pushBreak = g => {
+    if ((mi + ci) % 2 === 0 && mi < mv.length) out.push(take(mv[mi++], g));
+    else if (ci < tr.length) out.push(take(tr[ci++], g));
+    else if (mi < mv.length) out.push(take(mv[mi++], g));
+  };
+  st.forEach(s => { out.push(s); lastG = s.group; if (++w % 2 === 0) pushBreak(lastG); });
+  while (mi < mv.length || ci < tr.length) pushBreak(lastG);
+  return out;
+}
+let DECK = buildDeck(false);
+let seqMode = true;
+
+/* ── 狀態 ── */
+/* ══ 同步層 ══ 規格見 docs/SYNC_SPEC.md
+   本地永遠是第一寫入點：打字即存、送出樂觀更新、背景才發網路。
+   尚未連結試算表時整套照常運作，只是東西一直留在 outbox。
+   ponytail: outbox 用陣列循序送，同一張卡以卡號去重。
+   天花板＝大量離線累積時是序列送出；升級路徑＝改批次寫入。 */
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem('uc.' + k); return v === null ? d : JSON.parse(v); }
+    catch (e) { return d; } },
+  set(k, v){ try { localStorage.setItem('uc.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+/* 端點是教練部署一次的中央 GAS，學員只要貼自己的試算表連結。
+   ponytail: 端點用網址參數覆寫再存起來，省掉另做設定頁。
+   天花板＝換端點要重發一次帶參數的連結；升級路徑＝做一個真正的設定畫面。 */
+const GAS_DEFAULT = 'https://script.google.com/macros/s/AKfycbyOjWEbT0jjI1D_5H38Fy4kbGHW1RtXvJwluLVJKf2hsOfRZS3irjWI7oHtvoi5L-xQ/exec';
+const qs = new URLSearchParams(location.search);
+const hs = new URLSearchParams(location.hash.replace(/^#/, ''));
+let GAS = qs.get('gas') || hs.get('gas') || LS.get('gas', GAS_DEFAULT);
+if (GAS) LS.set('gas', GAS);
+let SHEET = sheetId(qs.get('sheet') || hs.get('sheet') || '') || LS.get('sheet', '');
+if (SHEET) LS.set('sheet', SHEET);
+
+/* 從整條 Google 試算表網址裡挖出 ID，直接貼 ID 也接受 */
+function sheetId(v){
+  const s = String(v || '').trim();
+  if (!s) return '';
+  const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]{20,})/);
+  if (m) return m[1];
+  return /^[a-zA-Z0-9-_]{20,}$/.test(s) ? s : '';
+}
+const linked = () => !!(GAS && SHEET);
+
+const cardNo = c => c.type === 'write' ? 'STORY-' + String(c.id).padStart(2,'0')
+  : c.type === 'movie' ? 'FILM-' + c.seq : 'TRIAL-' + c.seq;
+
+/* 資料版本：改版時 +1，舊的本機資料會被清掉一次。
+   也可以用網址加 ?reset=1 強制重設這台裝置。 */
+const DATA_VERSION = 2;
+if (LS.get('v', 0) !== DATA_VERSION || new URLSearchParams(location.search).get('reset') === '1') {
+  ['answers', 'grade', 'outbox'].forEach(k => LS.set(k, null));
+  LS.set('v', DATA_VERSION);
+}
+
+let ANSWERS = LS.get('answers', null) || {};
+let GRADE = LS.get('grade', null) || {};
+let OUTBOX = LS.get('outbox', null) || [];
+
+function persistLocal(){ LS.set('answers', ANSWERS); LS.set('grade', GRADE); }
+
+const stateOf = c => { const g = GRADE[cardNo(c)]; return g ? g.status : 'blank'; };
+const isOpen = c => stateOf(c) !== 'blank';
+const isOK = c => stateOf(c) === 'approved';
+const isDone = isOpen;
+const queued = no => OUTBOX.some(x => x.no === no);
+
+/* 標記完成並排入待送 */
+function mark(c, patch, payload){
+  const no = cardNo(c);
+  GRADE[no] = Object.assign({ status:'approved', feedback:'', when:'', take:'' }, GRADE[no], patch);
+  persistLocal();
+  enqueue(Object.assign({ no }, payload));
+}
+
+function enqueue(item){
+  OUTBOX = OUTBOX.filter(x => x.no !== item.no).concat([item]);
+  LS.set('outbox', OUTBOX);
+  paintSync();
+  flush();
+}
+
+let syncing = false, backoff = 0, retryTimer = null, LAST_ERR = '';
+
+/* 從 file:// 開啟時瀏覽器會擋掉跨網域請求，這是最常見的「沒反應」原因 */
+const isFile = location.protocol === 'file:';
+
+async function flush(){
+  if (syncing || !OUTBOX.length || !linked() || !navigator.onLine) { paintSync(); return; }
+  syncing = true; paintSync();
+  try {
+    while (OUTBOX.length) {
+      const it = OUTBOX[0];
+      const r = await fetch(GAS, { method:'POST', redirect:'follow',
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+        body: JSON.stringify(Object.assign({ sheet: SHEET }, it)) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || '伺服器拒絕');
+      OUTBOX = OUTBOX.slice(1); LS.set('outbox', OUTBOX);
+      paintSync(); paint();
+    }
+    backoff = 0;
+  } catch (e) {
+    LAST_ERR = '送出失敗：' + (e && e.message ? e.message : e);
+    backoff = backoff ? Math.min(backoff * 4, 120000) : 2000;
+    clearTimeout(retryTimer); retryTimer = setTimeout(flush, backoff);
+  } finally { syncing = false; paintSync(); }
+}
+
+async function pull(){
+  if (!linked() || !navigator.onLine) return;
+  try {
+    const url = GAS + (GAS.indexOf('?') >= 0 ? '&' : '?') +
+      'sheet=' + encodeURIComponent(SHEET) + '&t=' + Date.now();
+    const res = await fetch(url, { redirect:'follow' });
+    const txt = await res.text();
+    let j;
+    try { j = JSON.parse(txt); }
+    catch (e) { throw new Error('回應不是 JSON（前 80 字）：' + txt.slice(0, 80)); }
+    if (!j.ok) throw new Error(j.error || '伺服器回報失敗');
+    if (!Array.isArray(j.cards)) throw new Error('回應缺少 cards');
+    LAST_ERR = '';
+    let fresh = 0;
+    j.cards.forEach(sv => {
+      const was = GRADE[sv.no] ? GRADE[sv.no].status : 'blank';
+      /* 本地還沒送出的內容不被覆蓋 */
+      if (!queued(sv.no) && sv.answer) ANSWERS[sv.no] = sv.answer;
+      if (sv.status && sv.status !== 'blank') {
+        const prev = GRADE[sv.no] || {};
+        const changed = was !== sv.status || prev.feedback !== (sv.feedback || '');
+        const d = new Date();
+        GRADE[sv.no] = { status: sv.status, feedback: sv.feedback || '',
+          /* 試算表不存評改時間，改記前端第一次看到這則回饋的日子 */
+          when: changed
+            ? String(d.getMonth() + 1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0')
+            : (prev.when || ''),
+          take: prev.take || '' };
+        const newFb = sv.feedback && sv.feedback !== (prev.feedback || '');
+        if (newFb || (was !== sv.status && (sv.status === 'approved' || sv.status === 'revise'))) fresh++;
+      }
+    });
+    persistLocal(); render(); drawGrid();
+    if (fresh) toast('教練回了 ' + fresh + ' 則');
+  } catch (e) {
+    LAST_ERR = '讀取失敗：' + (e && e.message ? e.message : e);
+    paintSync();
+  }
+}
+
+function paintSync(){
+  const el = $('sync'); if (!el) return;
+  const n = OUTBOX.length;
+  const s = !linked() ? 'off' : !navigator.onLine ? 'offline'
+    : syncing ? 'busy' : LAST_ERR ? 'err' : n ? 'queued' : 'ok';
+  el.dataset.s = s;
+  el.textContent = s === 'off' ? '未連結試算表' : s === 'offline' ? '離線'
+    : s === 'busy' ? '同步中' : s === 'err' ? '同步失敗'
+    : s === 'queued' ? n + ' 筆待送' : '已同步';
+}
+
+addEventListener('online', () => { paintSync(); resync(); });
+addEventListener('offline', paintSync);
+/* 手機瀏覽器對 visibilitychange 的支援不一，pageshow 與 focus 一起掛比較保險 */
+let lastSync = 0;
+function resync(){
+  const t = Date.now();
+  if (t - lastSync < 3000) return;   /* 同一次切換不重複打 */
+  lastSync = t;
+  flush(); pull();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resync(); });
+addEventListener('pageshow', resync);
+addEventListener('focus', resync);
+
+let cur = DECK.findIndex(c => !isDone(c)); if (cur < 0) cur = 0;
+/* 使用者手動翻回正面的卡，記著別再自動翻過去（只在這次開啟期間有效） */
+const faceUp = {};
+let drag = 0, dragging = false, moved = false, intro = true, lastTheme = null;
+const SPACING = 128;
+const $ = id => document.getElementById(id);
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+
+/* ── 建牌 ── */
+$('cAll').textContent = DECK.length;
+let EL = [];
+function mountDeck(){
+$('deck').innerHTML = DECK.map((c, i) => {
+  const t = themeIdx(c.group);
+  const svg = d => `<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+
+  let front, back = '';
+  if (c.type === 'write') {
+    front = `<div class="frame"></div>
+      <span class="pip"><span class="dash"></span>
+        <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6"/></svg></span>
+      <div class="kind">故事</div>
+      <div class="no">${String(c.id).padStart(2,'0')}</div>
+      <div class="art">${svg(GLYPH[t])}</div>
+      <div class="ttl">${c.title}</div>
+      <div class="rule"></div>
+      <div class="foot">${THEMES[t]}</div>`;
+  } else if (c.type === 'movie') {
+    front = `${VINE}<span class="pip"><span class="dash"></span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6"/></svg></span>
+      <div class="kind">FILM</div>
+      <div class="art">${svg(G_MOVIE)}</div>
+      <div class="ttl">${c.title}</div>
+      ${c.en ? `<div class="en">${c.en}</div>` : ''}
+      <div class="foot"><span class="f0">翻開</span><span class="f1">已收藏</span></div>`;
+    back = `${VINE}
+      <div class="kind">FILM</div>
+      <div class="bd"><div class="quote">${c.quote}</div><div class="ins">${c.ins}</div></div>
+      ${c.en ? `<div class="en">${c.en}</div>` : ''}
+      <div class="src">${c.title}</div>`;
+  } else {
+    front = `${FLAME}<span class="pip"><span class="dash"></span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6"/></svg></span>
+      <div class="kind">TRIAL ${c.seq}</div>
+      <div class="art">${svg(G_TRIAL)}</div>
+      <div class="ttl">${c.title}</div>
+      <div class="rule"></div>
+      <div class="foot"><span class="f0">應戰</span><span class="f1">已通過</span></div>`;
+    back = `${FLAME}
+      <div class="kind">TRIAL ${c.seq}</div>
+      <div class="bd"><div class="pass">PASSED</div><div class="quote" data-tk></div></div>
+      <div class="src">${c.title}</div>`;
+  }
+
+  return `<div class="cd" data-i="${i}" style="--h:${HUE[t]};--h-soft:${soft(HUE[t])}">
+    <div class="breathe"><div class="flip">
+      <div class="face front ${c.type}">${front}</div>
+      ${back ? `<div class="face back ${c.type}">${back}</div>` : ''}
+    </div></div>
+  </div>`;
+}).join('');
+  EL = [...document.querySelectorAll('.cd')];
+}
+mountDeck();
+
+function mountSegs(){
+  $('segs').innerHTML = THEMES.map((t, i) => {
+    const n = DECK.filter(c => c.group === t).length;
+    return `<button class="seg" data-t="${i}" style="flex:${n} 1 0" aria-label="${t}">
+      <u style="background:${HUE[i]}"></u><i data-s="${i}" style="background:${HUE[i]}"></i></button>`;
+  }).join('');
+}
+mountSegs();
+
+/* ── 排列 ── */
+function layout(){
+  const pos = cur - drag;
+  for (let i = 0; i < EL.length; i++) {
+    const d = i - pos, ad = Math.abs(d), el = EL[i];
+    if (ad > 4.2) { el.classList.add('hide'); continue; }
+    el.classList.remove('hide');
+    el.classList.toggle('mid', ad < .5);
+    const cl = Math.max(-4, Math.min(4, d));
+    const x = cl * SPACING * (1 - Math.min(ad, 4) * .07);
+    const z = -Math.min(ad, 4) * 120 - (intro ? 460 : 0);
+    const rot = cl * -22;
+    const sc = 1 - Math.min(ad, 4) * .07;
+    el.style.transform = `translate3d(${x}px,${intro?26:0}px,${z}px) rotateY(${rot}deg) scale(${sc})`;
+    el.style.opacity = intro ? '0' : (ad > 3.2 ? String(Math.max(0, 1 - (ad - 3.2))) : '1');
+    el.style.zIndex = String(100 - Math.round(ad * 10));
+    el.style.transitionDelay = intro ? '0ms' : Math.round(Math.min(ad, 4) * 45) + 'ms';
+  }
+}
+
+function paint(){
+  DECK.forEach((c, i) => {
+    const st = stateOf(c), on = st !== 'blank';
+    EL[i].classList.toggle('open', on);
+    EL[i].classList.toggle('ok', st === 'approved');
+    EL[i].classList.toggle('revise', st === 'revise');
+    EL[i].classList.toggle('q', queued(cardNo(c)));
+    EL[i].classList.toggle('fb', !!(GRADE[cardNo(c)] || {}).feedback);
+    const no = cardNo(c);
+    if (c.type === 'movie' && on && !faceUp[no]) EL[i].classList.add('flipped');
+    if (c.type === 'trial' && on) {
+      if (!faceUp[no]) EL[i].classList.add('flipped');
+      const tk = EL[i].querySelector('[data-tk]');
+      if (tk) tk.textContent = (GRADE[cardNo(c)] || {}).take || '';
+    }
+  });
+  $('cDone').textContent = DECK.filter(isDone).length;
+  const rv = DECK.filter(c => stateOf(c) === 'revise').length;
+  const fbOnly = DECK.filter(c => stateOf(c) !== 'revise' && (GRADE[cardNo(c)] || {}).feedback).length;
+  const rvEl = $('rv');
+  if (rvEl) {
+    const tx = rv ? rv + ' 張待修改' : fbOnly ? fbOnly + ' 則教練留言' : '';
+    rvEl.textContent = tx;
+    rvEl.style.display = tx ? '' : 'none';
+  }
+  const curT = themeIdx(DECK[cur].group);
+  THEMES.forEach((t, i) => {
+    const list = DECK.filter(c => c.group === t);
+    const n = list.filter(isDone).length;
+    const seg = $('segs').children[i];
+    const ok = list.filter(isOK).length;
+    seg.querySelector('u').style.width = (n / list.length * 100) + '%';
+    seg.querySelector('i').style.width = (ok / list.length * 100) + '%';
+    seg.classList.toggle('now', i === curT);
+    seg.classList.toggle('full', n === list.length);
+    seg.style.opacity = (i === curT || n === list.length) ? '1' : '.45';
+  });
+  placeCursor();
+}
+
+function head(){
+  const c = DECK[cur], t = themeIdx(c.group);
+  if (lastTheme !== c.group) {
+    $('theme').classList.add('sw');
+    setTimeout(() => {
+      $('tMod').textContent = DATA.groups[t].module;
+      $('tName').textContent = c.group;
+      $('theme').classList.remove('sw');
+    }, 180);
+    lastTheme = c.group;
+  }
+  const on = isDone(c);
+  $('mTitle').textContent = c.type === 'write'
+    ? `第 ${String(c.id).padStart(2,'0')} 張 · ${c.title}` : c.title;
+const ST_LABEL = { blank:'BLANK', pending:'待評改', revise:'需修改', approved:'已認證' };
+  const st = stateOf(c);
+  $('mState').textContent = c.type === 'write' ? ST_LABEL[st]
+    : c.type === 'movie' ? (on ? 'OPENED' : 'UNOPENED') : (on ? 'PASSED' : 'PENDING');
+  $('act').textContent = c.type === 'write'
+    ? (st === 'blank' ? '設計故事' : st === 'revise' ? '修改故事' : st === 'pending' ? '重讀 · 可修改' : '重讀故事')
+    : c.type === 'movie' ? (on ? '再翻一次' : '翻開這張') : (on ? '再挑戰一次' : '應戰');
+}
+
+/* 游標：標出你在整副牌的哪個位置，直接量測分段條的實際寬度，
+   所以不受 gap 或比例分配影響 */
+function placeCursor(){
+  const c = DECK[cur], ti = themeIdx(c.group);
+  const seg = $('segs').children[ti]; if (!seg) return;
+  const idxs = DECK.map((x, i) => ({ x, i })).filter(o => o.x.group === c.group);
+  const pos = Math.max(0, idxs.findIndex(o => o.i === cur));
+  const w = $('segwrap').getBoundingClientRect(), r = seg.getBoundingClientRect();
+  $('segCur').style.left = (r.left - w.left + r.width * ((pos + .5) / idxs.length)) + 'px';
+}
+
+$('segs').addEventListener('click', e => {
+  const b = e.target.closest('.seg'); if (!b || shuffling) return;
+  const t = THEMES[+b.dataset.t];
+  const first = DECK.findIndex(c => c.group === t && !isDone(c));
+  const any = DECK.findIndex(c => c.group === t);
+  goTo(first < 0 ? any : first); buzz(6); toast(t);
+});
+
+function render(){ layout(); paint(); head(); }
+render();
+requestAnimationFrame(() => {
+  EL.forEach(el => el.style.transition = 'transform .72s cubic-bezier(.2,.85,.25,1),opacity .55s');
+  setTimeout(() => { intro = false; layout(); }, 40);
+  setTimeout(() => EL.forEach(el =>
+    el.style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s'), 900);
+});
+
+/* ── 拖曳 ── */
+const stage = $('stage');
+let sx = 0, sy = 0, lastX = 0, lastT = 0, vel = 0, axis = null;
+stage.addEventListener('pointerdown', e => {
+  if (shuffling) return;
+  dragging = true; axis = null; moved = false;
+  sx = lastX = e.clientX; sy = e.clientY; lastT = performance.now(); vel = 0;
+  stage.setPointerCapture(e.pointerId);
+  EL.forEach(el => { el.style.transition = 'none'; el.style.transitionDelay = '0ms'; });
+});
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - sx, dy = e.clientY - sy;
+  if (!axis) { if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; }
+  if (axis !== 'x') return;
+  const now = performance.now();
+  if (now - lastT > 12) { vel = (e.clientX - lastX) / (now - lastT); lastX = e.clientX; lastT = now; }
+  drag = dx / SPACING; moved = true;
+  const p = cur - drag, max = DECK.length - 1;
+  if (p < 0) drag = cur - p * .35;
+  else if (p > max) drag = cur - (max + (p - max) * .35);
+  layout();
+});
+function endDrag(){
+  if (!dragging) return;
+  dragging = false;
+  EL.forEach(el => el.style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s');
+  let target = Math.round(cur - drag - vel * 3.2);
+  target = Math.max(0, Math.min(DECK.length - 1, target));
+  const m = target !== cur;
+  cur = target; drag = 0; render();
+  if (m) buzz(5);
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('click', e => {
+  const c = e.target.closest('.cd'); if (!c || moved || shuffling) return;
+  const i = +c.dataset.i;
+  if (i === cur) doAct(); else { cur = i; render(); buzz(5); }
+});
+
+function goTo(i){
+  cur = Math.max(0, Math.min(DECK.length - 1, i));
+  EL.forEach(el => el.style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s');
+  render();
+}
+/* 重排牌組：聚攏 → 手法 → 攤回新位置
+   ponytail: 只動目前可見的 ±4 張，102 張全部參與會掉幀。
+   天花板＝看不到整副在動；升級路徑＝改用 canvas 或加大參與張數。 */
+let shuffling = false;
+const R = n => (Math.random() * 2 - 1) * n;
+const win = i => {
+  const a = [];
+  for (let k = Math.max(0, i - 4); k <= Math.min(DECK.length - 1, i + 4); k++) a.push(k);
+  return a;
+};
+const setT = (idxs, fn, dur, ease) => {
+  idxs.forEach((k, n) => {
+    const el = EL[k]; if (!el) return;
+    el.classList.remove('hide', 'mid');
+    el.style.transition = `transform ${dur}ms ${ease || 'cubic-bezier(.3,.8,.3,1)'},opacity ${dur}ms`;
+    el.style.transitionDelay = '0ms';
+    el.style.opacity = '1';
+    el.style.zIndex = String(100 - n);
+    el.style.transform = fn(n);
+  });
+};
+const stackT = n => `translate3d(${R(4)}px,${R(3)}px,${-n * 3}px) rotateY(0deg) rotateZ(${R(2.5)}deg) scale(.93)`;
+const cutT = (n, dir) => `translate3d(${(n % 2 ? dir : -dir) * 36}px,${R(3)}px,${-n * 3}px) rotateY(0deg) rotateZ(${(n % 2 ? dir : -dir) * 6.5}deg) scale(.93)`;
+const tapT = (n, dy) => `translate3d(0px,${dy}px,${-n * 3}px) rotateY(0deg) rotateZ(0deg) scale(.92)`;
+
+/* moves: [{at, fn, dur, ease, buzz}]，end 為手法結束時間 */
+function reorder(mix, moves, end){
+  if (shuffling) return;
+  shuffling = true;
+  const held = win(cur);
+  setT(held, stackT, 260); buzz(9);
+  moves.forEach(m => setTimeout(() => { setT(held, m.fn, m.dur, m.ease); if (m.buzz) buzz(m.buzz); }, m.at));
+
+  setTimeout(() => {
+    held.forEach(k => EL[k] && EL[k].classList.add('hide'));
+    DECK = buildDeck(mix);
+    seqMode = !mix;
+    mountDeck();
+    mountSegs();
+    /* 隨機時優先跳到教練退回的那些，其次才是還沒動過的 */
+    const pickBy = fn => DECK.findIndex(fn);
+    let first;
+    if (mix) {
+      first = pickBy(c => stateOf(c) === 'revise');
+      if (first < 0) first = pickBy(c => !isDone(c));
+    } else {
+      first = pickBy(c => c.type === 'write' && stateOf(c) === 'revise');
+      if (first < 0) first = pickBy(c => c.type === 'write' && !isDone(c));
+    }
+    const target = first < 0 ? 0 : first;
+    const landedOnRevise = target >= 0 && stateOf(DECK[target]) === 'revise';
+    const next = win(target);
+    next.forEach((k, n) => {
+      const el = EL[k];
+      el.classList.remove('hide');
+      el.style.transition = 'none';
+      el.style.opacity = '1';
+      el.style.zIndex = String(100 - n);
+      el.style.transform = stackT(n);
+    });
+    requestAnimationFrame(() => {
+      EL.forEach(el => el.style.transition = 'transform .54s cubic-bezier(.2,.9,.25,1),opacity .34s');
+      cur = target; shuffling = false; lastTheme = null; render(); drawGrid();
+      buzz([10, 50, 14]);
+      $('sortBtn').dataset.mode = seqMode ? 'seq' : 'mix';
+      $('sortBtn').setAttribute('aria-label', seqMode ? '切換為隨機洗牌' : '切換回課程順序');
+      mountSegs();
+      toast(landedOnRevise ? '先處理教練退回的這張'
+        : mix ? '牌序已打亂' : '已照課程順序整理');
+      setTimeout(() => EL.forEach(el =>
+        el.style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s'), 600);
+    });
+  }, end);
+}
+
+/* 一顆鍵在兩種牌序間來回：整理用頓齊，洗牌用切牌 */
+const MOVES = {
+  mix: [
+    { at:270, fn:n => cutT(n, 1),  dur:140, ease:'cubic-bezier(.4,0,.6,1)', buzz:5 },
+    { at:415, fn:stackT,           dur:140, buzz:5 },
+    { at:560, fn:n => cutT(n, -1), dur:130, ease:'cubic-bezier(.4,0,.6,1)', buzz:5 },
+    { at:695, fn:stackT,           dur:130 }
+  ],
+  seq: [
+    { at:270, fn:n => tapT(n, -7), dur:110, ease:'cubic-bezier(.4,0,.6,1)' },
+    { at:380, fn:n => tapT(n, 0),  dur:90,  ease:'cubic-bezier(.3,0,.2,1)', buzz:7 },
+    { at:470, fn:n => tapT(n, -5), dur:100, ease:'cubic-bezier(.4,0,.6,1)' },
+    { at:570, fn:n => tapT(n, 0),  dur:80,  ease:'cubic-bezier(.3,0,.2,1)', buzz:7 }
+  ]
+};
+$('sortBtn').onclick = () => {
+  const mix = seqMode;
+  reorder(mix, mix ? MOVES.mix : MOVES.seq, mix ? 840 : 680);
+};
+
+let tTimer;
+function toast(msg){
+  $('toast').textContent = msg; $('toast').classList.add('on');
+  clearTimeout(tTimer); tTimer = setTimeout(() => $('toast').classList.remove('on'), 1700);
+}
+
+/* ── 三種卡三種動作 ── */
+function doAct(){
+  const c = DECK[cur];
+  if (c.type === 'movie') return flipMovie();
+  openSheet(c.type);
+}
+
+function flipMovie(){
+  const c = DECK[cur], el = EL[cur];
+  const first = !isOpen(c);
+  if (first) mark(c, {}, { action:'log' });
+  el.classList.toggle('flipped');
+  buzz(first ? [8,40,12] : 8);
+  /* 翻回正面時不要被 paint 又翻過去，記住這張目前的朝向 */
+  faceUp[cardNo(c)] = !el.classList.contains('flipped');
+  setTimeout(() => {
+    head(); drawGrid();
+    if (first) { paint(); checkTheme(c.group); toast('已收藏這張知識卡'); }
+  }, 320);
+}
+
+const sheet = $('sheet');
+let sIdx = -1, sMode = 'write';
+
+function openSheet(mode){
+  sMode = mode; sIdx = cur;
+  const c = DECK[cur], r = EL[cur].getBoundingClientRect();
+  $('stamp').classList.remove('on');
+
+  if (mode === 'write') {
+    const sc = c.scaffold || { title: c.title, tips: [] };
+    const no = cardNo(c), g = GRADE[no] || {}, st = stateOf(c);
+    const ST_TX = { pending:'待評改', revise:'需修改', approved:'已認證' };
+    let fb = '';
+    if (g.feedback) {
+      /* 教練只寫了回饋、還沒動狀態時也要看得到 — 之前這裡會被等待訊息蓋掉 */
+      fb = `<div class="fb ${st === 'revise' ? 'revise' : ''}">
+        <div class="hd"><span class="badge ${st === 'blank' ? 'pending' : st}">${ST_TX[st] || '教練留言'}</span>
+        <span class="when">教練${g.when ? ' · ' + g.when : ''}</span></div>
+        <p class="tx">${g.feedback}</p>
+        <p class="src">教練寫的內容只會由教練更新</p></div>`;
+    } else if (st === 'pending') {
+      fb = `<div class="fb"><div class="hd"><span class="badge pending">待評改</span></div>
+        <p class="wait">已送到教練那邊，通常一到兩天會回。這段期間你還是可以改，改完重新送出即可。</p></div>`;
+    } else if (st === 'approved') {
+      fb = `<div class="fb"><div class="hd"><span class="badge approved">已認證</span>
+        <span class="when">教練${g.when ? ' · ' + g.when : ''}</span></div>
+        <p class="wait">這張已經通過了。</p></div>`;
+    }
+    const ro = st === 'approved' ? ' readonly' : '';
+    $('sinner').innerHTML = `<div class="wno">第 ${String(c.id).padStart(2,'0')} 張 · ${c.group}</div>
+      <h2>${sc.title}</h2>
+      ${fb}
+      <ul class="tips">${(sc.tips||[]).map(x=>`<li>${strip(x)}</li>`).join('')}</ul>
+      <textarea id="ta"${ro} placeholder="直接寫，不用先想怎麼寫得漂亮。">${ANSWERS[no]||''}</textarea>`;
+    $('sSave').textContent = st === 'blank' ? '送出給教練'
+      : st === 'revise' ? '修改後重新送出' : '重新送出';
+    $('sSave').style.display = st === 'approved' ? 'none' : '';
+    $('sEdit').style.display = st === 'approved' ? '' : 'none';
+  } else {
+    $('sinner').innerHTML = `<div class="wno">考驗 · ${c.group}</div>
+      <h2>${c.title}</h2>
+      <ul class="tips"><li>${c.desc}</li></ul>
+      <p style="font-family:'Noto Serif TC',serif;font-size:16px;line-height:1.85;margin:0 0 16px">${c.quiz.scenario}</p>
+      <div class="opts">${c.quiz.options.map((o,i)=>`<button class="opt" data-o="${i}">${o.text}</button>`).join('')}</div>`;
+    $('sSave').style.display = 'none';
+  }
+
+  sheet.style.transition = 'none';
+  sheet.style.left = r.left + 'px'; sheet.style.top = r.top + 'px';
+  sheet.style.width = r.width + 'px'; sheet.style.height = r.height + 'px';
+  sheet.style.borderRadius = 'var(--r)';
+  sheet.classList.add('on');
+  const taEl = $('sinner').querySelector('#ta');
+  if (taEl) {
+    let t = null;
+    taEl.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => { ANSWERS[cardNo(DECK[sIdx])] = taEl.value; persistLocal(); }, 400);
+    });
+  }
+  requestAnimationFrame(() => {
+    sheet.classList.add('anim');
+    const a = $('app').getBoundingClientRect();
+    sheet.style.left = a.left + 'px'; sheet.style.top = '0px';
+    sheet.style.width = a.width + 'px'; sheet.style.height = '100dvh';
+    sheet.style.borderRadius = '0px';
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  });
+  buzz(8);
+}
+
+function closeSheet(){
+  const r = EL[sIdx].getBoundingClientRect();
+  sheet.classList.remove('open');
+  sheet.style.left = r.left + 'px'; sheet.style.top = r.top + 'px';
+  sheet.style.width = r.width + 'px'; sheet.style.height = r.height + 'px';
+  sheet.style.borderRadius = 'var(--r)';
+  setTimeout(() => { sheet.classList.remove('on','anim'); $('stamp').classList.remove('on'); }, 450);
+}
+/* 已認證的卡預設唯讀，按這顆才解開 — 保留「認證」的份量，但不會變成死路 */
+$('sEdit').onclick = () => {
+  const ta = document.getElementById('ta'); if (!ta) return;
+  ta.removeAttribute('readonly');
+  ta.focus();
+  const n = ta.value.length; ta.setSelectionRange(n, n);
+  $('sEdit').style.display = 'none';
+  $('sSave').textContent = '修改後重新送出';
+  $('sSave').style.display = '';
+  toast('改完送出會重新等教練評改');
+  buzz(6);
+};
+$('sClose').onclick = closeSheet;
+
+/* 挑戰作答 */
+$('sinner').addEventListener('click', e => {
+  const o = e.target.closest('.opt'); if (!o || o.disabled || sMode !== 'trial') return;
+  const c = DECK[sIdx], right = c.quiz.options[+o.dataset.o].isCorrect;
+  o.closest('.opts').querySelectorAll('.opt').forEach((el,i) => {
+    el.disabled = true;
+    if (c.quiz.options[i].isCorrect) el.classList.add('right');
+    else if (el === o) el.classList.add('wrong');
+    el.insertAdjacentHTML('beforeend', `<span class="fb">${c.quiz.options[i].feedback}</span>`);
+  });
+  buzz(right ? [10,50,14] : 22);
+  mark(c, { take: c.quiz.options.find(x => x.isCorrect).feedback }, { action:'log' });
+  $('stampTx').textContent = right ? '答對了' : '記起來了';
+  faceUp[cardNo(c)] = false;
+  setTimeout(() => {
+    $('stamp').classList.add('on');
+    setTimeout(() => { closeSheet(); setTimeout(() => {
+      paint(); head(); drawGrid(); checkTheme(c.group); }, 300); }, 900);
+  }, 1400);
+});
+
+/* 書寫完成 */
+$('sSave').onclick = () => {
+  const ta = document.getElementById('ta');
+  if (!ta || !ta.value.trim()) { toast('還沒寫東西'); return; }
+  const c = DECK[sIdx], no = cardNo(c), first = stateOf(c) === 'blank';
+  ANSWERS[no] = ta.value.trim();
+  GRADE[no] = { status:'pending', feedback:'', when:'', take:'' };
+  persistLocal();
+  enqueue({ action:'submit', no, answer:ANSWERS[no], ts:new Date().toISOString() });
+  ta.blur();
+  $('stampTx').textContent = '已送出';
+  $('stamp').classList.add('on');
+  buzz(first ? [10,50,16] : 10);
+  setTimeout(() => {
+    closeSheet();
+    setTimeout(() => {
+      paint(); drawGrid();
+      if (first) {
+        checkTheme(c.group);
+        const nxt = DECK.findIndex((x,i) => i > sIdx && !isDone(x));
+        if (nxt >= 0) goTo(nxt);
+        toast('已送出，等教練評改');
+      }
+      head();
+    }, 300);
+  }, 700);
+};
+
+/* 主題全數完成時，分段條閃一下 */
+function checkTheme(g){
+  const i = themeIdx(g), list = DECK.filter(c => c.group === g);
+  if (list.every(isDone)) {
+    const seg = $('segs').children[i];
+    seg.classList.add('flash');
+    setTimeout(() => seg.classList.remove('flash'), 950);
+    buzz([12,60,12,60,18]);
+    toast(`${g} 全部翻開`);
+  }
+}
+
+/* ── 全覽 ── */
+const KIND = { write:'故事', movie:'知識', trial:'考驗' };
+const MINI = {
+  movie:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M3 10h18M3 14h18M8 6v12M16 6v12"/></svg>',
+  trial:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3l7 4v6c0 4-3 6.5-7 8-4-1.5-7-4-7-8V7z"/></svg>'
+};
+let gFilter = 'all';
+const FILTERS = [['all','全部'],['todo','未完成'],['write','故事'],['movie','知識'],['trial','考驗']];
+
+function drawGrid(){
+  const done = DECK.filter(isDone).length;
+  $('gTot').innerHTML = '<b>' + done + '</b> / ' + DECK.length;
+
+  $('gStat').innerHTML = ['write','movie','trial'].map(t => {
+    const l = DECK.filter(c => c.type === t);
+    const ok = l.filter(isOK).length, open = l.filter(isOpen).length;
+    const sub = t === 'write' && open > ok ? '<small> · 待評 ' + (open - ok) + '</small>' : '';
+    return '<div><div class="k">' + KIND[t] + '</div><div class="v">' +
+      ok + '<small> / ' + l.length + '</small>' + sub + '</div></div>';
+  }).join('');
+
+  $('gChips').innerHTML = FILTERS.map(([k, label]) =>
+    '<button class="gchip" data-f="' + k + '" aria-pressed="' + (gFilter === k) + '">' + label + '</button>').join('');
+
+  /* 主題區只放故事卡；知識與考驗各自獨立成一區，比散在十個主題裡好找 */
+  const SECTIONS = THEMES.map((t, ti) => ({
+    label: t, hue: HUE[ti], pick: c => c.type === 'write' && c.group === t
+  })).concat([
+    { label:'知識卡', hue:'#C9A227', pick: c => c.type === 'movie' },
+    { label:'考驗卡', hue:'#C4452B', pick: c => c.type === 'trial' }
+  ]);
+
+  let html = '';
+  SECTIONS.forEach(sec => {
+    const all = DECK.map((c, i) => ({ c, i })).filter(x => sec.pick(x.c));
+    const list = all.filter(x =>
+      gFilter === 'all' ? true : gFilter === 'todo' ? !isDone(x.c) : x.c.type === gFilter);
+    if (!list.length) return;
+    const n = all.filter(x => isOK(x.c)).length;
+    html += '<div class="gsec"><span class="nm">' + sec.label + '</span>' +
+      '<span class="bar"><i style="width:' + Math.round(n / all.length * 100) + '%;background:' + sec.hue + '"></i></span>' +
+      '<span class="ct">' + n + '/' + all.length + '</span></div><div class="gg">' +
+      list.map(x => {
+        const st = stateOf(x.c);
+        const inner = x.c.type === 'write'
+          ? '<span class="n">' + String(x.c.id).padStart(2, '0') + '</span>'
+          : MINI[x.c.type];
+        const bg = st === 'approved' ? 'background:' + sec.hue
+          : st === 'pending' ? 'background:rgba(232,228,220,.16)'
+          : st === 'revise' ? 'background:rgba(232,168,152,.16);border-color:var(--salmon)' : '';
+        return '<button class="gc ' + x.c.type + ' st-' + st + (x.i === cur ? ' cur' : '') +
+          '" data-g="' + x.i + '" style="' + bg + '">' + inner + '</button>';
+      }).join('') + '</div>';
+  });
+  $('gBody').innerHTML = html || '<p class="gempty">這個篩選底下沒有卡片</p>';
+}
+$('gChips').addEventListener('click', e => {
+  const b = e.target.closest('.gchip'); if (!b) return;
+  gFilter = b.dataset.f; buzz(5); drawGrid();
+});
+/* 點同步指示做一次連線診斷，把失敗原因講清楚 */
+$('sync').onclick = async () => {
+  const lines = [];
+  lines.push('端點：' + (GAS ? '已設定' : '未設定'));
+  lines.push('試算表：' + (SHEET ? SHEET.slice(0, 12) + '…' : '未連結'));
+  lines.push('網路：' + (navigator.onLine ? '連線中' : '離線'));
+  lines.push('待送：' + OUTBOX.length + ' 筆');
+  if (isFile) lines.push('\n⚠ 目前是用「檔案」方式開啟（file://），瀏覽器會擋掉對外連線。\n請改用網址開啟，或先部署到 GitHub Pages。');
+  if (LAST_ERR) lines.push('\n最後一次錯誤：\n' + LAST_ERR);
+  lines.push('\n（想清空這台裝置的資料，在網址後面加 ?reset=1 再開一次）');
+  if (!SHEET) { alert(lines.join('\n')); return; }
+  toast('測試連線中…');
+  try {
+    const url = GAS + (GAS.indexOf('?') >= 0 ? '&' : '?') +
+      'sheet=' + encodeURIComponent(SHEET) + '&t=' + Date.now();
+    const res = await fetch(url, { redirect:'follow' });
+    const txt = await res.text();
+    let j; try { j = JSON.parse(txt); }
+    catch (e) { throw new Error('回應不是 JSON：' + txt.slice(0, 120)); }
+    if (!j.ok) throw new Error(j.error);
+    LAST_ERR = ''; paintSync();
+    /* 測完就順手把資料拉下來並補送待送的，不然要等下次開啟才會同步 */
+    await pull();
+    flush();
+    alert(lines.join('\n') + '\n\n✓ 連線正常，已讀取 ' + j.cards.length + ' 張卡片並更新畫面。');
+  } catch (e) {
+    LAST_ERR = String(e && e.message ? e.message : e);
+    paintSync();
+    alert(lines.join('\n') + '\n\n✗ 連線失敗：\n' + LAST_ERR);
+  }
+};
+
+$('rv').onclick = () => {
+  let i = DECK.findIndex(c => stateOf(c) === 'revise');
+  let msg = '教練退回的第一張';
+  if (i < 0) { i = DECK.findIndex(c => (GRADE[cardNo(c)] || {}).feedback); msg = '有教練留言的第一張'; }
+  if (i < 0) return;
+  goTo(i); buzz(6); toast(msg);
+};
+$('setApi').onclick = () => {
+  if (!GAS) {
+    const g = prompt('尚未設定系統端點。\n請貼上教練部署的 Apps Script 網頁應用程式網址：', '');
+    if (g === null) return;
+    GAS = g.trim(); LS.set('gas', GAS);
+  }
+  const v = prompt('貼上教練給你的 Google 試算表連結：\n（留空可解除連結，未連結時資料只存在這台裝置）',
+    SHEET ? 'https://docs.google.com/spreadsheets/d/' + SHEET + '/edit' : '');
+  if (v === null) return;
+  if (!v.trim()) { SHEET = ''; LS.set('sheet', ''); paintSync(); toast('已解除連結'); return; }
+  const id = sheetId(v);
+  if (!id) { toast('這不像試算表連結'); return; }
+  SHEET = id; LS.set('sheet', SHEET);
+  LAST_ERR = ''; paintSync();
+  toast('已連結，讀取中…');
+  pull().then(() => { flush(); $('sync').click(); });
+};
+$('toGrid').onclick = () => { drawGrid(); $('grid').classList.add('on'); };
+$('gClose').onclick = () => $('grid').classList.remove('on');
+$('gBody').addEventListener('click', e => {
+  const g = e.target.closest('.gc'); if (!g) return;
+  goTo(+g.dataset.g); $('grid').classList.remove('on'); buzz(6);
+});
+$('act').onclick = doAct;
+drawGrid();
+paintSync();
+flush();
+pull();
+if (isFile && linked()) {
+  setTimeout(() => toast('用檔案開啟時無法同步，請點右上角查看'), 900);
+}
+}
+
+</script>
+</body>
+</html>
