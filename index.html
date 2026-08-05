@@ -780,70 +780,116 @@ function enqueue(item){
   flush();
 }
 
-let syncing = false, manualSyncing = false, backoff = 0, retryTimer = null, LAST_ERR = '';
+let syncing = false, manualSyncing = false, flushPromise = null, pullPromise = null;
+let pullSheet = '', lastPullAt = 0, backoff = 0, retryTimer = null, LAST_ERR = '';
 
 /* 從 file:// 開啟時瀏覽器會擋掉跨網域請求，這是最常見的「沒反應」原因 */
 const isFile = location.protocol === 'file:';
 
 async function flush(){
-  if (syncing || !OUTBOX.length || !linked() || !navigator.onLine) { paintSync(); return; }
-  syncing = true; paintSync();
-  try {
-    while (OUTBOX.length) {
-      const it = OUTBOX[0];
-      const r = await fetch(GAS, { method:'POST', redirect:'follow',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify(Object.assign({ sheet: SHEET }, it)) });
-      const j = await r.json();
-      if (!j.ok) throw new Error(j.error || '伺服器拒絕');
-      if (it.action === 'submit') { delete DIRTY[it.no]; persistLocal(); }
-      OUTBOX = OUTBOX.slice(1); LS.set('outbox', OUTBOX);
-      paintSync(); paint();
+  if (flushPromise) return flushPromise;
+  if (!OUTBOX.length || !linked() || !navigator.onLine) { paintSync(); return false; }
+  const job = (async () => {
+    let changed = false;
+    syncing = true; paintSync();
+    try {
+      while (OUTBOX.length) {
+        const it = OUTBOX[0];
+        const r = await fetch(GAS, { method:'POST', redirect:'follow',
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+          body: JSON.stringify(Object.assign({ sheet: SHEET }, it)) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error || '伺服器拒絕');
+        if (it.action === 'submit') { delete DIRTY[it.no]; persistLocal(); }
+        OUTBOX = OUTBOX.slice(1); LS.set('outbox', OUTBOX);
+        changed = true;
+      }
+      backoff = 0;
+      if (LAST_ERR.startsWith('送出失敗：')) LAST_ERR = '';
+      return true;
+    } catch (e) {
+      LAST_ERR = '送出失敗：' + (e && e.message ? e.message : e);
+      backoff = backoff ? Math.min(backoff * 4, 120000) : 2000;
+      clearTimeout(retryTimer); retryTimer = setTimeout(flush, backoff);
+      return false;
+    } finally {
+      syncing = false;
+      /* 多筆待送內容處理完只重畫一次；總覽沒開就不重建。 */
+      if (changed) {
+        paint();
+        if ($('grid')?.classList.contains('on')) drawGrid();
+      }
+      paintSync();
     }
-    backoff = 0;
-  } catch (e) {
-    LAST_ERR = '送出失敗：' + (e && e.message ? e.message : e);
-    backoff = backoff ? Math.min(backoff * 4, 120000) : 2000;
-    clearTimeout(retryTimer); retryTimer = setTimeout(flush, backoff);
-  } finally { syncing = false; paintSync(); }
+  })();
+  flushPromise = job;
+  try { return await job; }
+  finally {
+    if (flushPromise === job) { flushPromise = null; paintSync(); }
+  }
 }
 
 async function pull(){
-  if (!linked() || !navigator.onLine) return;
-  try {
-    const url = GAS + (GAS.indexOf('?') >= 0 ? '&' : '?') +
-      'sheet=' + encodeURIComponent(SHEET) + '&t=' + Date.now();
-    const res = await fetch(url, { redirect:'follow' });
-    const txt = await res.text();
-    let j;
-    try { j = JSON.parse(txt); }
-    catch (e) { throw new Error('回應不是 JSON（前 80 字）：' + txt.slice(0, 80)); }
-    if (!j.ok) throw new Error(j.error || '伺服器回報失敗');
-    if (!Array.isArray(j.cards)) throw new Error('回應缺少 cards');
-    LAST_ERR = '';
-    let fresh = 0;
-    j.cards.forEach(sv => {
-      const was = GRADE[sv.no] ? GRADE[sv.no].status : 'blank';
-      /* 本機草稿與尚未送出的內容都優先，不讓 Sheet 舊答案蓋掉。 */
-      if (!hasDraft(sv.no) && !queued(sv.no) && sv.answer) ANSWERS[sv.no] = sv.answer;
-      if (sv.status && sv.status !== 'blank') {
-        const prev = GRADE[sv.no] || {};
-        const changed = was !== sv.status || prev.feedback !== (sv.feedback || '');
-        const d = new Date();
-        GRADE[sv.no] = { status: sv.status, feedback: sv.feedback || '',
-          /* 試算表不存評改時間，改記前端第一次看到這則回饋的日子 */
-          when: changed
-            ? String(d.getMonth() + 1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0')
-            : (prev.when || ''),
-          take: prev.take || '' };
-        const newFb = sv.feedback && sv.feedback !== (prev.feedback || '');
-        if (newFb || (was !== sv.status && (sv.status === 'approved' || sv.status === 'revise'))) fresh++;
+  const targetSheet = SHEET;
+  if (!linked() || !navigator.onLine) return false;
+  if (pullPromise) {
+    if (pullSheet === targetSheet) return pullPromise;
+    await pullPromise;
+    return pull();
+  }
+  lastPullAt = Date.now();
+  const job = (async () => {
+    try {
+      const url = GAS + (GAS.indexOf('?') >= 0 ? '&' : '?') +
+        'sheet=' + encodeURIComponent(targetSheet) + '&t=' + Date.now();
+      const res = await fetch(url, { redirect:'follow' });
+      const txt = await res.text();
+      let j;
+      try { j = JSON.parse(txt); }
+      catch (e) { throw new Error('回應不是 JSON（前 80 字）：' + txt.slice(0, 80)); }
+      if (!j.ok) throw new Error(j.error || '伺服器回報失敗');
+      if (!Array.isArray(j.cards)) throw new Error('回應缺少 cards');
+      /* 換表後才回來的舊結果直接丟掉，不能污染新表狀態。 */
+      if (SHEET !== targetSheet) return false;
+      LAST_ERR = '';
+      let fresh = 0, changedAny = false;
+      j.cards.forEach(sv => {
+        const was = GRADE[sv.no] ? GRADE[sv.no].status : 'blank';
+        /* 本機草稿與尚未送出的內容都優先，不讓 Sheet 舊答案蓋掉。 */
+        if (!hasDraft(sv.no) && !queued(sv.no) && sv.answer && ANSWERS[sv.no] !== sv.answer) {
+          ANSWERS[sv.no] = sv.answer; changedAny = true;
+        }
+        if (sv.status && sv.status !== 'blank') {
+          const prev = GRADE[sv.no] || {}, feedback = sv.feedback || '';
+          const changed = was !== sv.status || prev.feedback !== feedback;
+          if (changed) {
+            const d = new Date();
+            GRADE[sv.no] = { status: sv.status, feedback,
+              /* 試算表不存評改時間，改記前端第一次看到這則回饋的日子 */
+              when: String(d.getMonth() + 1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0'),
+              take: prev.take || '' };
+            changedAny = true;
+          }
+          const newFb = feedback && feedback !== (prev.feedback || '');
+          if (newFb || (was !== sv.status && (sv.status === 'approved' || sv.status === 'revise'))) fresh++;
+        }
+      });
+      /* 沒有新資料就完全不碰 102 張卡，也不重建隱藏中的總覽。 */
+      if (changedAny) {
+        persistLocal(); paint(); head();
+        if ($('grid')?.classList.contains('on')) drawGrid();
       }
-    });
-    persistLocal(); render(); drawGrid();
-    if (fresh) toast('教練回了 ' + fresh + ' 則');
-  } catch (e) {
-    LAST_ERR = '讀取失敗：' + (e && e.message ? e.message : e);
+      if (fresh) toast('教練回了 ' + fresh + ' 則');
+      return true;
+    } catch (e) {
+      if (SHEET === targetSheet) LAST_ERR = '讀取失敗：' + (e && e.message ? e.message : e);
+      return false;
+    }
+  })();
+  pullPromise = job; pullSheet = targetSheet; paintSync();
+  try { return await job; }
+  finally {
+    if (pullPromise === job) { pullPromise = null; pullSheet = ''; }
     paintSync();
   }
 }
@@ -852,7 +898,7 @@ function paintSync(){
   const el = $('sync'); if (!el) return;
   const n = OUTBOX.length;
   const s = !linked() ? 'off' : !navigator.onLine ? 'offline'
-    : syncing || manualSyncing ? 'busy' : LAST_ERR ? 'err' : n ? 'queued' : 'ok';
+    : syncing || manualSyncing || pullPromise ? 'busy' : LAST_ERR ? 'err' : n ? 'queued' : 'ok';
   el.dataset.s = s;
   el.textContent = s === 'off' ? '未連結試算表' : s === 'offline' ? '離線'
     : s === 'busy' ? '同步中' : s === 'err' ? '同步失敗'
@@ -861,19 +907,18 @@ function paintSync(){
   if ($('syncDialog')?.open) renderSyncDialog();
 }
 
-addEventListener('online', () => { paintSync(); resync(); });
+addEventListener('online', () => { paintSync(); resync(true); });
 addEventListener('offline', paintSync);
 /* 手機瀏覽器對 visibilitychange 的支援不一，pageshow 與 focus 一起掛比較保險 */
-let lastSync = 0;
-function resync(){
-  const t = Date.now();
-  if (t - lastSync < 3000) return;   /* 同一次切換不重複打 */
-  lastSync = t;
-  flush(); pull();
+const AUTO_SYNC_GAP = 15000;
+async function resync(force){
+  if (!force && Date.now() - lastPullAt < AUTO_SYNC_GAP) return;
+  await flush();
+  await pull();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) resync(); });
-addEventListener('pageshow', resync);
-addEventListener('focus', resync);
+addEventListener('pageshow', () => resync());
+addEventListener('focus', () => resync());
 
 let cur = DECK.findIndex(c => !isDone(c)); if (cur < 0) cur = 0;
 /* 使用者手動翻回正面的卡，記著別再自動翻過去（只在這次開啟期間有效） */
@@ -885,7 +930,7 @@ const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} 
 
 /* ── 建牌 ── */
 $('cAll').textContent = DECK.length;
-let EL = [];
+let EL = [], visibleCards = new Set();
 function mountDeck(){
 $('deck').innerHTML = DECK.map((c, i) => {
   const t = themeIdx(c.group);
@@ -940,6 +985,8 @@ $('deck').innerHTML = DECK.map((c, i) => {
   </div>`;
 }).join('');
   EL = [...document.querySelectorAll('.cd')];
+  EL.forEach(el => el.classList.add('hide'));
+  visibleCards.clear();
 }
 mountDeck();
 
@@ -955,9 +1002,13 @@ mountSegs();
 /* ── 排列 ── */
 function layout(){
   const pos = cur - drag;
-  for (let i = 0; i < EL.length; i++) {
+  const nextVisible = new Set();
+  const first = Math.max(0, Math.floor(pos - 4.2));
+  const last = Math.min(EL.length - 1, Math.ceil(pos + 4.2));
+  for (let i = first; i <= last; i++) {
     const d = i - pos, ad = Math.abs(d), el = EL[i];
     if (ad > 4.2) { el.classList.add('hide'); continue; }
+    nextVisible.add(i);
     el.classList.remove('hide');
     el.classList.toggle('mid', ad < .5);
     el.tabIndex = ad < .5 ? 0 : -1;
@@ -972,6 +1023,8 @@ function layout(){
     el.style.zIndex = String(100 - Math.round(ad * 10));
     el.style.transitionDelay = intro ? '0ms' : Math.round(Math.min(ad, 4) * 45) + 'ms';
   }
+  visibleCards.forEach(i => { if (!nextVisible.has(i)) EL[i]?.classList.add('hide'); });
+  visibleCards = nextVisible;
 }
 
 function paint(){
@@ -1066,12 +1119,15 @@ requestAnimationFrame(() => {
 /* ── 拖曳 ── */
 const stage = $('stage');
 let sx = 0, sy = 0, lastX = 0, lastT = 0, vel = 0, axis = null;
+let dragFrame = 0;
 stage.addEventListener('pointerdown', e => {
   if (shuffling) return;
   dragging = true; axis = null; moved = false;
   sx = lastX = e.clientX; sy = e.clientY; lastT = performance.now(); vel = 0;
   stage.setPointerCapture(e.pointerId);
-  EL.forEach(el => { el.style.transition = 'none'; el.style.transitionDelay = '0ms'; });
+  visibleCards.forEach(i => {
+    EL[i].style.transition = 'none'; EL[i].style.transitionDelay = '0ms';
+  });
 });
 stage.addEventListener('pointermove', e => {
   if (!dragging) return;
@@ -1085,12 +1141,15 @@ stage.addEventListener('pointermove', e => {
   const p = cur - drag, max = DECK.length - 1;
   if (p < 0) drag = cur - p * .35;
   else if (p > max) drag = cur - (max + (p - max) * .35);
-  layout();
+  if (!dragFrame) dragFrame = requestAnimationFrame(() => { dragFrame = 0; layout(); });
 });
 function endDrag(){
   if (!dragging) return;
   dragging = false;
-  EL.forEach(el => el.style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s');
+  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+  visibleCards.forEach(i => {
+    EL[i].style.transition = 'transform .38s cubic-bezier(.25,.9,.3,1),opacity .3s';
+  });
   let target = Math.round(cur - drag - vel * 3.2);
   target = Math.max(0, Math.min(DECK.length - 1, target));
   const m = target !== cur;
@@ -1268,8 +1327,7 @@ function openSheet(mode){
         <p class="wait">已送到教練那邊，通常一到兩天會回。這段期間你還是可以改，改完重新送出即可。</p></div>`;
     } else if (st === 'approved') {
       fb = `<div class="fb"><div class="hd"><span class="badge approved">認證完成</span>
-        <span class="when">教練${g.when ? ' · ' + g.when : ''}</span></div>
-        <p class="wait">這張已經通過了。</p></div>`;
+        <span class="when">教練${g.when ? ' · ' + g.when : ''}</span></div></div>`;
     }
     const ro = st === 'approved' ? ' readonly' : '';
     $('sinner').innerHTML = `<div class="wno">第 ${String(c.id).padStart(2,'0')} 張 · ${c.group}</div>
@@ -1561,8 +1619,8 @@ function renderSyncDialog(){
   $('syncHome').hidden = syncEditing;
   $('sheetForm').hidden = !syncEditing;
   $('syncNow').style.display = linked() ? '' : 'none';
-  $('syncNow').disabled = syncing || manualSyncing || !navigator.onLine || isFile;
-  $('syncNow').textContent = syncing || manualSyncing ? '同步中…' : '立即同步';
+  $('syncNow').disabled = syncing || manualSyncing || !!pullPromise || !navigator.onLine || isFile;
+  $('syncNow').textContent = syncing || manualSyncing || pullPromise ? '同步中…' : '立即同步';
   $('changeSheet').textContent = linked() ? '更換試算表' : '連結試算表';
   $('openSheet').hidden = !SHEET;
   if (SHEET) $('openSheet').href = 'https://docs.google.com/spreadsheets/d/' + SHEET + '/edit';
@@ -1592,10 +1650,13 @@ async function manualSync(){
   if (syncing || manualSyncing) { toast('同步正在進行'); return; }
   LAST_ERR = '';
   manualSyncing = true; paintSync();
-  await pull();
-  await flush();
-  manualSyncing = false;
-  paintSync(); renderSyncDialog();
+  try {
+    await pull();
+    await flush();
+  } finally {
+    manualSyncing = false;
+    paintSync(); renderSyncDialog();
+  }
   toast(LAST_ERR ? '同步沒有完成，請查看說明' : '同步完成');
 }
 $('sync').onclick = () => openSyncDialog(false);
