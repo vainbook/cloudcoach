@@ -13,9 +13,18 @@
  * 財務狀態，偽造一個 student_id 就讀走別人整份訪談。
  * 所以這裡只接受**原始 ID Token**，而且一定要向 LINE 驗過才算數。
  *
- * ── 部署前要設的 Script Properties ──
- *   LINE_CHANNEL_ID   2011543667      （LIFF ID 前半段；驗 Token 的 aud）
- * 專案設定 → 指令碼屬性。**不要寫在程式碼裡、不要進 Git。**
+ * ── Channel ID 為什麼是常數，不是 Script Property ──
+ * 因為它**不是密鑰**：它是 LIFF ID `2011543667-p1MX4tl7` 的前半段，
+ * 已經印在每一個瀏覽器拿到的 liff-test.html 裡，也已經在公開 repo 裡。
+ * 放進 Script Properties 保護不到任何東西，卻讓部署多一個手動步驟。
+ *
+ * Script Properties 留給**真正的密鑰**（之後才會出現）：
+ *   SHEET_ID          私人 Google Sheet 的 ID（第 3 階段）
+ *   SESSION_SECRET    本站 Session 的簽章密鑰（第 3 階段）
+ * 那些一律不進程式碼、不進 Git。
+ *
+ * 指令碼屬性若有設 LINE_CHANNEL_ID，會**蓋過**下面的常數 —— 換 Channel
+ * 或開測試用 Channel 時不必改程式。
  * Channel secret 這一版用不到，不要放進來。
  *
  * ── 部署方式 ──
@@ -31,6 +40,9 @@
 'use strict';
 
 var LINE_VERIFY_URL = 'https://api.line.me/oauth2/v2.1/verify';
+
+/* 預設 Channel ID。指令碼屬性 LINE_CHANNEL_ID 存在時以它為準。 */
+var DEFAULT_CHANNEL_ID = '2011543667';
 
 /* ── 對外入口 ──────────────────────────────────────── */
 
@@ -59,7 +71,8 @@ function doGet() {
   return ok_({
     service: 'uc-cloud-coach',
     stage: 2,
-    channelConfigured: !!prop_('LINE_CHANNEL_ID'),
+    channelConfigured: !!channelId_(),
+    channelSource: prop_('LINE_CHANNEL_ID') ? 'script-property' : 'default-constant',
     hint: '這個端點只接 POST，body 要 JSON、action 目前只有 auth.exchange'
   });
 }
@@ -67,9 +80,9 @@ function doGet() {
 /* ── auth.exchange ─────────────────────────────────── */
 
 function authExchange_(body) {
-  var channelId = prop_('LINE_CHANNEL_ID');
+  var channelId = channelId_();
   if (!channelId) {
-    throw new AppError('INTERNAL_ERROR', '指令碼屬性缺 LINE_CHANNEL_ID');
+    throw new AppError('INTERNAL_ERROR', '沒有可用的 Channel ID');
   }
 
   var idToken = String(body.idToken || '');
@@ -141,6 +154,11 @@ function prop_(k) {
   return PropertiesService.getScriptProperties().getProperty(k) || '';
 }
 
+/** 指令碼屬性優先，沒設就用常數。 */
+function channelId_() {
+  return prop_('LINE_CHANNEL_ID') || DEFAULT_CHANNEL_ID;
+}
+
 /**
  * 前端送的是 Content-Type: text/plain（為了避開 CORS preflight），
  * 所以這裡不能靠 e.postData.type 判斷，直接當 JSON 解。
@@ -189,7 +207,7 @@ function selftest() {
   var log = [], ok = true;
   function t(name, cond) { log.push((cond ? '  ok   ' : '  FAIL ') + name); if (!cond) ok = false; }
 
-  t('指令碼屬性有 LINE_CHANNEL_ID', !!prop_('LINE_CHANNEL_ID'));
+  t('有可用的 Channel ID', !!channelId_());
 
   var r1 = JSON.parse(doPost({ postData: { contents: '{}' } }).getContent());
   t('空 action → INVALID_INPUT', r1.ok === false && r1.error.code === 'INVALID_INPUT');
@@ -210,7 +228,7 @@ function selftest() {
 
   var r5 = JSON.parse(doGet().getContent());
   t('doGet 健康檢查可用', r5.ok === true && r5.data.stage === 2);
-  t('doGet 不洩漏 Channel ID', JSON.stringify(r5).indexOf(prop_('LINE_CHANNEL_ID')) < 0);
+  t('doGet 不洩漏 Channel ID', JSON.stringify(r5).indexOf(channelId_()) < 0);
 
   console.log('UC GAS selftest ' + (ok ? 'PASS' : 'FAIL') + '\n' + log.join('\n'));
   return ok;
