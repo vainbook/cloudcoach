@@ -94,10 +94,14 @@
     <dl>
       <dt>狀態</dt><dd id="l-state"><span class="pill warn">尚未初始化</span></dd>
       <dt>ID Token</dt><dd class="mono" id="l-token">—</dd>
+      <dt>aud（本地讀）</dt><dd class="mono" id="l-aud">—</dd>
+      <dt>有效期（本地讀）</dt><dd class="mono" id="l-exp">—</dd>
     </dl>
     <button id="btn-login" hidden>用 LINE 登入</button>
     <button id="btn-logout" class="gh" hidden>登出</button>
-    <p class="note">Token 只顯示長度與前後各 6 字。完整值不進畫面、不進網址、不進 Console。</p>
+    <p class="note">Token 只顯示長度與前後各 6 字。完整值不進畫面、不進網址、不進 Console。<br>
+      ⚠️ aud 與有效期是<strong>在瀏覽器本地解開 JWT 讀的，只供除錯</strong> ——
+      沒有驗簽章，不能當身分依據。真正的驗證由 GAS 向 LINE 做。</p>
   </div>
 
   <div class="card">
@@ -134,6 +138,15 @@
 
   /* 遮罩：只留前後各 6 字。長度也一起給 —— 出問題時「有沒有拿到」和
      「拿到的是不是完整的」是兩件事，長度分得出來。 */
+  /* 只解 payload 拿來顯示，不驗簽章。base64url 要先補回 padding。 */
+  function peek(jwt) {
+    try {
+      var b = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      return JSON.parse(decodeURIComponent(escape(atob(b))));
+    } catch (e) { return null; }
+  }
+
   function mask(s) {
     if (!s) return '—';
     var n = String(s).length;
@@ -174,6 +187,21 @@
       }
       set('l-token', mask(token));
       window.__t = token;                       /* 只放在閉包外供按鈕用，不印出 */
+
+      /* ⚠️ 這裡解 JWT **純粹是為了除錯顯示**，沒有驗簽章。
+         少了它，「Token 過期」跟「Channel 設錯」在畫面上一模一樣，
+         每次都要去翻 Apps Script 的執行紀錄才知道發生什麼事。
+         身分判斷一律以 GAS 向 LINE 驗證的結果為準。 */
+      var p = peek(token);
+      if (!p) { set('l-aud', '（解不開）'); set('l-exp', '—'); }
+      else {
+        set('l-aud', String(p.aud || '?') + (String(p.aud) === '2011543667' ? '　✓ 相符' : '　✗ 與 Channel ID 不符'));
+        if (p.exp) {
+          var left = p.exp - Math.floor(Date.now() / 1000);
+          set('l-exp', left > 0 ? '還有 ' + Math.floor(left / 60) + ' 分 ' + (left % 60) + ' 秒'
+                                : '已過期 ' + Math.floor(-left / 60) + ' 分前　← 重新登入即可');
+        } else set('l-exp', '（沒有 exp）');
+      }
 
       if (CONFIG.GAS_API_URL) {
         $('g-hint').textContent = '按下按鈕會把原始 ID Token POST 給 GAS，由 GAS 向 LINE 驗證。';
@@ -219,10 +247,27 @@
     })
       .then(function (r) { return r.text().then(function (t) { return { s: r.status, t: t }; }); })
       .then(function (r) {
-        var pretty;
-        try { pretty = JSON.stringify(JSON.parse(r.t), null, 2); }
+        var j = null, pretty;
+        try { j = JSON.parse(r.t); pretty = JSON.stringify(j, null, 2); }
         catch (e) { pretty = r.t.slice(0, 800); }   /* 回傳 HTML 通常代表部署權限沒開 */
-        out.textContent = 'HTTP ' + r.s + '\n\n' + pretty;
+
+        /* 把「所以我該做什麼」講在最前面。原始 JSON 留在下面給除錯用。 */
+        var head = '';
+        if (j && j.ok) head = '✓ 驗證成功\n\n';
+        else if (j && j.error) {
+          var d = j.error.detail || {};
+          var why = {
+            'invalid_request': d.lineErrorDescription === 'IdToken expired.'
+              ? 'Token 過期了 —— 按「登出」再重新登入一次就好。'
+              : 'LINE 說這個 Token 不合法。多半是過期，或 LIFF App 與 Channel 沒對上。',
+            'invalid_client': 'Channel ID 對不上：這個 Token 不是發給 2011543667 的。'
+          }[d.lineError] || '';
+          if (d.expiredSecAgo) why = 'Token 在 ' + Math.floor(d.expiredSecAgo / 60) + ' 分鐘前過期，重新登入即可。';
+          if (d.tokenAudTail) why = 'Channel 不符：Token 的 aud 結尾是 ' + d.tokenAudTail
+            + '，但這支 GAS 期待 ' + d.expectedChannelTail + '。';
+          head = '✗ ' + j.error.code + (why ? '\n' + why : '') + '\n\n';
+        }
+        out.textContent = head + 'HTTP ' + r.s + '\n' + pretty;
       })
       .catch(function (e) {
         out.textContent = e.name === 'AbortError'

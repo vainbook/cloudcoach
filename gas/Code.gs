@@ -69,7 +69,7 @@ function doPost(e) {
        我們自己丟的 AppError 帶著分類，照原樣回；只有非預期的例外才是 INTERNAL_ERROR。 */
     if (err instanceof AppError && KNOWN_ERRORS.indexOf(err.code) >= 0) {
       console.warn('doPost 已知錯誤 ' + err.code);
-      return fail_(err.code, err.message);
+      return fail_(err.code, err.message, err.detail);
     }
     console.error('doPost 未預期例外', err);
     return fail_('INTERNAL_ERROR', '伺服器處理失敗');
@@ -134,10 +134,18 @@ function verifyLineIdToken_(idToken, channelId) {
   var text = res.getContentText();
 
   if (code !== 200) {
-    /* LINE 會回 { error, error_description }。原文留在日誌，
-       前端只拿到分類 —— 「哪裡不對」對攻擊者是資訊。 */
-    console.warn('LINE verify 失敗 code=' + code + ' body=' + text);
-    throw new AppError('UNAUTHENTICATED', 'ID Token 未通過 LINE 驗證');
+    /* LINE 回 { error, error_description }，例如
+       invalid_request / "Invalid IdToken." 或 "IdToken expired."。
+       ⚠️ 這兩個欄位**描述的是請求，不是使用者**，也不會回吐 Token，
+       所以可以帶給前端 —— 沒有它，「過期了重登一次」和「Channel 設錯」
+       在畫面上完全一樣，等於每次都要翻 Apps Script 的紀錄才知道發生什麼事。
+       真正不能外流的是 stack、Sheet 內容與 Token 原文，那些仍然不回。 */
+    var le = {};
+    try { le = JSON.parse(text) || {}; } catch (e) {}
+    console.warn('LINE verify 失敗 code=' + code + ' error=' + le.error);
+    throw new AppError('UNAUTHENTICATED', 'ID Token 未通過 LINE 驗證',
+      { httpStatus: code, lineError: le.error || null,
+        lineErrorDescription: le.error_description || null });
   }
 
   var data;
@@ -150,10 +158,13 @@ function verifyLineIdToken_(idToken, channelId) {
      多一道成本是零，少一道就沒有第二層。 */
   if (String(data.aud) !== String(channelId)) {
     console.warn('aud 不符 aud=' + data.aud);
-    throw new AppError('UNAUTHENTICATED', 'ID Token 不是發給本 Channel 的');
+    throw new AppError('UNAUTHENTICATED', 'ID Token 不是發給本 Channel 的',
+      { expectedChannelTail: String(channelId).slice(-4),
+        tokenAudTail: String(data.aud || '').slice(-4) });
   }
   if (data.exp && data.exp < Math.floor(Date.now() / 1000)) {
-    throw new AppError('UNAUTHENTICATED', 'ID Token 已過期');
+    throw new AppError('UNAUTHENTICATED', 'ID Token 已過期',
+      { expiredSecAgo: Math.floor(Date.now() / 1000) - data.exp });
   }
 
   return data;
@@ -161,7 +172,9 @@ function verifyLineIdToken_(idToken, channelId) {
 
 /* ── 共用小工具 ────────────────────────────────────── */
 
-function AppError(code, message) { this.code = code; this.message = message; }
+function AppError(code, message, detail) {
+  this.code = code; this.message = message; this.detail = detail || null;
+}
 AppError.prototype = Object.create(Error.prototype);
 AppError.prototype.constructor = AppError;
 
@@ -199,9 +212,10 @@ function ok_(data) {
   return out_({ ok: true, data: data, error: null, server_time: now_() });
 }
 
-function fail_(code, message) {
-  return out_({ ok: false, data: null,
-                error: { code: code, message: message }, server_time: now_() });
+function fail_(code, message, detail) {
+  var e = { code: code, message: message };
+  if (detail) e.detail = detail;
+  return out_({ ok: false, data: null, error: e, server_time: now_() });
 }
 
 function out_(obj) {
@@ -243,6 +257,8 @@ function selftest() {
   t('假 Token → UNAUTHENTICATED', r4.ok === false && r4.error.code === 'UNAUTHENTICATED');
   t('假 Token 的錯誤訊息不含 Token 原文',
     JSON.stringify(r4).indexOf('obviously.not.a.token') < 0);
+  t('假 Token 有帶 LINE 的診斷欄位',
+    !!(r4.error.detail && r4.error.detail.lineError));
 
   var r5 = JSON.parse(doGet().getContent());
   t('doGet 健康檢查可用', r5.ok === true && r5.data.stage === 2);
