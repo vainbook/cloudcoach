@@ -69,6 +69,18 @@
   .note{font-size:11.5px; opacity:.45; margin:10px 0 0}
   code{font-family:var(--mono); font-size:12px; background:rgba(0,0,0,.25);
     padding:1px 5px; border-radius:2px}
+  .consent{font-size:12.5px; line-height:1.95; opacity:.72; margin:0 0 14px;
+    padding:12px 14px; border-left:2px solid var(--salmon);
+    background:rgba(232,168,152,.06)}
+  .consent strong{opacity:1; color:var(--salmon)}
+  input[type=text]{
+    width:100%; font-family:var(--mono); font-size:18px; letter-spacing:.28em;
+    text-align:center; text-transform:uppercase;
+    color:var(--beige); background:rgba(0,0,0,.24);
+    border:1px solid rgba(232,228,220,.2); border-radius:3px; padding:13px 12px;
+  }
+  input[type=text]:focus{outline:none; border-color:var(--salmon)}
+  input[type=text]::placeholder{letter-spacing:.06em; font-size:13px; opacity:.34}
 </style>
 </head>
 <body>
@@ -112,6 +124,22 @@
     </p>
     <button id="btn-verify" hidden>auth.exchange</button>
     <pre id="g-out" hidden></pre>
+  </div>
+
+  <div class="card" id="bind-card" hidden>
+    <h2>帳號綁定（第 3 階段）</h2>
+    <!-- BACKEND-WORKFLOW.md §3 步驟 3：畫面要清楚告知綁定這件事。
+         同意文字不是法務裝飾 —— 學員是拿 LINE 帳號去換一份裝著
+         性經驗、家庭狀況、財務狀態的資料，他該知道自己在同意什麼。 -->
+    <p class="consent">
+      按下「綁定」之後，<strong>這個 LINE 帳號會與一位雲端教練學員的資料永久關聯</strong>。
+      之後從 LINE 開啟本網站就會自動載入那位學員的評測、作業與紀錄，不需要再輸入啟用碼。
+      啟用碼由教練提供，只能使用一次。
+    </p>
+    <input id="bind-code" type="text" inputmode="latin" autocomplete="off"
+           maxlength="8" placeholder="教練給的 8 碼啟用碼">
+    <button id="btn-bind">綁定這個帳號</button>
+    <pre id="b-out" hidden></pre>
   </div>
 
 </div>
@@ -220,8 +248,9 @@
     liff.logout(); location.reload();
   });
 
-  $('btn-verify').addEventListener('click', function () {
-    var btn = $('btn-verify'), out = $('g-out');
+  /* 呼叫 GAS。auth.exchange 與 auth.bind 共用同一條路 ——
+     兩邊的逾時、轉址、錯誤處理完全一樣，分開寫只會有一邊先腐爛。 */
+  function callGas(payload, out, btn, done) {
     btn.disabled = true; out.hidden = false; out.textContent = '送出中…';
 
     /* 逾時要自己管 —— GAS 冷啟動可能要好幾秒，但也不能無限等。 */
@@ -236,11 +265,7 @@
       /* ⚠️ text/plain 不是隨便寫的：GAS 不能自訂回應標頭，
          送 application/json 會觸發 CORS preflight，OPTIONS 直接失敗。 */
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'auth.exchange',
-        idToken: window.__t,
-        requestId: 'liff-test-' + Date.now()
-      }),
+      body: JSON.stringify(payload),
       redirect: 'follow',
       cache: 'no-store',
       signal: ac.signal
@@ -251,9 +276,12 @@
         try { j = JSON.parse(r.t); pretty = JSON.stringify(j, null, 2); }
         catch (e) { pretty = r.t.slice(0, 800); }   /* 回傳 HTML 通常代表部署權限沒開 */
 
-        /* 把「所以我該做什麼」講在最前面。原始 JSON 留在下面給除錯用。 */
+        /* 把「所以我該做什麼」講在最前面。原始 JSON 留在下面給除錯用。
+           ⚠️ 統一回應格式規定 ok/data/error/server_time 四個欄位永遠都在，
+           所以成功時也會出現 "error": null —— 直接把 JSON 丟給人看，
+           第一眼會以為失敗了（踩過）。 */
         var head = '';
-        if (j && j.ok) head = '✓ 驗證成功\n\n';
+        if (j && j.ok) head = '✓ ' + (j.data && j.data.bound ? '已綁定' : '驗證成功') + '\n\n';
         else if (j && j.error) {
           var d = j.error.detail || {};
           var why = {
@@ -265,9 +293,11 @@
           if (d.expiredSecAgo) why = 'Token 在 ' + Math.floor(d.expiredSecAgo / 60) + ' 分鐘前過期，重新登入即可。';
           if (d.tokenAudTail) why = 'Channel 不符：Token 的 aud 結尾是 ' + d.tokenAudTail
             + '，但這支 GAS 期待 ' + d.expectedChannelTail + '。';
+          if (!why) why = j.error.message || '';
           head = '✗ ' + j.error.code + (why ? '\n' + why : '') + '\n\n';
         }
         out.textContent = head + 'HTTP ' + r.s + '\n' + pretty;
+        if (done) done(j);
       })
       .catch(function (e) {
         out.textContent = e.name === 'AbortError'
@@ -276,6 +306,35 @@
             + '「以我的身分執行、任何人皆可存取」的網頁應用程式部署。';
       })
       .then(function () { clearTimeout(timer); btn.disabled = false; });
+  }
+
+  $('btn-verify').addEventListener('click', function () {
+    callGas({ action: 'auth.exchange', idToken: window.__t,
+              requestId: 'liff-test-' + Date.now() },
+      $('g-out'), $('btn-verify'), function (j) {
+        /* 沒綁過才顯示綁定卡片。已綁定就不該再看到啟用碼輸入框。 */
+        if (j && j.ok && j.data && j.data.bound === false) $('bind-card').hidden = false;
+        if (j && j.ok && j.data && j.data.bound === true) $('bind-card').hidden = true;
+      });
+  });
+
+  $('btn-bind').addEventListener('click', function () {
+    var code = ($('bind-code').value || '').trim().toUpperCase();
+    if (code.length !== 8) {
+      var o = $('b-out'); o.hidden = false;
+      o.textContent = '啟用碼是 8 個字，現在是 ' + code.length + ' 個。';
+      return;
+    }
+    callGas({ action: 'auth.bind', idToken: window.__t, activationCode: code,
+              requestId: 'liff-bind-' + Date.now() },
+      $('b-out'), $('btn-bind'), function (j) {
+        if (j && j.ok && j.data && j.data.bound) {
+          $('bind-code').value = '';
+          $('b-out').textContent = '✓ 綁定完成\n學員：' + j.data.studentId
+            + '\n\n下次從 LINE 開啟就會自動認得你，不用再輸入啟用碼。\n'
+            + '可以按上面的 auth.exchange 驗證一次。';
+        }
+      });
   });
 })();
 </script>
