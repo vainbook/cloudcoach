@@ -44,6 +44,11 @@ var LINE_VERIFY_URL = 'https://api.line.me/oauth2/v2.1/verify';
 /* 預設 Channel ID。指令碼屬性 LINE_CHANNEL_ID 存在時以它為準。 */
 var DEFAULT_CHANNEL_ID = '2011543667';
 
+/* 允許回給前端的錯誤分類（BACKEND-WORKFLOW.md §5）。
+   不在這張表裡的一律變成 INTERNAL_ERROR —— 白名單，不是黑名單。 */
+var KNOWN_ERRORS = ['UNAUTHENTICATED', 'UNBOUND_ACCOUNT', 'FORBIDDEN_STUDENT',
+                    'INVALID_INPUT', 'CONFLICT'];
+
 /* ── 對外入口 ──────────────────────────────────────── */
 
 function doPost(e) {
@@ -56,8 +61,17 @@ function doPost(e) {
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
   } catch (err) {
     /* ⚠️ 絕對不要把 err.stack、Sheet 內容或 Token 回給前端。
-       細節留在 Apps Script 的執行紀錄裡，前端只拿到分類。 */
-    console.error('doPost 失敗', err);
+       細節留在 Apps Script 的執行紀錄裡，前端只拿到分類。
+
+       ⚠️ 但**分類要保留**。原本這裡一律回 INTERNAL_ERROR，
+       結果「Token 過期」跟「伺服器壞了」在前端長得一模一樣 ——
+       前者該叫使用者重新登入，後者該叫他等一下再試（踩過）。
+       我們自己丟的 AppError 帶著分類，照原樣回；只有非預期的例外才是 INTERNAL_ERROR。 */
+    if (err instanceof AppError && KNOWN_ERRORS.indexOf(err.code) >= 0) {
+      console.warn('doPost 已知錯誤 ' + err.code);
+      return fail_(err.code, err.message);
+    }
+    console.error('doPost 未預期例外', err);
     return fail_('INTERNAL_ERROR', '伺服器處理失敗');
   }
 }
@@ -149,6 +163,7 @@ function verifyLineIdToken_(idToken, channelId) {
 
 function AppError(code, message) { this.code = code; this.message = message; }
 AppError.prototype = Object.create(Error.prototype);
+AppError.prototype.constructor = AppError;
 
 function prop_(k) {
   return PropertiesService.getScriptProperties().getProperty(k) || '';
@@ -209,20 +224,23 @@ function selftest() {
 
   t('有可用的 Channel ID', !!channelId_());
 
+  var r0 = JSON.parse(doPost({ postData: { contents: '' } }).getContent());
+  t('空 body → INVALID_INPUT（不是 INTERNAL_ERROR）',
+    r0.ok === false && r0.error.code === 'INVALID_INPUT');
+
   var r1 = JSON.parse(doPost({ postData: { contents: '{}' } }).getContent());
   t('空 action → INVALID_INPUT', r1.ok === false && r1.error.code === 'INVALID_INPUT');
 
   var r2 = JSON.parse(doPost({ postData: { contents: 'not json' } }).getContent());
-  t('壞 JSON → INTERNAL_ERROR 或 INVALID_INPUT',
-    r2.ok === false && ['INVALID_INPUT', 'INTERNAL_ERROR'].indexOf(r2.error.code) >= 0);
+  t('壞 JSON → INVALID_INPUT', r2.ok === false && r2.error.code === 'INVALID_INPUT');
 
   var r3 = JSON.parse(doPost({ postData: { contents:
     JSON.stringify({ action: 'auth.exchange' }) } }).getContent());
-  t('缺 idToken → 回錯誤', r3.ok === false);
+  t('缺 idToken → UNAUTHENTICATED', r3.ok === false && r3.error.code === 'UNAUTHENTICATED');
 
   var r4 = JSON.parse(doPost({ postData: { contents:
     JSON.stringify({ action: 'auth.exchange', idToken: 'obviously.not.a.token' }) } }).getContent());
-  t('假 Token → 回錯誤（不是 200 ok）', r4.ok === false);
+  t('假 Token → UNAUTHENTICATED', r4.ok === false && r4.error.code === 'UNAUTHENTICATED');
   t('假 Token 的錯誤訊息不含 Token 原文',
     JSON.stringify(r4).indexOf('obviously.not.a.token') < 0);
 
