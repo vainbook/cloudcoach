@@ -43,7 +43,12 @@ var SKEL = {
   task:       { sheet: '任務狀態', prefix: 'TASK',
                 need: ['state_id', 'student_id', 'dimension_key', 'kr_id', '任務',
                        '當前任務', '已完成', '已隱藏', '更新時間',
-                       '加入書本', '書本重點'] }
+                       '加入書本', '書本重點'] },
+  /* 成長紀錄跟前三張不一樣：一列是**一整筆事件**，不是一個欄位。
+     所以它不走 stateSave_，另外有 growthSave_／growthLoad_。 */
+  growth:     { sheet: '成長紀錄', prefix: 'EVT',
+                need: ['event_id', 'student_id', 'author_role', 'kind', '日期', '週次',
+                       '標題', '狀況', '成果', '補充', '更新時間'] }
 };
 
 /* 任務狀態：我的 field → 那張表的欄名。白名單，不是黑名單。 */
@@ -63,7 +68,8 @@ var REPORT_FIELDS = ['letter', 'complete'];
 var STATE_SHEETS = {
   assessment: SKEL.assessment.sheet,
   report:     SKEL.report.sheet,
-  task:       SKEL.task.sheet
+  task:       SKEL.task.sheet,
+  growth:     SKEL.growth.sheet
 };
 
 /* ── 分頁 ──────────────────────────────────────────── */
@@ -254,7 +260,69 @@ function stateLoad_(scope, studentId) {
  */
 function stateSave_(scope, studentId, itemId, field, label, value, requestId, display) {
   if (scope === 'task') return taskSave_(studentId, itemId, field, value);
+  if (scope === 'growth') return growthSave_(studentId, itemId, value);
   return entrySave_(scope, studentId, itemId, field, label, value, requestId, display);
+}
+
+/* ── 成長紀錄 ───────────────────────────────────────
+   一列 = 一筆事件（通話記錄／外出社交／實際約會）。
+   ⚠️ 這張表**教練與學員共用**，author_role 決定是誰寫的 —— 不要用它做權限判斷，
+   權限是 access_scope 在管；author_role 只是給人看「這筆是誰記的」。 */
+
+function growthSave_(studentId, eventId, ev) {
+  var sh = skelSheet_('growth'), map = skelMap_(sh);
+  var now = now_();
+  if (!ev || typeof ev !== 'object') throw new AppError('INVALID_INPUT', '成長紀錄的內容不正確');
+
+  var line = findRow_(sh, map, function (r) {
+    return String(r.student_id) === String(studentId) && String(r.event_id) === String(eventId);
+  });
+  var role = ev.by === 'coach' ? 'coach' : 'student';
+  var kind = ['call', 'social', 'date'].indexOf(String(ev.kind)) >= 0 ? String(ev.kind) : 'call';
+  var lv = Math.max(1, Math.min(3, Math.round(Number(ev.lv) || 2)));
+
+  writeRow_(sh, map, line, {
+    event_id: String(eventId), student_id: studentId,
+    author_role: role, kind: kind,
+    '日期': String(ev.d || ''), '週次': Number(ev.w) || 0,
+    '標題': String(ev.t || '').slice(0, 120), '狀況': lv,
+    '成果': String(ev.outcome || '').slice(0, 4000),
+    '補充': String(ev.note || '').slice(0, 4000),
+    '更新時間': now
+  });
+  return now;
+}
+
+function growthLoad_(studentId) {
+  var sh = skelSheet_('growth'), map = skelMap_(sh);
+  var last = sh.getLastRow();
+  if (last <= SKEL_HEADER_ROW) return [];
+  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
+                         sh.getLastColumn()).getValues();
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rowObj_(rows[i], map);
+    if (String(r.student_id) !== String(studentId)) continue;
+    var id = String(r.event_id || '');
+    if (!id) continue;
+    out.push({
+      id: id, by: String(r.author_role || 'student'), kind: String(r.kind || 'call'),
+      d: fmtDate_(r['日期']), w: Number(r['週次']) || 0,
+      t: String(r['標題'] || ''), lv: Number(r['狀況']) || 2,
+      outcome: String(r['成果'] || '') || undefined,
+      note: String(r['補充'] || '') || undefined
+    });
+  }
+  return out;
+}
+
+/* Sheet 會把看起來像日期的字串轉成 Date 物件，前端要的是 YYYY-MM-DD。 */
+function fmtDate_(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, 'Asia/Taipei', 'yyyy-MM-dd');
+  }
+  return String(v);
 }
 
 /* 學員填寫／教練填寫：一列 = 一個 field_id。 */
@@ -382,4 +450,81 @@ function plain_(v) {
   if (v === false) return '否';
   if (Object.prototype.toString.call(v) === '[object Array]') return v.join('、');
   return String(v);
+}
+
+/* ── 學員清單（教練用）─────────────────────────────
+   來源是「學員」分頁（表頭也在第 5 列）。順便算每個人的評測進度，
+   讓教練一眼看得出誰卡住了。
+   ⚠️ 只掃「學員填寫」一次就把所有人的進度算完 ——
+   一人一次查詢的話，學員一多就會逾時。 */
+
+var STUDENT_SHEET = '學員';
+
+function studentList_() {
+  var ss = sheet_();
+  var sh = ss.getSheetByName(STUDENT_SHEET);
+  var rows = [];
+  if (sh && sh.getLastRow() > SKEL_HEADER_ROW) {
+    var map = skelMap_(sh);
+    var vals = sh.getRange(SKEL_HEADER_ROW + 1, 1, sh.getLastRow() - SKEL_HEADER_ROW,
+                           sh.getLastColumn()).getValues();
+    for (var i = 0; i < vals.length; i++) {
+      var r = rowObj_(vals[i], map);
+      var id = String(r.student_id || '').trim();
+      if (!id) continue;
+      rows.push({ id: id, name: String(r['學員名稱'] || ''),
+                  status: String(r['狀態'] || ''), startedAt: String(r['開始日期'] || '') });
+    }
+  }
+
+  /* 綁定表裡出現、但「學員」分頁還沒建檔的，也要列出來 ——
+     不然教練發了碼、學員綁好了，清單上卻看不到他。 */
+  var seen = {};
+  rows.forEach(function (x) { seen[x.id] = x; });
+  var bsh = bindingSheet_(), bmap = colMap_(bsh), brows = bsh.getDataRange().getValues();
+  for (var b = 1; b < brows.length; b++) {
+    var br = rowObj_(brows[b], bmap);
+    var bid = String(br.student_id || '').trim();
+    if (!bid || String(br.access_scope) === 'manage') continue;
+    if (!seen[bid]) {
+      seen[bid] = { id: bid, name: '', status: String(br.status || ''), startedAt: '' };
+      rows.push(seen[bid]);
+    }
+    seen[bid].lineName = String(br.line_display_name || '');
+    if (br.student_name) seen[bid].name = seen[bid].name || String(br.student_name);
+    seen[bid].lastLogin = String(br.last_login_at || '');
+  }
+
+  /* 進度：一次掃完，不要一人一次。 */
+  var filled = {}, reportDone = {};
+  var ash = skelSheet_('assessment'), amap = skelMap_(ash);
+  if (ash.getLastRow() > SKEL_HEADER_ROW) {
+    var av = ash.getRange(SKEL_HEADER_ROW + 1, 1, ash.getLastRow() - SKEL_HEADER_ROW,
+                          ash.getLastColumn()).getValues();
+    for (var a = 0; a < av.length; a++) {
+      var ar = rowObj_(av[a], amap);
+      var sid = String(ar.student_id || '');
+      if (!sid) continue;
+      if (ar['已填'] === 1 || ar['已填'] === '1' || ar['已填'] === true) {
+        filled[sid] = (filled[sid] || 0) + 1;
+      }
+    }
+  }
+  var rsh = skelSheet_('report'), rmap = skelMap_(rsh);
+  if (rsh.getLastRow() > SKEL_HEADER_ROW) {
+    var rv = rsh.getRange(SKEL_HEADER_ROW + 1, 1, rsh.getLastRow() - SKEL_HEADER_ROW,
+                          rsh.getLastColumn()).getValues();
+    for (var k = 0; k < rv.length; k++) {
+      var rr = rowObj_(rv[k], rmap);
+      if (String(rr.field_id) !== 'report.complete') continue;
+      if (decodeValue_(rr['儲存值']) === true) reportDone[String(rr.student_id || '')] = true;
+    }
+  }
+
+  rows.forEach(function (x) {
+    x.answered = filled[x.id] || 0;
+    x.reportComplete = !!reportDone[x.id];
+  });
+  rows.sort(function (p, q) { return p.id < q.id ? -1 : 1; });
+  return rows;
 }

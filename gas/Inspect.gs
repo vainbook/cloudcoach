@@ -16,17 +16,26 @@ function inspectTabs() {
     out.push('── ' + n + '　' + rows + ' 列 × ' + cols + ' 欄');
     if (!rows || !cols) { out.push('    （空的）'); return; }
     var peek = Math.min(rows, 6);
-    var vals = sh.getRange(1, 1, peek, Math.min(cols, 14)).getValues();
+    /* ⚠️ 一定要印**到最後一欄**。上次只印 14 欄，結果「學員填寫」誤加的
+       updated_at／request_id（O、P 欄）被截掉，看起來像沒問題。 */
+    var vals = sh.getRange(1, 1, peek, Math.min(cols, 26)).getValues();
     for (var i = 0; i < peek; i++) {
       var line = vals[i].map(function (v) {
         var s = String(v == null ? '' : v);
         return s.length > 14 ? s.slice(0, 14) + '…' : s;
-      }).join(' | ');
-      if (line.replace(/[ |]/g, '') === '') line = '（整列空白）';
+      }).map(function (v, i) { return colLetter_(i + 1) + ':' + v; }).join(' | ');
+      if (line.replace(/[A-Z0-9: |]/g, '') === '') line = '（整列空白）';
       out.push('    第' + (i + 1) + '列  ' + line);
     }
     if (rows > peek) out.push('    …還有 ' + (rows - peek) + ' 列');
   });
   console.log(out.join('\n'));
   return out.join('\n');
+}
+
+/* 1 → A，27 → AA。印出來要看得出是哪一欄，不然對不到畫面上。 */
+function colLetter_(n) {
+  var s = '';
+  while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = (n - m - 1) / 26; }
+  return s;
 }

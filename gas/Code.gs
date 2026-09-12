@@ -60,6 +60,9 @@ var BINDING_SHEET = '帳號綁定';
    student_name           學員自己在評測裡填的稱呼（B01）。接上作答後端之後自動帶入，
                           在那之前留空。**發碼時不需要填** —— 教練不用先知道學員叫什麼。
    line_display_name      LINE 的顯示名稱，綁定時自動記下來。純給教練認人用。
+   reusable               TRUE 代表這一列是**可重複使用的樣板**（教練共用的授權碼）。
+                          用掉不會作廢，而是替每個綁進來的 LINE 帳號另外長一列。
+                          學員的碼一律留空 —— 一次性才是對的。
    activation_code_plain  ⚠️ **明碼**，只存在「發出」到「第一次使用」之間，
                           用掉的瞬間由 authBind_ 清空。
    note                   備註，純給人看。LINE 名稱跟本人對不起來的時候寫在這裡。
@@ -72,7 +75,7 @@ var BINDING_SHEET = '帳號綁定';
    明碼欄純粹是給人看的便條，被手動改掉也不會影響驗證。 */
 var BINDING_COLS = ['binding_id', 'line_user_id', 'student_id', 'student_name',
                     'line_display_name',
-                    'access_scope', 'status', 'activation_code_hash',
+                    'access_scope', 'reusable', 'status', 'activation_code_hash',
                     'activation_code_plain', 'activation_expires_at',
                     'activation_used_at', 'linked_at', 'last_login_at', 'note'];
 
@@ -99,6 +102,7 @@ function doPost(e) {
       return ok_({ blueprint: blueprintLoad_() });
     }
     if (action === 'state.save')     return ok_(stateSaveAction_(body));
+    if (action === 'student.list')   return ok_(studentListAction_(body));
 
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
   } catch (err) {
@@ -146,7 +150,7 @@ function doGet() {
     channelConfigured: !!channelId_(),
     channelSource: prop_('LINE_CHANNEL_ID') ? 'script-property' : 'default-constant',
     sheetReady: sheetReady,
-    hint: '這個端點只接 POST。action：auth.exchange / auth.bind / student.load / blueprint.load / state.save'
+    hint: '這個端點只接 POST。action：auth.exchange / auth.bind / student.load / student.list / blueprint.load / state.save'
   });
 }
 
@@ -216,8 +220,10 @@ function authBind_(body) {
       if (String(r.activation_code_hash) !== hash) continue;
 
       /* 找到碼了。三道檢查，**順序不能反** ——
-         先確認沒用過、再確認沒過期，最後才確認狀態。 */
-      if (r.activation_used_at) {
+         先確認沒用過、再確認沒過期，最後才確認狀態。
+         ⚠️ 可重複使用的樣板列跳過「用過了」那一關 —— 它本來就會被用很多次。 */
+      var reusable = r.reusable === true || String(r.reusable).toUpperCase() === 'TRUE';
+      if (!reusable && r.activation_used_at) {
         throw new AppError('UNAUTHENTICATED', '這個啟用碼已經使用過了');
       }
       if (r.activation_expires_at && new Date(r.activation_expires_at) < now) {
@@ -231,6 +237,29 @@ function authBind_(body) {
          教練要管多位學員是 manage，那可以有多筆（§3）。 */
       if (r.access_scope === 'self' && hasSelfBinding_(rows, map, v.sub)) {
         throw new AppError('CONFLICT', '這個 LINE 帳號已經綁定其他學員');
+      }
+
+      /* ⚠️ 樣板列**不可以就地改**。改下去的話第一個綁進來的人會把樣板吃掉，
+         下一個教練就用不了同一組碼了。改成另外長一列，樣板原封不動。 */
+      if (reusable) {
+        var nrow = [], w = sh.getLastColumn();
+        for (var c = 0; c < w; c++) nrow[c] = '';
+        function put(col, val) { if (map[col]) nrow[map[col] - 1] = val; }
+        put('binding_id', 'BND-' + Utilities.getUuid().slice(0, 8).toUpperCase());
+        put('line_user_id', v.sub);
+        put('student_id', r.student_id || '');
+        put('access_scope', r.access_scope || 'manage');
+        put('status', 'active');
+        put('linked_at', now);
+        put('last_login_at', now);
+        put('note', '用共用授權碼綁定');
+        if (body.displayName) put('line_display_name', String(body.displayName).slice(0, 40));
+        sh.appendRow(nrow);
+        SpreadsheetApp.flush();
+        console.log('共用碼綁定成功 scope=' + (r.access_scope || 'manage')
+                    + ' sub=' + maskSub_(v.sub));
+        return { bound: true, studentId: r.student_id || '',
+                 accessScope: r.access_scope || 'manage', linkedAt: now.toISOString() };
       }
 
       var line = i + 1;   /* 試算表列號（1-based，且第 1 列是標題） */
@@ -305,8 +334,20 @@ function studentLoad_(body) {
     answers: answers,
     report: (stateLoad_('report', sid).report || {}),
     tasks: stateLoad_('task', sid),
+    log: growthLoad_(sid),
     blueprint: blueprintLoad_()
   };
+}
+
+/* student.list —— 只有教練（access_scope === 'manage'）叫得動。
+   ⚠️ 這個動作會回傳**所有學員的 id 與姓名**，是全站最該守的一道門。 */
+function studentListAction_(body) {
+  var b = requireBinding_(body);
+  if (b.access_scope !== 'manage') {
+    console.warn('非教練嘗試讀學員清單 from=' + b.student_id);
+    throw new AppError('FORBIDDEN_STUDENT', '這個帳號不能查看學員清單');
+  }
+  return { students: studentList_() };
 }
 
 /* state.save —— 單格 patch。
@@ -333,8 +374,15 @@ function stateSaveAction_(body) {
   if (scope === 'task' && TASK_FIELDS.indexOf(field) < 0) {
     throw new AppError('INVALID_INPUT', '不認識的任務欄位');
   }
+  if (scope === 'growth' && field !== 'event') {
+    throw new AppError('INVALID_INPUT', '成長紀錄只接受 event 欄位');
+  }
 
   var value = body.value;
+  /* 成長紀錄送的是整個事件物件，其他 scope 送的是單一值。 */
+  if (scope !== 'growth' && value !== null && typeof value === 'object') {
+    throw new AppError('INVALID_INPUT', '這個欄位不接受物件');
+  }
   if (typeof value === 'string' && value.length > 8000) {
     throw new AppError('INVALID_INPUT', '內容太長');
   }
@@ -691,8 +739,8 @@ function rehashPlainCodes_() {
  * @param {string} name       學員姓名（通常省略 —— 綁定時會自動帶 LINE 名稱進來）
  * @param {number} days       幾天後過期，預設 14
  */
-function newActivationCode(studentId, name, days) {
-  if (!studentId) throw new Error('要給 studentId');
+function newActivationCode(studentId, name, days, scope, reusable) {
+  if (!studentId && scope !== 'manage') throw new Error('要給 studentId');
   var sh = bindingSheet_();
   var map = colMap_(sh);
 
@@ -710,9 +758,10 @@ function newActivationCode(studentId, name, days) {
   for (var j = 0; j < width; j++) row[j] = '';
   function put(col, val) { if (map[col]) row[map[col] - 1] = val; }
   put('binding_id', 'BND-' + Utilities.getUuid().slice(0, 8).toUpperCase());
-  put('student_id', studentId);
+  put('student_id', studentId || '');
   put('student_name', name || '');
-  put('access_scope', 'self');
+  put('access_scope', scope === 'manage' ? 'manage' : 'self');
+  put('reusable', reusable === true);
   put('status', 'active');
   put('activation_code_hash', hashCode_(code));
   put('activation_code_plain', code);
@@ -734,6 +783,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('UC 雲端教練')
     .addItem('發新的啟用碼…', 'menuNewCode')
+    .addItem('發教練用的共用授權碼…', 'menuCoachCode')
     .addItem('查這份表的狀態', 'menuStatus')
     .addToUi();
 }
@@ -751,6 +801,21 @@ function menuNewCode() {
   ui.alert('啟用碼：' + code
     + '\n\n已經寫進「' + BINDING_SHEET + '」分頁，學員用掉之後那一格會自動清空。'
     + '\n14 天後過期。');
+}
+
+/* 教練用的授權碼：可重複使用、access_scope = manage、不綁特定學員。
+   使用者 2026-09-12：「教練可以都用同一個驗證碼授權身份。」 */
+function menuCoachCode() {
+  var ui = SpreadsheetApp.getUi();
+  var a = ui.alert('發教練用的共用授權碼',
+    '這組碼可以**重複使用**，拿到的人都會變成教練身分（看得到所有學員）。\n\n'
+    + '⚠️ 跟學員用的一次性啟用碼不一樣，不要混著給。\n\n要繼續嗎？',
+    ui.ButtonSet.OK_CANCEL);
+  if (a !== ui.Button.OK) return;
+  var code = newActivationCode('', '教練共用', 3650, 'manage', true);
+  ui.alert('教練授權碼：' + code
+    + '\n\n可重複使用，十年後過期。\n'
+    + '要作廢的話，去「' + BINDING_SHEET + '」把那一列的 status 改成 disabled。');
 }
 
 function menuStatus() {
@@ -857,6 +922,17 @@ function selftest() {
   t('student.load 要先驗 Token', !r8.ok && r8.error.code === 'UNAUTHENTICATED');
   var r9 = post({ action: 'state.save', idToken: 'x.y.z', scope: 'assessment' });
   t('state.save 要先驗 Token', !r9.ok && r9.error.code === 'UNAUTHENTICATED');
+  var r9b = post({ action: 'student.list', idToken: 'x.y.z' });
+  t('student.list 要先驗 Token', !r9b.ok && r9b.error.code === 'UNAUTHENTICATED');
+
+  /* 學員清單是全站最該守的門 —— 不是 manage 就不能叫。 */
+  var scopeOk = true;
+  try {
+    studentListAction_.call(null, {});
+    scopeOk = false;
+  } catch (e) { scopeOk = e instanceof AppError; }
+  t('student.list 沒有 Token 時丟的是 AppError', scopeOk);
+  t('綁定表有 reusable 欄位', !!(ss && colMap_(bindingSheet_()).reusable));
 
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];

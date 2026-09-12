@@ -362,14 +362,24 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 /* ⚠️ .qval 預設是「一行、超出就截斷」（那是給選擇題的答案格用的）。
    填空題要能換行，這三個都得解掉，不然補充說明會被截成一行（踩過）。 */
 .qrow.free .qval { white-space: normal; overflow: visible; text-overflow: clip; }
-.qfield {
+/* ⚠️ **選擇器一定要寫成 `input.qfield`，不能只寫 `.qfield`。**
+   上面第 149 行那條全站規則裡有 `input[type=number]`（深藍底、米白字），
+   它的權重是 0,1,1；純 `.qfield` 只有 0,1,0 —— 於是唯一一題 number
+   （L02 交往次數）在米白考試紙上變成一個深藍色方塊（踩過，使用者回報）。
+   `textarea` 是 0,0,1 所以填空題沒事，只有 number 中招。
+   寫成 input.qfield 之後權重打平，而這條在後面，就贏了。 */
+input.qfield, textarea.qfield {
   display: block; width: 100%; resize: none; overflow: hidden;
   font-family: var(--sans); font-size: 13px; line-height: 1.75;
-  color: var(--navy); background: none; border: 0; padding: 0;
+  color: var(--navy); background: none; border: 0; border-radius: 0; padding: 0;
   min-height: 1.75em;
+  /* number 的上下微調箭頭在考試紙上很突兀，關掉。 */
+  appearance: textfield; -webkit-appearance: textfield;
 }
-.qfield:focus { outline: none; }
-.qfield::placeholder { color: var(--navy); opacity: .3; }
+input.qfield::-webkit-outer-spin-button,
+input.qfield::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.qfield:focus, textarea.qfield:focus { outline: none; border-color: transparent; }
+input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); opacity: .3; }
 .qrow.free { transition: background .2s; }
 .qrow.focus { background: rgba(255, 255, 255, .45); }
 /* 補充說明只在游標在格子裡的時候出現 —— 常駐的話 17 個填空題會多 17 行。 */
@@ -2000,6 +2010,63 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gateerr { min-height: 1.4em; margin: 0 0 12px !important; font-size: 12px !important;
   color: var(--salmon); }
 
+/* ═══ 學員清單（教練用）═══════════════════════════════
+   一列一位學員：名字、id、評測進度條、現在卡在哪一關。
+   用按鈕不用連結 —— 點下去是「切換目前看誰」，不是導覽。 */
+.stlist { display: grid; gap: 10px; }
+.strow {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 14px;
+  width: 100%; padding: 16px 18px; text-align: left; cursor: pointer;
+  color: var(--beige); background: var(--navy-lift);
+  border: 1px solid var(--beige-18); border-radius: 0;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.strow:hover { border-color: var(--salmon); }
+.strow.is-cur { border-left: 3px solid var(--salmon); background: var(--navy-lift2); }
+.strow.is-busy { opacity: .5; pointer-events: none; }
+.stname { grid-column: 1; font-family: var(--serif); font-size: 17px; font-weight: 400; }
+.stid { grid-column: 1; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .05em; text-decoration: none; opacity: .5; }
+.ststage { grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  font-family: var(--mono); font-size: 10.5px; font-style: normal;
+  letter-spacing: .05em; opacity: .65; white-space: nowrap; }
+.stbar { grid-column: 1 / -1; display: block; height: 2px; margin-top: 8px;
+  background: var(--beige-08); }
+.stbar u { display: block; height: 100%; background: var(--salmon); text-decoration: none; }
+@media (max-width: 560px) {
+  .strow { grid-template-columns: 1fr; }
+  .ststage { grid-column: 1; grid-row: auto; }
+}
+
+/* ═══ 成長紀錄：三顆大按鈕 ═══════════════════════════
+   使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
+   點下去開始寫紀錄。」入口就是分類，不要先問「要不要新增」再問「哪一種」。 */
+.gkinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 26px 0 14px; }
+.gkind {
+  display: grid; justify-items: center; gap: 6px; padding: 20px 12px 18px;
+  color: var(--beige); background: var(--navy-lift);
+  border: 1px solid var(--beige-18); border-radius: 0; cursor: pointer;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.gkind:hover { border-color: var(--salmon); background: var(--navy-lift2); }
+.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+.gkind b { font-family: var(--serif); font-size: 16px; font-weight: 400; }
+.gkind s { font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+  text-decoration: none; opacity: .5; text-align: center; }
+.gkico { display: block; width: 32px; height: 32px; }
+.gkico svg { width: 100%; height: 100%; }
+/* glyphSvg 畫的是 .gy，配色跟軌上的圖案同一套。 */
+.gkico .gy { fill: none; stroke: var(--salmon); }
+.gkico .gy.pk, .gkico .gy.tr { fill: var(--salmon); stroke: none; }
+.gfkind { margin: 2px 0 10px; font-family: var(--serif); font-size: 20px; font-weight: 400; }
+@media (max-width: 560px) {
+  .gkinds { grid-template-columns: 1fr; gap: 8px; }
+  .gkind { grid-template-columns: 32px 1fr; justify-items: start; align-items: center;
+           gap: 4px 14px; padding: 14px 16px; }
+  .gkico { grid-row: 1 / span 2; }
+  .gkind s { text-align: left; }
+}
+
 </style>
 </head>
 <body>
@@ -2053,7 +2120,11 @@ html.task-open, html.task-open body { overflow: hidden; }
 <section class="view" id="v-growth"><div class="top"><span class="uc-logo">uc</span><b class="tname">成長紀錄</b><span class="who" id="who6"></span></div><div class="pagepad" id="growthBody"></div></section>
 <section class="view" id="v-library"><div class="top"><span class="uc-logo">uc</span><b class="tname">資源與工具</b><span class="who" id="who4"></span></div><div class="pagepad" id="libBody"></div></section>
 
+<!-- 教練專用：所有學員的清單。只有 access_scope = manage 看得到（app.js 控制 hidden）。 -->
+<section class="view" id="v-students"><div class="top"><span class="uc-logo">uc</span><b class="tname">學員清單</b><span class="who" id="who6"></span></div><div class="pagepad" id="studentsBody"></div></section>
+
 <nav class="nav" id="nav" hidden>
+  <a href="#/students" id="navStudents" hidden>學員</a>
   <a href="#/assess">評測</a>
   <a href="#/report">報告</a>
   <a href="#/okr">藍圖</a>
@@ -3913,6 +3984,19 @@ window.UC_SELFTEST = function () {
       out[scope + '|' + itemId + '|' + field] =
         { scope: scope, itemId: itemId, field: field, label: label, value: value };
     }
+
+    /* 成長紀錄：一筆事件送一整個物件，不是拆成欄位 ——
+       ⚠️ remote 模式不寫 localStorage，這裡不同步的話
+       在 LINE 裡記的東西重新整理就沒了。 */
+    (S.log || []).forEach(function (ev) {
+      if (!ev || !ev.id) return;
+      out['growth|' + ev.id + '|event'] = {
+        scope: 'growth', itemId: String(ev.id), field: 'event',
+        label: String(ev.t || '').slice(0, 60),
+        display: String(ev.outcome || ev.t || '').slice(0, 200),
+        value: ev
+      };
+    });
     return out;
   }
 
@@ -4069,13 +4153,18 @@ window.UC_SELFTEST = function () {
     idToken = opts.idToken || '';
     studentId = opts.studentId || '';
     snap = null;
+    return load_();
+  }
+
+  function load_() {
     return call({ action: 'student.load' }).then(function (data) {
       studentId = data.studentId || studentId;
       var S = {
         name: data.studentName || data.lineDisplayName || '',
         answers: data.answers || {},
         coachReport: unpackReport(data.report || {}),
-        picked: [], key: {}, taskNow: {}, hidden: {}, done: {}, log: []
+        picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
+        log: Array.isArray(data.log) ? data.log : []
       };
       unpackTasks(data.tasks || {}, S);
       if (data.blueprint && data.blueprint.length) applyBlueprint(data.blueprint);
@@ -4151,9 +4240,48 @@ window.UC_SELFTEST = function () {
      呼叫端還是可以在單一 payload 裡自己帶，那個優先。 */
   function token(t) { idToken = t || ''; }
 
+  /* ── 教練切換學員 ──────────────────────────────────
+     ⚠️ 真正的權限在後端 —— 這裡送什麼 studentId，GAS 都會再對一次
+     綁定表的 access_scope。前端改這個值換不到別人的資料。 */
+  function listStudents() {
+    return call({ action: 'student.list', studentId: '' })
+      .then(function (d) { return d.students || []; });
+  }
+
+  function switchStudent(id) {
+    if (!id || id === studentId) return Promise.resolve();
+    /* ⚠️ 先把還沒送出去的 patch 清乾淨，否則 A 的答案會寫到 B 頭上。 */
+    var stuck = queue.length;
+    if (stuck) say('還有 ' + stuck + ' 筆沒存完，先送出再切換。');
+    return drain().then(function () {
+      var prev = studentId;
+      studentId = id;
+      snap = null;
+      return load_().catch(function (e) {
+        studentId = prev;               /* 換失敗就換回去，不要停在半空中 */
+        throw e;
+      });
+    });
+  }
+
+  /* 把佇列送完再繼續。逾時就放棄等待（資料還在佇列裡，不會掉）。 */
+  function drain() {
+    if (!queue.length) return Promise.resolve();
+    return new Promise(function (res) {
+      var t0 = Date.now();
+      (function tick() {
+        if (!queue.length || Date.now() - t0 > 8000) return res();
+        run();
+        setTimeout(tick, 300);
+      })();
+    });
+  }
+
   window.UC_STORE = {
     endpoint: endpoint,
     token: token,
+    listStudents: listStudents,
+    switchStudent: switchStudent,
     isRemote: isRemote,
     push: push,
     flush: flush,
@@ -4361,10 +4489,28 @@ window.UC_SELFTEST = function () {
     '#/okr':     { view: 'v-okr',     render: renderOkr },
     '#/growth':  { view: 'v-growth',  render: renderGrowth },
     '#/library': { view: 'v-library', render: renderLibrary },
-    '#/tools':   { view: 'v-library', render: function () { LIBTAB = 'tool'; renderLibrary(); } }
+    '#/tools':   { view: 'v-library', render: function () { LIBTAB = 'tool'; renderLibrary(); } },
+    '#/students': { view: 'v-students', render: renderStudents }
   };
 
+  /* 從 LINE 進來的話該落在哪一頁：還沒填完就去評測，填完了就去報告。 */
+  function landing() {
+    /* 教練先看清單，決定要看誰；學員直接進自己的頁。 */
+    if (ACTOR_ROLE === 'coach') return '#/students';
+    var total = window.UC_SCORE.questions.length;
+    return answeredCount() >= total ? '#/report' : '#/assess';
+  }
+
   function go(hash) {
+    /* ⚠️ **從 LINE 進來不需要「輸入名字」那一頁。**
+       身分是 LINE 決定的，稱呼是學員在評測 B01 自己填的 ——
+       再讓他打一次名字，那個名字還誰都不採信，只是白打。
+       放在 go() 而不是只在登入後跳轉，是因為使用者可能按上一頁回到 #/。 */
+    if (hash === '#/' && window.UC_STORE && window.UC_STORE.isRemote()) {
+      var to = landing();
+      if (location.hash !== to) { location.replace(location.pathname + location.search + to); return; }
+      hash = to;
+    }
     var r = ROUTES[hash] || ROUTES['#/'];
     [].forEach.call(document.querySelectorAll('.view'), function (v) { v.classList.remove('on'); });
     el(r.view).classList.add('on');
@@ -4376,6 +4522,8 @@ window.UC_SELFTEST = function () {
       else a.removeAttribute('aria-current');
     });
     [].forEach.call(document.querySelectorAll('.who'), function (n) { n.textContent = S.name || ''; });
+    var ns = el('navStudents');
+    if (ns) ns.hidden = !(ACTOR_ROLE === 'coach' && window.UC_STORE && window.UC_STORE.isRemote());
 
     if (r.render) r.render();
     window.scrollTo(0, 0);
@@ -4390,6 +4538,8 @@ window.UC_SELFTEST = function () {
   /* ── 登入頁 ───────────────────────────────────────── */
   el('loginForm').addEventListener('submit', function (e) {
     e.preventDefault();
+    /* 接上後端之後這一頁根本進不來（go() 會先跳走），保險起見再擋一次。 */
+    if (window.UC_STORE && window.UC_STORE.isRemote()) { nav(landing()); return; }
     var v = el('loginName').value.trim();
     if (!v) return;
     S.name = v; save();
@@ -4397,7 +4547,10 @@ window.UC_SELFTEST = function () {
   });
 
   el('demoBtn').addEventListener('click', function () {
-    S = window.UC_SAMPLE ? window.UC_SAMPLE() : blank();
+    /* ⚠️ 用 replaceState 就地換內容，**不要 `S = ...`** ——
+       教練報告那邊有 `var cr = S.coachReport` 的閉包別名，
+       換掉整個物件的話別名還指著舊的，畫面會寫到一份沒人看的資料。 */
+    replaceState(window.UC_SAMPLE ? window.UC_SAMPLE() : blank());
     save();
     nav('#/report');
   });
@@ -5317,6 +5470,70 @@ window.UC_SELFTEST = function () {
     reveal(body);
   }
 
+  /* ── 學員清單（只有教練看得到）─────────────────────
+     ⚠️ 這一頁只是**入口**，不是權限。真正的權限在 GAS：
+     student.list 與 student.load 都會對綁定表的 access_scope。
+     前端把 nav 的 hidden 拿掉也讀不到別人的資料。 */
+
+  var STUDENTS = null;
+
+  function renderStudents() {
+    var body = el('studentsBody');
+    if (!window.UC_STORE || !window.UC_STORE.isRemote()) {
+      body.innerHTML = wrap('<div class="empty"><p class="ey">Coach</p>'
+        + '<h1>還沒連上後端</h1><div class="divider"><i></i><s></s></div>'
+        + '<p>這一頁要從 LINE 登入才看得到。</p></div>');
+      return;
+    }
+    if (!STUDENTS) {
+      body.innerHTML = wrap('<div class="empty"><p class="ey">Coach</p>'
+        + '<h1>載入學員清單…</h1></div>');
+      window.UC_STORE.listStudents().then(function (list) {
+        STUDENTS = list; renderStudents();
+      }).catch(function (e) {
+        body.innerHTML = wrap('<div class="empty"><p class="ey">Coach</p>'
+          + '<h1>讀不到學員清單</h1><div class="divider"><i></i><s></s></div>'
+          + '<p>' + esc((e && e.message) || '') + '</p></div>');
+      });
+      return;
+    }
+
+    var total = window.UC_SCORE.questions.length;
+    var cur = window.UC_STORE.studentId();
+    var rows = STUDENTS.map(function (x) {
+      var pct = total ? Math.round(x.answered / total * 100) : 0;
+      var stage = x.reportComplete ? '報告已開放'
+                : (x.answered >= total ? '等你評測' : '填答中');
+      return '<button type="button" class="strow' + (x.id === cur ? ' is-cur' : '') + '"'
+        + ' data-student="' + esc(x.id) + '">'
+        + '<b class="stname">' + esc(x.name || x.lineName || x.id) + '</b>'
+        + '<s class="stid">' + esc(x.id) + (x.lineName && x.name ? ' ・ LINE：' + esc(x.lineName) : '') + '</s>'
+        + '<i class="stbar"><u style="width:' + pct + '%"></u></i>'
+        + '<em class="ststage">' + esc(stage) + '　' + x.answered + '/' + total + '</em>'
+        + '</button>';
+    }).join('');
+
+    body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + STUDENTS.length + ' 位</p>'
+      + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
+      + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
+      + wrap('<div class="stlist">' + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
+
+    [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
+      b.addEventListener('click', function () {
+        var id = b.dataset.student;
+        b.classList.add('is-busy');
+        window.UC_STORE.switchStudent(id).then(function () {
+          STUDENTS = null;                  /* 進度會變，下次重讀 */
+          nav('#/assess');
+        }).catch(function (e) {
+          b.classList.remove('is-busy');
+          toast((e && e.message) || '換不過去，請再試一次');
+        });
+      });
+    });
+    reveal(body);
+  }
+
   /* ── 課程藍圖 ─────────────────────────────────────────
      入口是代表學員自己的成長人物；點能力卡會先看該能力的當前任務。
      「書」仍保留完整藍圖；人物不會帶進書頁，也不在這裡放週次或成長縮圖。 */
@@ -6136,7 +6353,9 @@ window.UC_SELFTEST = function () {
      視覺重量交給線與排版」解掉 —— 不再賭圖案。
 
      切週次不重建 DOM，改篩選或新增紀錄只重畫 paintBands()。 */
-  var GW = 1, GEL = null, GSEL = null, GFORM = false;
+  /* GFORM 現在存的是**要記哪一種**（'call'／'social'／'date'），null 代表沒開。
+     舊版是布林值，因為類型是在表單裡的下拉選的。 */
+  var GW = 1, GEL = null, GSEL = null, GFORM = null;
   var GKIND = 'all';  // 下方紀錄要回看哪一種
   /* 成就的概念已移除（使用者：「沒有成就」）—— 每一筆都是一樣的紀錄 */
   var GPOS = {};                          // 週次色帶的幾何（x0／每週寬），供就地更新
@@ -6247,8 +6466,19 @@ window.UC_SELFTEST = function () {
       + '由左到右十二週。前幾週靜音的那兩條不是留白，是還沒開始。'
       + '一筆紀錄＝一組電平段，<b>段數就是那一筆的狀況</b>（一段差／兩段好／三段優）'
       + '—— 同一條軌內比才有意義。</p>'
+      /* ⚠️ 入口是**三顆大按鈕**，不是一顆「新增」再從下拉選類型。
+         使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
+         點下去開始寫紀錄。」—— 要記的當下你早就知道是哪一種了，
+         先問「要不要新增」再問「哪一種」是多一層。 */
+      + '<div class="gkinds">'
+      + GLANE.map(function (ln) {
+          return '<button type="button" class="gkind" data-kind="' + ln.k + '">'
+            + '<i class="gkico"><svg viewBox="0 0 32 32" aria-hidden="true">'
+            + glyphSvg(ln.k, 16, 16, 11) + '</svg></i>'
+            + '<b>' + ln.label + '</b><s>' + esc(GKHINT[ln.k]) + '</s></button>';
+        }).join('')
+      + '</div>'
       + '<div class="tlact">'
-      + '<button class="btn gh" id="gAdd">＋ 新增紀錄</button>'
       + '<button class="btn gh" id="gReplay">↻ 重播</button>'
       + '</div>'
       + '<div id="gForm"></div>'
@@ -6262,7 +6492,13 @@ window.UC_SELFTEST = function () {
       form: el('gForm'), panel: el('gPanel')
     };
 
-    el('gAdd').addEventListener('click', function () { GFORM = !GFORM; renderForm(); });
+    [].forEach.call(body.querySelectorAll('[data-kind]'), function (b) {
+      b.addEventListener('click', function () {
+        GFORM = (GFORM === b.dataset.kind) ? null : b.dataset.kind;   /* 再點一次收起來 */
+        renderForm();
+        if (GFORM && GEL.form.firstChild) GEL.form.scrollIntoView({ block: 'nearest' });
+      });
+    });
     el('gReplay').addEventListener('click', function () { sweep(); });
 
     GEL.band.addEventListener('click', function (e) {
@@ -6613,20 +6849,27 @@ window.UC_SELFTEST = function () {
     date:   '進展到哪一步？'
   };
 
+  var GKHINT = {
+    call:   '跟教練通話之後記一筆',
+    social: '出門認識人、參加活動',
+    date:   '約出來見面'
+  };
+
   function renderForm() {
     if (!GFORM) { GEL.form.innerHTML = ''; return; }
-    /* 三種類型一律都能記。正式登入時記錄者由 LIFF 身分固定；
-       GLANE 的 who 只在沒有登入角色的本機範例模式提供預設值。 */
-    var kinds = GLANE;
+    /* 類型在按按鈕的時候就決定了，表單裡不再問一次。 */
+    var lane = GLANE.filter(function (l) { return l.k === GFORM; })[0] || GLANE[0];
 
     var h = '<div class="gfm" data-field-scope="growth.event"><p class="ey">新增紀錄</p>'
+      + '<h3 class="gfkind">' + esc(lane.label) + '</h3>'
       + '<p class="fieldtag shared">教練與學員皆可填寫</p>'
-      + '<div class="gfr"><label for="fKind">類型</label><select id="fKind" data-field-id="growth.event.kind" data-field-owner="shared" data-field-label="紀錄類型">'
-      + kinds.map(function (ln) { return '<option value="' + ln.k + '">' + ln.label + '</option>'; }).join('')
-      + '</select></div>'
-      + '<div class="gfr"><label for="fBy">記錄者</label><select id="fBy" data-field-id="growth.event.author" data-field-owner="state" data-field-label="記錄者">'
-      + '<option value="coach">教練</option><option value="student">學員</option>'
-      + '</select><s class="gfh">正式登入後會自動使用目前身分；範例模式可切換</s></div>'
+      + '<input type="hidden" id="fKind" value="' + esc(lane.k) + '">'
+      /* 正式登入後記錄者由 LIFF 身分決定，沒得選 —— 選單只留給本機範例模式。 */
+      + (ACTOR_ROLE
+        ? '<input type="hidden" id="fBy" value="' + esc(ACTOR_ROLE) + '">'
+        : '<div class="gfr"><label for="fBy">記錄者</label><select id="fBy" data-field-id="growth.event.author" data-field-owner="state" data-field-label="記錄者">'
+          + '<option value="coach">教練</option><option value="student">學員</option>'
+          + '</select><s class="gfh">正式登入後會自動使用目前身分；範例模式可切換</s></div>')
       + '<div class="gfr"><label for="fDate">日期</label><input type="date" id="fDate" data-field-id="growth.event.date" data-field-owner="shared" data-field-label="紀錄日期"'
       + ' min="' + G0 + '" max="' + G1 + '" value="' + gIso((GW - 1) * 7 + 3) + '">'
       + '<s class="gfh">在 12 週的範圍內選一天，週次會自己算</s></div>'
@@ -6634,24 +6877,16 @@ window.UC_SELFTEST = function () {
       + '<div class="gfr"><label for="fLv">狀況</label><select id="fLv" data-field-id="growth.event.level" data-field-owner="shared" data-field-label="紀錄狀況">'
       + '<option value="1">差</option><option value="2" selected>好</option><option value="3">優</option>'
       + '</select><s class="gfh">決定這一筆在軌上是幾段</s></div>'
-      + '<div class="gfr"><label for="fO">成果</label><textarea id="fO" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄成果" placeholder="' + OUTPH[kinds[0].k] + '"></textarea></div>'
+      + '<div class="gfr"><label for="fO">成果</label><textarea id="fO" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄成果" placeholder="' + esc(OUTPH[lane.k]) + '"></textarea></div>'
       + '<div class="gfr"><label for="fN">補充</label><textarea id="fN" data-field-id="growth.event.note" data-field-owner="shared" data-field-label="紀錄補充" placeholder="當下的感覺、發生了什麼（可留空）"></textarea></div>';
 
     h += '<div class="gfb"><button class="btn pri" id="fSave">加到時間帶</button>'
       + '<button class="btn gh" id="fCancel">取消</button></div></div>';
     GEL.form.innerHTML = h;
 
-    function syncBy() {
-      if (ACTOR_ROLE) { el('fBy').value = ACTOR_ROLE; return; }
-      var ln = GLANE.filter(function (l) { return l.k === el('fKind').value; })[0];
-      if (ln) el('fBy').value = ln.who;
-    }
-    syncBy();
-    el('fKind').addEventListener('change', function () {
-      el('fO').placeholder = OUTPH[el('fKind').value] || '';
-      syncBy();
-    });
-    el('fCancel').addEventListener('click', function () { GFORM = false; renderForm(); });
+    if (!ACTOR_ROLE) el('fBy').value = lane.who;
+    el('fT').focus();
+    el('fCancel').addEventListener('click', function () { GFORM = null; renderForm(); });
     el('fSave').addEventListener('click', function () {
       var t = el('fT').value.trim();
       if (!t) { toast('先寫一行標題'); return; }
@@ -6665,7 +6900,7 @@ window.UC_SELFTEST = function () {
         note: el('fN').value.trim() || undefined
       };
       S.log = (S.log || []).concat([e]); save();
-      GFORM = false; GSEL = e.id;
+      GFORM = null; GSEL = e.id;
       renderForm(); paintBands(); growthTo(e.w);
       toast('已加到第 ' + e.w + ' 週');
     });
@@ -7023,6 +7258,10 @@ window.UC_SELFTEST = function () {
 
   var q = location.search;
   if (/[?&]demo=1/.test(q)) return;             /* 明講要 demo 就不要碰 LINE */
+  /* ⚠️ 自我檢查與文字稽核**不可以觸發登入**。
+     `#selftest` 會把整個 body 換掉，而 liff.login() 會直接把頁面導去 LINE ——
+     結果是打不開自我檢查（踩過）。 */
+  if (location.hash === '#selftest' || /[?&]audit=1/.test(q)) return;
 
   var box = null, idToken = '';
 
@@ -7103,7 +7342,7 @@ window.UC_SELFTEST = function () {
     })
     .then(function (data) {
       if (!data) return;
-      if (data.bound) return enter(data.studentId);
+      if (data.bound) return enter(data.studentId, data.accessScope);
       askCode();
     })
     .catch(function (err) {
@@ -7144,7 +7383,7 @@ window.UC_SELFTEST = function () {
     if (!code) { if (err) err.textContent = '請輸入啟用碼。'; return; }
     if (err) err.textContent = '綁定中…';
     window.UC_STORE.call({ action: 'auth.bind', idToken: idToken, activationCode: code })
-      .then(function (data) { enter(data.studentId); })
+      .then(function (data) { enter(data.studentId, data.accessScope); })
       .catch(function (e) {
         if (err) err.textContent = e.code === 'UNAUTHENTICATED'
           ? '啟用碼不正確，或已經用過、過期了。跟教練要一組新的。'
@@ -7152,17 +7391,18 @@ window.UC_SELFTEST = function () {
       });
   }
 
-  function enter(studentId) {
+  function enter(studentId, scope) {
     ui('<p class="ey">Loading</p><h2>正在載入你的資料…</h2>');
+    /* ⚠️ **身分要在 connect() 之前設。** connect 載完會立刻重畫，
+       而「教練先看清單、學員直接進自己的頁」是靠 ACTOR_ROLE 判斷的 ——
+       設晚了教練會先被丟到評測頁（踩過）。
+       accessScope 在 auth.exchange 就拿得到，不必等 student.load。
+       真正的權限仍在後端，前端改這個值讀不到別人的資料。 */
+    if (window.UC_APP && window.UC_APP.setRole) {
+      window.UC_APP.setRole(scope === 'manage' ? 'coach' : 'student');
+    }
     return window.UC_STORE.connect({ api: GAS_API, idToken: idToken, studentId: studentId })
-      .then(function (data) {
-        done();
-        /* 真正的權限在後端（access_scope 決定動得了誰的資料）；
-           這裡只是把畫面切到對應身分。前端改這個值不會讓他讀到別人的資料。 */
-        if (window.UC_APP && window.UC_APP.setRole) {
-          window.UC_APP.setRole(data.accessScope === 'manage' ? 'coach' : 'student');
-        }
-      })
+      .then(function () { done(); })
       .catch(function (e) { fatal('載入資料失敗', (e && e.message) || ''); });
   }
 
