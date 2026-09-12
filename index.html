@@ -5706,8 +5706,13 @@ window.UC_SELFTEST = function () {
      ⚠️ 內容**在按下去的當下才組**，不要在 render 時先組好 ——
      教練可能剛改完評語，先組好的會是舊的。 */
 
+  /* 按鈕的字要說出**實際會發生什麼事**。
+     使用者 2026-09-13：「我只是要確認好。」—— 按鈕寫「傳到 LINE」卻跳出複製，
+     那不是功能不足，是介面在說謊。 */
   function shareLabel() {
-    return (window.UC_SHARE && window.UC_SHARE.canSend()) ? '傳到 LINE' : '複製內容';
+    if (!window.UC_SHARE || !window.UC_SHARE.how) return '複製內容';
+    return { picker: '傳到 LINE', send: '傳回這個對話',
+             system: '分享', copy: '複製內容' }[window.UC_SHARE.how()] || '複製內容';
   }
 
   function bindShare(btn, build) {
@@ -7559,7 +7564,17 @@ window.UC_SELFTEST = function () {
     } catch (e) { return false; }
   }
 
+  /* ⚠️ **預設關掉。** sendMessages 只送得進「官方帳號的聊天室」，
+     而這個專案的 LIFF 是從一般群組／對話開的（使用者 2026-09-13 確認），
+     所以它必定回 INVALID_RECEIVER。留著只會每次先失敗一輪再退回去，
+     使用者看到的是「按鈕說傳到 LINE，結果跳複製」——「不確定」比「做不到」更糟。
+
+     什麼時候可以打開：等這個 LINE Login channel 連動了官方帳號（Linked OA），
+     而且學員是從那個官方帳號的聊天室點進來的。把這裡改成 true 就會生效。 */
+  var USE_SEND_MESSAGES = false;
+
   function hasSend() {
+    if (!USE_SEND_MESSAGES) return false;
     try {
       if (!window.liff || !liff.isInClient || !liff.isInClient()) return false;
       var c = liff.getContext();
@@ -7680,6 +7695,8 @@ window.UC_SELFTEST = function () {
     d.shareTargetPicker = hasPicker();
     d.sendMessages = hasSend();
     d.systemShare = !!navigator.share;
+    d.sendMessagesEnabled = USE_SEND_MESSAGES;
+    d.willUse = window.UC_SHARE ? window.UC_SHARE.how() : '(未初始化)';
     d.lastShareError = lastError || '(無)';
     return d;
   }
@@ -7703,6 +7720,13 @@ window.UC_SELFTEST = function () {
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
     canSend: function () { return hasPicker() || hasSend() || !!navigator.share; },
+    /* 按鈕要照**實際會走的那條路**命名，不要一律寫「傳到 LINE」然後跳複製。 */
+    how: function () {
+      if (hasPicker()) return 'picker';
+      if (hasSend()) return 'send';
+      if (navigator.share) return 'system';
+      return 'copy';
+    },
     /* 上一次為什麼沒能送出去。空字串代表沒問題。 */
     lastError: function () { return lastError; }
   };
