@@ -876,12 +876,29 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .crrow { padding: 20px; border: 1px solid rgba(19, 27, 46, .12); }
 .crmeta .ey { margin: 0 0 4px; color: var(--salmon-ink); }
 .crmeta h3 { margin: 0; font-family: var(--serif); font-size: 20px; }
-.crscore { flex: none; font-size: 12px; font-weight: 700; }
-.crscore select {
-  display: block; min-width: 112px; margin-top: 6px; padding: 9px 30px 9px 10px;
-  color: var(--navy); background: transparent; border: 1px solid rgba(19, 27, 46, .22);
-  border-radius: 2px; font: inherit;
+/* 分數不是教練從零填的 —— 25 道計分題算出基準，教練只做 ±。
+   所以這一格要同時講三件事：測出來幾級、教練動了幾級、最後是幾級。 */
+.crscore { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  font-size: 12px; font-weight: 700; }
+.crbase { font-family: var(--mono); font-size: 10.5px; font-weight: 400;
+  letter-spacing: .05em; opacity: .5; }
+.crbase b { font-size: 12px; opacity: .85; }
+.crstep { display: flex; align-items: center; gap: 2px;
+  border: 1px solid rgba(19, 27, 46, .22); border-radius: 2px; }
+.crstep button {
+  width: 30px; height: 34px; color: var(--navy); background: transparent;
+  border: 0; font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+  transition: background .15s var(--ease);
 }
+.crstep button:hover:not(:disabled) { background: rgba(19, 27, 46, .06); }
+.crstep button:disabled { opacity: .25; cursor: default; }
+.crstep button:focus-visible { outline: 2px solid rgba(193, 102, 82, .5); outline-offset: -2px; }
+.crfin { min-width: 46px; font-family: var(--serif); font-style: normal; font-size: 19px;
+  text-align: center; }
+.crfin s { font-family: var(--mono); font-size: 10px; text-decoration: none; opacity: .45; }
+.cradj { font-family: var(--mono); font-size: 10px; font-weight: 400;
+  letter-spacing: .05em; opacity: .38; }
+.cradj.on { color: var(--salmon-ink); opacity: 1; }
 .crfacet { margin: 10px 0 15px; font-family: var(--mono); font-size: 10.5px;
   letter-spacing: .05em; line-height: 1.7; opacity: .48; }
 .crnote, .crletter { display: block; font-size: 12px; font-weight: 700; }
@@ -891,7 +908,7 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   border: 1px solid rgba(19, 27, 46, .18); border-radius: 2px;
   font: 400 14px/1.85 var(--sans);
 }
-.crnote textarea:focus, .crletter textarea:focus, .crscore select:focus {
+.crnote textarea:focus, .crletter textarea:focus {
   outline: 2px solid rgba(193, 102, 82, .22); border-color: var(--salmon-ink);
 }
 .crletter { margin-top: 28px; font-family: var(--serif); font-size: 17px; }
@@ -901,7 +918,7 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 @media (max-width: 560px) {
   .crrow { padding: 16px; }
   .crmeta { align-items: flex-start; }
-  .crscore select { min-width: 102px; }
+  .crscore { align-items: flex-end; }
   .crfoot { align-items: stretch; flex-direction: column; }
   .crfoot .btn { width: 100%; }
 }
@@ -1941,6 +1958,47 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 只給螢幕閱讀器 */
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ═══ 書本的入口：總覽右下角 ═══════════════════════════════
+   使用者 2026-09-12：「書這個功能暫時不需要，但也不需要刪掉…
+   放在右下角，讓使用者的體驗更乾淨一點。」
+   所以它**不進頁首的檢視切換器**，只在「總覽」畫得出來。
+   固定定位不會影響版面，換檢視時 pane 重畫，按鈕跟著消失。 */
+.bkcorner {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--navy-lift); border: 1px solid var(--beige-18);
+  color: var(--beige-70); font-family: var(--serif); font-size: 15px;
+  cursor: pointer; transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.bkcorner:hover { border-color: var(--salmon); color: var(--beige); }
+.bkcorner:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+
+/* ═══ 登入閘門（正式站的 LINE 登入）═══════════════════
+   從 LINE 開啟時會蓋在最上面，驗證完就消失。demo 模式完全不會出現。 */
+.gate {
+  position: fixed; inset: 0; z-index: 200; display: none;
+  align-items: center; justify-content: center; padding: 24px;
+  background: rgba(19, 27, 46, .92); backdrop-filter: blur(6px);
+}
+.gate.on { display: flex; }
+.gatebox {
+  width: 100%; max-width: 380px; padding: 30px 28px;
+  background: var(--navy-lift); border: 1px solid var(--beige-18);
+  text-align: center;
+}
+.gatebox .ey { margin: 0 0 10px; color: var(--salmon); }
+.gatebox h2 { margin: 0 0 12px; font-family: var(--serif); font-size: 22px; }
+.gatebox p { margin: 0 0 18px; font-size: 13px; line-height: 1.9; color: var(--beige-70); }
+.gatebox input {
+  width: 100%; margin-bottom: 12px; padding: 12px; text-align: center;
+  color: var(--beige); background: transparent; border: 1px solid var(--beige-18);
+  border-radius: 2px; font-family: var(--mono); font-size: 18px; letter-spacing: .3em;
+}
+.gatebox input:focus { outline: none; border-color: var(--salmon); }
+.gatebox .btn { width: 100%; margin-top: 6px; }
+.gateerr { min-height: 1.4em; margin: 0 0 12px !important; font-size: 12px !important;
+  color: var(--salmon); }
 
 </style>
 </head>
@@ -3755,6 +3813,342 @@ window.UC_SELFTEST = function () {
 };
 
 </script>
+<!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
+<script>
+/* UC_STORE —— 資料的唯一出口。
+   ═══════════════════════════════════════════════════════════════
+   app.js 管畫面，這裡管「這一筆存哪裡、什麼時候存、失敗怎麼辦」。
+
+   ── 為什麼不去改 app.js 那 21 個寫入點 ──────────────
+   那 21 個地方每一個都會呼叫 save()，所以只要接住 save() 就等於接住全部。
+   逐點改寫的代價是：漏掉一個就是某個欄位悄悄不存了（無聲），
+   而且教練報告那邊用的是 `var cr = S.coachReport` 的閉包別名，
+   任何靠攔截 S 屬性的做法都抓不到它。比對整份 S 的差異沒有這兩個問題。
+   比對成本：50 幾題 ＋ 十幾個欄位，一次幾百個 key，比一次 JSON.stringify 還便宜。
+
+   ── 兩種模式 ─────────────────────────────────────
+   local （預設）  跟以前完全一樣：整份寫進 localStorage，不碰網路。
+                   「載入範例學員」永遠走這條。
+   remote          從 LINE 進來、而且綁定成功之後才會切過去。
+                   ⚠️ remote 模式**不寫 localStorage** —— LINE 要求把使用者
+                   資料寫進瀏覽器儲存前必須先取得同意，第一版直接不寫最省事。
+                   離線時未送出的 patch 留在記憶體佇列裡，連上就補送。
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var DEBOUNCE = 600;          /* 打字停手多久才真的送。BACKEND-WORKFLOW.md §4 訂的 */
+  /* 連兩次失敗就出聲。設 4 的話要等 14 秒才有反應 —— 使用者早就以為存好了（實測）。 */
+  var MAX_RETRY = 2;
+
+  var APP = null;
+  var api = '';                /* GAS 的 /exec。空的就是 local 模式 */
+  var idToken = '';
+  var studentId = '';
+  var snap = null;             /* 上一次已知的狀態，用來比對差異 */
+  var queue = [];              /* 還沒送出去的 patch */
+  var pending = {};            /* key → 佇列裡那一筆，同一格只留最新的 */
+  var timer = null;
+  var sending = false;
+  var failed = 0;
+
+  /* ⚠️ 「有端點」不等於「已經接上」。綁定畫面還開著的時候 api 已經設好了，
+     但還沒有 studentId —— 這時候 save() 必須照舊寫 localStorage，
+     否則使用者在綁定前的操作會直接蒸發。 */
+  function isRemote() { return !!api && !!studentId; }
+
+  /* ── S 的哪一格對到後端的哪一格 ────────────────────
+     item_id 全部是穩定 ID（question_id / kr_id / 維度 key），
+     不是顯示文字 —— 改文案不會影響資料。 */
+
+  function flatten(S) {
+    var out = {};
+    var Q = window.UC_SCORE ? window.UC_SCORE.questions : [];
+    var byId = {};
+    Q.forEach(function (q) { byId[q.id] = q; });
+
+    Object.keys(S.answers || {}).forEach(function (qid) {
+      out['assessment|' + qid + '|answer'] = {
+        scope: 'assessment', itemId: qid, field: 'answer',
+        label: (byId[qid] && (byId[qid].name || byId[qid].q)) || qid,
+        value: S.answers[qid]
+      };
+    });
+
+    var cr = S.coachReport || {};
+    var D = window.UC_DIMENSIONS ? window.UC_DIMENSIONS.dims : [];
+    D.forEach(function (d) {
+      push('adjust.' + d.k, d.label + '／教練加減', num(cr.adjust && cr.adjust[d.k]));
+      push('score.' + d.k, d.label + '／分數', num(cr.scores && cr.scores[d.k]));
+      push('note.' + d.k, d.label + '／說明', str(cr.notes && cr.notes[d.k]));
+    });
+    push('letter', '寫給學員的一封信', str(cr.letter));
+    push('complete', '報告完成', cr.complete === true);
+
+    function push(field, label, value) {
+      out['report|report|' + field] = { scope: 'report', itemId: 'report',
+                                        field: field, label: label, value: value };
+    }
+
+    /* 任務狀態。taskNow 的 key 是維度，其餘三個的 key 是 kr_id。 */
+    Object.keys(S.taskNow || {}).forEach(function (dim) {
+      add('task', dim, 'current', dim + '／當前任務', S.taskNow[dim]);
+    });
+    Object.keys(S.done || {}).forEach(function (kr) {
+      add('task', kr, 'done', kr + '／完成', !!S.done[kr]);
+    });
+    Object.keys(S.hidden || {}).forEach(function (kr) {
+      add('task', kr, 'hidden', kr + '／隱藏', !!S.hidden[kr]);
+    });
+    /* 書本狀態：使用者說暫時不用但不刪，所以照樣同步 —— 之後要拿回來資料才在。 */
+    (S.picked || []).forEach(function (kr) {
+      add('task', kr, 'picked', kr + '／加入書本', true);
+    });
+    Object.keys(S.key || {}).forEach(function (kr) {
+      add('task', kr, 'key', kr + '／書本重點', !!S.key[kr]);
+    });
+
+    function add(scope, itemId, field, label, value) {
+      out[scope + '|' + itemId + '|' + field] =
+        { scope: scope, itemId: itemId, field: field, label: label, value: value };
+    }
+    return out;
+  }
+
+  function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+  function str(v) { return typeof v === 'string' ? v : ''; }
+  function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+  /* ── 對外：每次 save() 都會進來 ──────────────────── */
+
+  function push(S) {
+    if (!isRemote()) return;
+    var now = flatten(S);
+    if (!snap) { snap = now; return; }           /* 第一次只記基準，不送 */
+
+    Object.keys(now).forEach(function (k) {
+      if (snap[k] && same(snap[k].value, now[k].value)) return;
+      enqueue(now[k]);
+    });
+    /* 被刪掉的格子（例如取消加入書本）要送一筆 false／null 過去，
+       不然後端會停在舊值，重新載入之後那一條又活過來。 */
+    Object.keys(snap).forEach(function (k) {
+      if (now[k]) return;
+      var old = snap[k];
+      enqueue({ scope: old.scope, itemId: old.itemId, field: old.field,
+                label: old.label, value: typeof old.value === 'boolean' ? false : null });
+    });
+    snap = now;
+    schedule();
+  }
+
+  function enqueue(p) {
+    var k = p.scope + '|' + p.itemId + '|' + p.field;
+    /* 同一格連打只留最新的 —— 打字時不要每按一鍵排一筆。 */
+    if (pending[k]) { pending[k].value = p.value; pending[k].label = p.label; return; }
+    p.key = k;
+    p.requestId = k + '#' + Date.now();          /* 重送時同一筆，後端不會多長一列 */
+    pending[k] = p;
+    queue.push(p);
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(run, DEBOUNCE);
+  }
+
+  /* ⚠️ 「報告完成」一定要排在說明與信的後面 ——
+     後端會檢查那些欄位在不在表裡，先送 complete 一定被打回 INVALID_INPUT。 */
+  function nextPatch() {
+    for (var i = 0; i < queue.length; i++) {
+      if (!(queue[i].scope === 'report' && queue[i].field === 'complete')) return i;
+    }
+    return queue.length ? 0 : -1;
+  }
+
+  function run() {
+    if (sending || !queue.length || !isRemote()) return;
+    var i = nextPatch();
+    if (i < 0) return;
+    var p = queue[i];
+    sending = true;
+
+    call({ action: 'state.save', scope: p.scope, itemId: p.itemId, field: p.field,
+           label: p.label, value: p.value, requestId: p.requestId })
+      .then(function () {
+        queue.splice(i, 1); delete pending[p.key];
+        sending = false; failed = 0;
+        if (queue.length) run();
+      })
+      .catch(function (err) {
+        sending = false;
+        failed++;
+        /* 資料本身不合法就別再重試了 —— 重試一百次還是一樣的結果。 */
+        if (err && err.code === 'INVALID_INPUT') {
+          queue.splice(i, 1); delete pending[p.key];
+          say('有一個欄位沒能存檔：' + (err.message || '內容不正確'));
+          if (queue.length) run();
+          return;
+        }
+        if (failed >= MAX_RETRY) {
+          /* ⚠️ **不可以靜靜失敗。** 舊的 save() 是空 catch，
+             存瀏覽器失敗無所謂，網路寫入失敗沒聲音就是資料不見了。 */
+          say('目前連不上伺服器，還有 ' + queue.length + ' 筆沒存。會自動重試。');
+          failed = 0;
+        }
+        setTimeout(run, Math.min(30000, 1000 * Math.pow(2, failed)));
+      });
+  }
+
+  /** 離開頁面前把剩下的送完。keepalive 讓請求在分頁關掉之後仍然送得出去。 */
+  function flush() {
+    clearTimeout(timer);
+    if (!isRemote() || !queue.length) return;
+    queue.forEach(function (p) {
+      try {
+        fetch(api, {
+          method: 'POST', keepalive: true, mode: 'cors', redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'state.save', idToken: idToken,
+                                 studentId: studentId, scope: p.scope, itemId: p.itemId,
+                                 field: p.field, label: p.label, value: p.value,
+                                 requestId: p.requestId })
+        });
+      } catch (e) {}
+    });
+  }
+
+  /* ── 跟 GAS 說話 ──────────────────────────────────
+     ⚠️ Content-Type 必須是 text/plain —— 用 application/json 會觸發 preflight，
+     而 GAS 設不了回應標頭，OPTIONS 一定失敗。
+     ⚠️ redirect 要 follow —— GAS 會 302 到 googleusercontent。 */
+  function call(payload) {
+    payload.idToken = idToken;
+    if (studentId) payload.studentId = studentId;
+    return fetch(api + (api.indexOf('?') < 0 ? '?' : '&') + '_ts=' + Date.now(), {
+      method: 'POST', mode: 'cors', redirect: 'follow', cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok) return j.data;
+        var e = new Error((j && j.error && j.error.message) || '伺服器錯誤');
+        e.code = (j && j.error && j.error.code) || 'INTERNAL_ERROR';
+        throw e;
+      });
+  }
+
+  function say(msg) {
+    if (APP && APP.toast) APP.toast(msg);
+    else console.warn('[UC_STORE] ' + msg);
+  }
+
+  /* ── 啟動 ─────────────────────────────────────────
+     由 boot.js（LIFF）在驗證完成之後呼叫。沒有人呼叫就永遠是 local 模式，
+     網站跟以前一模一樣。 */
+  function connect(opts) {
+    api = opts.api || '';
+    idToken = opts.idToken || '';
+    studentId = opts.studentId || '';
+    snap = null;
+    return call({ action: 'student.load' }).then(function (data) {
+      studentId = data.studentId || studentId;
+      var S = {
+        name: data.studentName || data.lineDisplayName || '',
+        answers: data.answers || {},
+        coachReport: unpackReport(data.report || {}),
+        picked: [], key: {}, taskNow: {}, hidden: {}, done: {}, log: []
+      };
+      unpackTasks(data.tasks || {}, S);
+      if (data.blueprint && data.blueprint.length) applyBlueprint(data.blueprint);
+      if (APP) APP.replaceState(S);
+      /* ⚠️ 基準要取「app 實際拿到的那一份」，不是這裡組出來的那一份 ——
+         replaceState 會再過一次形狀檢查（補空欄位、正規化教練報告），
+         拿組出來的那份當基準會讓第一次 save() 把整份資料重送一遍。 */
+      snap = flatten(APP ? APP.S() : S);
+      return data;
+    });
+  }
+
+  function unpackReport(flat) {
+    var cr = { adjust: {}, scores: {}, notes: {}, letter: '', complete: false };
+    Object.keys(flat).forEach(function (f) {
+      var v = flat[f];
+      if (f === 'letter') cr.letter = typeof v === 'string' ? v : '';
+      else if (f === 'complete') cr.complete = v === true;
+      else {
+        var parts = f.split('.');
+        if (parts[0] === 'adjust') cr.adjust[parts[1]] = Number(v) || 0;
+        else if (parts[0] === 'score') cr.scores[parts[1]] = Number(v) || 0;
+        else if (parts[0] === 'note') cr.notes[parts[1]] = typeof v === 'string' ? v : '';
+      }
+    });
+    return cr;
+  }
+
+  function unpackTasks(tasks, S) {
+    Object.keys(tasks).forEach(function (item) {
+      var f = tasks[item];
+      if (f.current) S.taskNow[item] = f.current;
+      if (f.done === true) S.done[item] = 1;
+      if (f.hidden === true) S.hidden[item] = 1;
+      if (f.picked === true) S.picked.push(item);
+      if (f.key === true) S.key[item] = 1;
+    });
+  }
+
+  /* 藍圖以試算表為準。只覆蓋你在表上會編輯的那幾欄，
+     ⚠️ **id 與 dim 不動** —— dim 是用中文能力名反查的，查不到就保留原本的，
+     不然打錯一個字整條 KR 會從雷達上消失。 */
+  function applyBlueprint(rows) {
+    var O = window.UC_OKR, D = window.UC_DIMENSIONS;
+    if (!O || !D) return;
+    var byLabel = {};
+    D.dims.forEach(function (d) { byLabel[d.label] = d.k; });
+    var byId = {};
+    O.items.forEach(function (it) { byId[it.id] = it; });
+
+    var next = [];
+    rows.forEach(function (r) {
+      var it = byId[r.id];
+      if (!it) return;                       /* 表上多出來的 id 先不處理 */
+      it.sub = r.sub || it.sub;
+      it.kr = r.kr || it.kr;
+      it.tool = r.tool || it.tool;
+      it.sheet = r.sheet || it.sheet;
+      if (r.short) it.short = r.short;
+      if (r.note) it.note = r.note;
+      if (r.n != null) it.n = r.n;
+      if (byLabel[r.dimLabel]) it.dim = byLabel[r.dimLabel];
+      next.push(it);
+    });
+    if (next.length) O.items = next;         /* 表上停用的條目就不會出現 */
+  }
+
+  /* 先告訴它端點，但還不算 remote —— auth.exchange／auth.bind 在綁定成功
+     之前就要能打，而那時候還沒有學員資料可以同步。 */
+  function endpoint(url) { api = url || ''; }
+
+  window.UC_STORE = {
+    endpoint: endpoint,
+    isRemote: isRemote,
+    push: push,
+    flush: flush,
+    connect: connect,
+    call: call,
+    studentId: function () { return studentId; },
+    attach: function (app) { APP = app; }
+  };
+
+  /* 分頁被切走或關掉時補送最後一筆。pagehide 在手機上比 beforeunload 可靠。 */
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flush();
+  });
+  window.addEventListener('online', function () { if (queue.length) run(); });
+})();
+
+</script>
 <script>
 /* UC Cloud Coach — 路由、狀態、各頁渲染
    狀態全部在 localStorage，沒有後端。教學文本全部來自 data/*.js。 */
@@ -3771,6 +4165,12 @@ window.UC_SELFTEST = function () {
   function load() {
     var raw;
     try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) { raw = null; }
+    return hydrate(raw);
+  }
+
+  /* 把「來路不明的一包東西」整成合法的 S。
+     ⚠️ 後端載回來的資料也走這裡 —— 網路上的東西一樣不能假設形狀正確。 */
+  function hydrate(raw) {
     var b = blank();
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return b;
     var answers = obj(raw.answers);
@@ -3812,14 +4212,39 @@ window.UC_SELFTEST = function () {
     v = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
     var scores = v.scores && typeof v.scores === 'object' && !Array.isArray(v.scores) ? v.scores : {};
     var notes = v.notes && typeof v.notes === 'object' && !Array.isArray(v.notes) ? v.notes : {};
+    var adjust = v.adjust && typeof v.adjust === 'object' && !Array.isArray(v.adjust) ? v.adjust : {};
     return {
+      /* adjust ＝ 教練在題目算出來的基準上加減幾級（-2～+2，預設 0）。
+         scores ＝ 加減之後的最終星等，由 syncCoachScores() 自動算出來寫回，
+         **不是教練直接填的** —— 它只是給後端／試算表用的快照。 */
+      adjust: adjust,
       scores: scores,
       notes: notes,
       letter: typeof v.letter === 'string' ? v.letter : '',
       complete: v.complete === true
     };
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  /* ⚠️ **所有寫入都經過這裡。** 程式裡 21 個地方在改 S，但它們每一個都會
+     呼叫 save()，所以要接後端只要接這一個出口 —— 不必去改那 21 個地方，
+     也不會漏掉 cr 那種閉包別名（app.js 的教練報告寫的是 cr.xxx 不是 S.coachReport.xxx）。 */
+  function save() {
+    /* demo／離線照舊寫瀏覽器。配額爆掉不影響使用，所以這個 catch 是故意空的。 */
+    if (!(window.UC_STORE && window.UC_STORE.isRemote())) {
+      try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+    }
+    /* 接上後端之後，把「這次動到的那幾格」送出去（UC_STORE 自己做比對與節流）。 */
+    if (window.UC_STORE) window.UC_STORE.push(S);
+  }
+
+  /* 後端載回來之後換掉整份狀態。
+     ⚠️ **就地換內容，不換物件** —— 教練報告那邊有 `var cr = S.coachReport` 這種
+     閉包別名，直接 S = next 的話別名還指著舊物件，畫面會寫到一份沒人看的資料。 */
+  function replaceState(next) {
+    var b = hydrate(next);
+    Object.keys(S).forEach(function (k) { delete S[k]; });
+    Object.keys(b).forEach(function (k) { S[k] = b[k]; });
+    go(location.hash || '#/');
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -4615,12 +5040,49 @@ window.UC_SELFTEST = function () {
 
   var REPORT_EDIT = false;
 
+  /* ── 雷達的分數從哪裡來 ──────────────────────────────
+     2026-09-12 使用者：「雷達的分數是基於前面的題目測出來的，
+     而教練可以手動再調整加減。」
+     所以基準 = 25 道計分題算出來的百分位，教練只動 adjust（±級）。
+     ⚠️ 教練**不是**從零填分數 —— 那會讓 25 道計分題失去意義。 */
+
+  function reportBase() {
+    return window.UC_SCORE.score(S.answers);
+  }
+
+  /** 某一維在雷達上要畫的值（百分位）。沒調整就用原始測出來的值。 */
+  function reportValue(k, r, cr) {
+    var adj = reportAdjust(k, cr);
+    if (!adj) return r.show[k];
+    var n = reportStar(k, r, cr);
+    return window.UC_SCORE.starMid[n - 1];
+  }
+
+  function reportAdjust(k, cr) {
+    var a = Math.round(Number(cr.adjust[k]) || 0);
+    return Math.max(-2, Math.min(2, a));
+  }
+
+  /** 加減之後的最終星等 1–5。 */
+  function reportStar(k, r, cr) {
+    var base = window.UC_SCORE.starOf(r.show[k]);
+    return Math.max(1, Math.min(5, base + reportAdjust(k, cr)));
+  }
+
+  /* 最終星等寫回 cr.scores —— 後端的 report.score.<k> 欄位讀的是這個。
+     每次 adjust 變動或作答變動都要跑一次，否則試算表會存到過期的分數。 */
+  function syncCoachScores(cr, r) {
+    window.UC_DIMENSIONS.dims.forEach(function (d) {
+      cr.scores[d.k] = reportStar(d.k, r, cr);
+    });
+  }
+
   function coachReportValid() {
+    /* 分數不再是「要填的欄位」—— 題目已經算出基準，adjust 預設 0 本來就合法。
+       教練真正要交的是五段維度說明和一封信。 */
     var cr = S.coachReport || normalizeCoachReport();
     return window.UC_DIMENSIONS.dims.every(function (d) {
-      var score = Number(cr.scores[d.k]);
-      return score >= 1 && score <= 5 && Number.isInteger(score)
-        && typeof cr.notes[d.k] === 'string' && cr.notes[d.k].trim() !== '';
+      return typeof cr.notes[d.k] === 'string' && cr.notes[d.k].trim() !== '';
     }) && typeof cr.letter === 'string' && cr.letter.trim() !== '';
   }
 
@@ -4628,38 +5090,53 @@ window.UC_SELFTEST = function () {
     return !!(S.coachReport && S.coachReport.complete && coachReportValid());
   }
 
-  function coachReportValues() {
-    var vals = {}, E = window.UC_SCORE, cr = S.coachReport || normalizeCoachReport();
-    window.UC_DIMENSIONS.dims.forEach(function (d) {
-      var n = Math.max(1, Math.min(5, Number(cr.scores[d.k]) || 1));
-      vals[d.k] = E.starMid[n - 1];
-    });
+  function coachReportValues(r, cr) {
+    cr = cr || S.coachReport || normalizeCoachReport();
+    r = r || reportBase();
+    var vals = {};
+    window.UC_DIMENSIONS.dims.forEach(function (d) { vals[d.k] = reportValue(d.k, r, cr); });
     return vals;
   }
 
-  function coachReportLow() {
-    var dims = window.UC_DIMENSIONS.dims, cr = S.coachReport || normalizeCoachReport();
+  function coachReportLow(r, cr) {
+    cr = cr || S.coachReport || normalizeCoachReport();
+    r = r || reportBase();
+    var dims = window.UC_DIMENSIONS.dims;
     return dims.slice().sort(function (a, b) {
-      return Number(cr.scores[a.k]) - Number(cr.scores[b.k]);
+      return reportValue(a.k, r, cr) - reportValue(b.k, r, cr);
     })[0].k;
+  }
+
+  /* 一列的星等顯示：題目測出來的基準、教練的加減、最終結果。
+     **只重畫這一小塊**，不動 textarea（重畫會讓游標跳掉）。 */
+  function crRowScoreHTML(d, r, cr) {
+    var base = window.UC_SCORE.starOf(r.show[d.k]);
+    var adj = reportAdjust(d.k, cr);
+    var fin = reportStar(d.k, r, cr);
+    return '<span class="crbase">題目測出 <b>' + base + '</b></span>'
+      + '<span class="crstep">'
+      + '<button type="button" data-report-adj="' + d.k + '" data-d="-1" aria-label="調降一級"'
+      + (adj <= -2 || fin <= 1 ? ' disabled' : '') + '>−</button>'
+      + '<i class="crfin">' + fin + '<s>／5</s></i>'
+      + '<button type="button" data-report-adj="' + d.k + '" data-d="1" aria-label="調升一級"'
+      + (adj >= 2 || fin >= 5 ? ' disabled' : '') + '>＋</button></span>'
+      + '<span class="cradj' + (adj ? ' on' : '') + '">'
+      + (adj ? '教練 ' + (adj > 0 ? '+' : '') + adj + ' 級' : '未調整') + '</span>';
   }
 
   function renderCoachReportEditor(body) {
     var dims = window.UC_DIMENSIONS.dims;
     var cr = S.coachReport || normalizeCoachReport();
     S.coachReport = cr;
+    var r = reportBase();
+    syncCoachScores(cr, r);
 
     var rows = dims.map(function (d) {
-      var score = Number(cr.scores[d.k]) || 0;
-      var options = '<option value="">未評分</option>';
-      for (var n = 1; n <= 5; n++) {
-        options += '<option value="' + n + '"' + (score === n ? ' selected' : '') + '>'
-          + n + '／5</option>';
-      }
       return '<section class="crrow">'
         + '<div class="crmeta"><div><p class="ey">Dimension</p><h3>' + esc(d.label) + '</h3></div>'
-        + '<label class="crscore">教練評分<select data-report-score="' + d.k + '"'
-        + ' data-field-id="report.score.' + d.k + '" data-field-owner="coach">' + options + '</select></label></div>'
+        + '<div class="crscore" data-report-score="' + d.k + '"'
+        + ' data-field-id="report.score.' + d.k + '" data-field-owner="coach">'
+        + crRowScoreHTML(d, r, cr) + '</div></div>'
         + (d.facets && d.facets.length ? '<p class="crfacet">' + esc(d.facets.join('・')) + '</p>' : '')
         + '<label class="crnote">維度說明<textarea rows="4" data-report-note="' + d.k + '"'
         + ' data-field-id="report.note.' + d.k + '" data-field-owner="coach"'
@@ -4670,8 +5147,14 @@ window.UC_SELFTEST = function () {
     body.innerHTML = wrap('<header class="rhead">'
       + '<p class="ey">Coach Review ・ ' + answeredCount() + '/' + window.UC_SCORE.questions.length + ' 題</p>'
       + '<h1>完成教練評測</h1><div class="divider"><i></i><s></s></div>'
-      + '<p class="lead">依照學員的回答與實際互動，完成五個維度的評分與說明，再寫一封信。全部完成後，學員才會看到報告。</p>'
+      + '<p class="lead">五個維度的分數已經由 25 道計分題算出來了。看完之後如果跟你實際互動的判斷不同，用 ＋／− 調整；'
+      + '再替每個維度寫說明，最後寫一封信。全部完成後，學員才會看到報告。</p>'
       + '</header>')
+      /* ⚠️ 雷達是這一頁的核心，編輯的時候也要看得到 ——
+         教練要邊看形狀邊決定加減，不然是在盲調。 */
+      + wrap(head('01', 'Ability Map', '情感能力')
+        + '<div class="chart" id="crChart"></div>'
+        + '<p class="chint" id="chint">點維度名　·　看你寫的說明</p>', 'rv chartwrap')
       + '<div class="paper"><section><div class="wrap creview">'
       + '<div class="crstatus"><p class="fieldtag coach">教練填寫</p><p id="crProgress"></p></div>'
       + '<div class="crgrid">' + rows + '</div>'
@@ -4683,25 +5166,45 @@ window.UC_SELFTEST = function () {
       + '<button type="button" class="btn pri" id="finishReport">完成評測並開放報告</button></div>'
       + '</div></section></div>';
 
+    function paintRadar() {
+      drawRadar(el('crChart'), coachReportValues(r, cr),
+                { comment: true, comments: cr.notes, lead: coachReportLow(r, cr) });
+    }
+
     function syncReview() {
+      /* 分數不算進待填欄位 —— 題目已經給了基準，教練要交的是 5 段說明＋1 封信。 */
       var filled = 0;
       dims.forEach(function (d) {
-        var score = Number(cr.scores[d.k]);
-        if (score >= 1 && score <= 5) filled++;
         if (typeof cr.notes[d.k] === 'string' && cr.notes[d.k].trim()) filled++;
       });
       if (cr.letter.trim()) filled++;
       var p = el('crProgress'), done = coachReportValid();
-      if (p) p.textContent = '已完成 ' + filled + ' / 11 個欄位';
+      if (p) p.textContent = '已完成 ' + filled + ' / 6 個欄位（五段說明＋一封信）';
       var btn = el('finishReport');
       if (btn) btn.disabled = !done;
     }
 
-    [].forEach.call(body.querySelectorAll('[data-report-score]'), function (select) {
-      select.addEventListener('change', function () {
-        cr.scores[select.dataset.reportScore] = select.value ? Number(select.value) : '';
-        cr.complete = false; save(); syncReview();
-      });
+    /* ⚠️ 事件委派掛在 .crgrid 上，不是掛在每顆按鈕上 ——
+       按一下就要重畫那一列（禁用狀態會變），掛在按鈕上重畫後監聽就沒了。 */
+    var grid = body.querySelector('.crgrid');
+    if (grid) grid.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-report-adj]');
+      if (!b || b.disabled) return;
+      var k = b.dataset.reportAdj;
+      var box = grid.querySelector('.crscore[data-report-score="' + k + '"]');
+      if (box && box.dataset.fieldAccess === 'read') return;
+      var d = null;
+      dims.forEach(function (x) { if (x.k === k) d = x; });
+      var next = reportAdjust(k, cr) + Number(b.dataset.d);
+      /* 已經頂到 1★ 或 5★ 就不再累積 adjust —— 否則會存進一個看不見的偏移，
+         之後學員改答案基準變了，分數會突然跳好幾級。 */
+      var wouldBe = window.UC_SCORE.starOf(r.show[k]) + next;
+      if (wouldBe < 1 || wouldBe > 5 || next < -2 || next > 2) return;
+      cr.adjust[k] = next;
+      syncCoachScores(cr, r);
+      cr.complete = false; save();
+      box.innerHTML = crRowScoreHTML(d, r, cr);
+      paintRadar();
     });
     [].forEach.call(body.querySelectorAll('[data-report-note]'), function (textarea) {
       grow(textarea);
@@ -4723,6 +5226,7 @@ window.UC_SELFTEST = function () {
     });
     syncReview();
     applyFieldAccess(body);
+    paintRadar();
     reveal(body);
   }
 
@@ -4758,7 +5262,10 @@ window.UC_SELFTEST = function () {
       return;
     }
 
-    var cr = S.coachReport, vals = coachReportValues(), low = coachReportLow();
+    var cr = S.coachReport, r = reportBase();
+    /* 學員改過答案的話基準會變 —— 進報告時重算一次，順便把 scores 快照更新。 */
+    syncCoachScores(cr, r);
+    var vals = coachReportValues(r, cr), low = coachReportLow(r, cr);
     var h = wrap('<header class="rhead">'
       + '<p class="ey">Assessment Report ・ 教練評測完成</p>'
       + '<h1>' + esc(S.name || '學員') + '　情感能力評測</h1>'
@@ -4957,9 +5464,10 @@ window.UC_SELFTEST = function () {
     var h = wrap('<header class="rhead"><p class="ey">Course Blueprint ・ ' + esc(O.source) + '</p>'
       + '<h1>課程藍圖</h1><div class="divider"><i></i><s></s></div>'
       /* 頁首只有標題；操作說明貼在人物或書本旁邊。 */
+      /* ⚠️ 「書」**不放在這裡**。使用者 2026-09-12：書暫時不用但不刪，
+         入口收進「總覽」右下角的小按鈕（okrList 最後那顆 .bkcorner）。 */
       + '<div class="vsw"><button class="vb' + (OKRVIEW === 'cover' ? ' on' : '') + '" data-view="cover">藍圖</button>'
-      + '<button class="vb' + (OKRVIEW === 'book' ? ' on' : '') + '" data-view="book">書</button>'
-      + '<button class="vb' + (OKRVIEW === 'list' ? ' on' : '') + '" data-view="list">總覽</button></div>'
+      + '<button class="vb' + (OKRVIEW === 'list' || OKRVIEW === 'book' ? ' on' : '') + '" data-view="list">總覽</button></div>'
       + '</header>');
 
     h += '<div id="okrPane">' + okrViewHTML(OKRVIEW, O, D, r, hasScore, byK) + '</div>';
@@ -4982,8 +5490,11 @@ window.UC_SELFTEST = function () {
     var pane = el('okrPane'); if (!pane) return;
     OKRVIEW = view;
     if (dim) { BKOPEN = dim; BKLEVEL = 'grp'; OKRSEL = null; }
+    /* 「書」已經不在切換器裡，它是從總覽右下角進去的 —— 開著書的時候
+       讓「總覽」維持亮著，不然兩顆都暗，看起來像沒選任何一頁。 */
+    var lit = (OKRVIEW === 'book') ? 'list' : OKRVIEW;
     [].forEach.call(el('okrBody').querySelectorAll('[data-view]'), function (b) {
-      b.classList.toggle('on', b.dataset.view === OKRVIEW);
+      b.classList.toggle('on', b.dataset.view === lit);
     });
     var O = window.UC_OKR, E = window.UC_SCORE, D = window.UC_DIMENSIONS, byK = {};
     D.dims.forEach(function (d) { byK[d.k] = d; });
@@ -4998,6 +5509,10 @@ window.UC_SELFTEST = function () {
   function bindOkrPane(pane) {
     if (!pane) return;
     bindBook(pane);
+    /* 右下角的書入口。只有「總覽」畫得出來，換檢視時整個 pane 重畫，按鈕自然消失。 */
+    [].forEach.call(pane.querySelectorAll('[data-openbook]'), function (b) {
+      b.addEventListener('click', function () { okrTo('book'); });
+    });
     [].forEach.call(pane.querySelectorAll('[data-cover-dim]'), function (b) {
       b.addEventListener('click', function () { openTaskModal(b.dataset.coverDim, b); });
     });
@@ -5530,7 +6045,10 @@ window.UC_SELFTEST = function () {
     }).length;
     var nDone = completedCount();
 
-    return wrap('<div class="edt" data-no-copy-edit="1" data-field-scope="blueprint.coach-settings">'
+    /* 書的入口。收在右下角、不佔版面 —— 平常沒人用，需要時找得到就好。 */
+    var corner = '<button class="bkcorner" type="button" data-openbook="1" title="開啟書本檢視">書</button>';
+
+    return corner + wrap('<div class="edt" data-no-copy-edit="1" data-field-scope="blueprint.coach-settings">'
       + '<p class="fieldtag coach">教練填寫</p>'
       + '<div class="edth"><span>' + esc(ui.total) + ' ' + O.items.length + ' 條</span>'
       + '<span>' + esc(ui.hiddenCount) + ' <b>' + nHidden + '</b></span>'
@@ -6294,8 +6812,11 @@ window.UC_SELFTEST = function () {
   applyFieldAccess(document);
   window.UC_APP = {
     S: function () { return S; }, save: save, esc: esc, reveal: reveal, nav: nav, el: el,
-    setRole: setRole, role: function () { return ACTOR_ROLE; }, applyFieldAccess: applyFieldAccess
+    setRole: setRole, role: function () { return ACTOR_ROLE; }, applyFieldAccess: applyFieldAccess,
+    replaceState: replaceState, toast: toast, render: function () { go(location.hash || '#/'); }
   };
+  /* store.js 比 app.js 先載入（它不能依賴 UC_APP），所以在這裡回頭叫它一次。 */
+  if (window.UC_STORE && window.UC_STORE.attach) window.UC_STORE.attach(window.UC_APP);
 })();
 
 </script>
@@ -6450,6 +6971,145 @@ window.UC_SELFTEST = function () {
     isText: isText,
     sourceOf: function (el) { return ORIG.get(el) || null; }
   };
+})();
+
+</script>
+<!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
+<script>
+/* 正式站的 LINE 登入。
+   ═══════════════════════════════════════════════════════════════
+   只有「從 LINE 開啟」而且綁定成功之後才會接後端；其餘情況一律維持
+   原本的離線 demo，網站跟以前一模一樣（`?demo=1` 可以強制）。
+
+   ⚠️ 前端**只負責轉交 LINE 給的原始 ID Token**。
+   liff.getProfile() 或 getDecodedIDToken() 拿到的 user ID 不可以拿來當登入證明 ——
+   那是前端自己解出來的，誰都能偽造。真正的驗證在 GAS 那邊向 LINE 做。
+
+   ⚠️ Token 不進網址、不進 localStorage、不印進 console。
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var LIFF_ID = '2011543667-p1MX4tl7';
+  var GAS_API = 'https://script.google.com/macros/s/AKfycbygTGmjIeJaaMhOWMd2xNL-yL03xdQE60c9b9Ex9sQjKg_vNENvOhZsD_EZdigonoML/exec';
+  var SDK = 'https://static.line-login.jp/liff/edge/2/sdk.js';
+
+  var q = location.search;
+  if (/[?&]demo=1/.test(q)) return;             /* 明講要 demo 就不要碰 LINE */
+
+  var box = null, idToken = '';
+
+  /* 端點先給 —— auth.exchange／auth.bind 在 connect 之前就要打得出去。
+     這時候還不算「已接上」，save() 照舊寫 localStorage。 */
+  window.UC_STORE.endpoint(GAS_API);
+
+  function ui(html) {
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'gate';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      document.body.appendChild(box);
+    }
+    box.innerHTML = '<div class="gatebox">' + html + '</div>';
+    box.classList.add('on');
+  }
+  function done() { if (box) { box.classList.remove('on'); box.innerHTML = ''; } }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function fatal(msg, hint) {
+    ui('<p class="ey">Sign-in</p><h2>' + esc(msg) + '</h2>'
+      + '<p>' + esc(hint || '') + '</p>'
+      + '<button type="button" class="btn" data-gate="retry">再試一次</button>'
+      + '<button type="button" class="btn ghost" data-gate="demo">先看 demo</button>');
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-gate]');
+    if (!b) return;
+    if (b.dataset.gate === 'retry') { location.reload(); return; }
+    if (b.dataset.gate === 'demo') { done(); return; }
+    if (b.dataset.gate === 'bind') bind();
+  });
+
+  function load(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src; s.onload = res;
+      s.onerror = function () { rej(new Error('載入 LINE 的程式失敗')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  ui('<p class="ey">Sign-in</p><h2>正在確認身分…</h2><p>從 LINE 開啟時會自動登入。</p>');
+
+  load(SDK)
+    .then(function () { return liff.init({ liffId: LIFF_ID }); })
+    .then(function () {
+      if (!liff.isLoggedIn()) {
+        /* 外部瀏覽器需要先導去 LINE 登入；LINE 內建瀏覽器會直接是已登入。 */
+        liff.login({ redirectUri: location.href });
+        return null;
+      }
+      idToken = liff.getIDToken();
+      if (!idToken) throw new Error('拿不到 LINE 的登入憑證');
+      return window.UC_STORE.call({ action: 'auth.exchange', idToken: idToken });
+    })
+    .then(function (data) {
+      if (!data) return;
+      if (data.bound) return enter(data.studentId);
+      askCode();
+    })
+    .catch(function (err) {
+      /* 連不上就退回 demo，不要讓使用者卡在白畫面。 */
+      fatal('現在沒辦法登入', (err && err.message) || '請稍後再試。');
+    });
+
+  function askCode() {
+    ui('<p class="ey">First time</p><h2>綁定你的學員資料</h2>'
+      + '<p>這個 LINE 帳號將與你的雲端教練學員資料綁定，之後從 LINE 開啟就會自動登入。</p>'
+      + '<input id="gateCode" type="text" inputmode="latin" autocapitalize="characters"'
+      + ' maxlength="8" placeholder="教練給的 8 碼啟用碼" aria-label="啟用碼">'
+      + '<p class="gateerr" id="gateErr"></p>'
+      + '<button type="button" class="btn pri" data-gate="bind">綁定</button>');
+    var i = document.getElementById('gateCode');
+    if (i) i.focus();
+  }
+
+  function bind() {
+    var i = document.getElementById('gateCode');
+    var err = document.getElementById('gateErr');
+    var code = (i && i.value || '').trim().toUpperCase();
+    if (!code) { if (err) err.textContent = '請輸入啟用碼。'; return; }
+    if (err) err.textContent = '綁定中…';
+    window.UC_STORE.call({ action: 'auth.bind', idToken: idToken, activationCode: code })
+      .then(function (data) { enter(data.studentId); })
+      .catch(function (e) {
+        if (err) err.textContent = e.code === 'UNAUTHENTICATED'
+          ? '啟用碼不正確，或已經用過、過期了。跟教練要一組新的。'
+          : (e.message || '綁定失敗，請再試一次。');
+      });
+  }
+
+  function enter(studentId) {
+    ui('<p class="ey">Loading</p><h2>正在載入你的資料…</h2>');
+    return window.UC_STORE.connect({ api: GAS_API, idToken: idToken, studentId: studentId })
+      .then(function (data) {
+        done();
+        /* 真正的權限在後端（access_scope 決定動得了誰的資料）；
+           這裡只是把畫面切到對應身分。前端改這個值不會讓他讀到別人的資料。 */
+        if (window.UC_APP && window.UC_APP.setRole) {
+          window.UC_APP.setRole(data.accessScope === 'manage' ? 'coach' : 'student');
+        }
+      })
+      .catch(function (e) { fatal('載入資料失敗', (e && e.message) || ''); });
+  }
+
 })();
 
 </script>

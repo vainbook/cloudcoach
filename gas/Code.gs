@@ -57,10 +57,12 @@ var BINDING_SHEET = '帳號綁定';
 /* 帳號綁定的欄位。前十個是 BACKEND-WORKFLOW.md §3 定的，順序不要改。
    後三個是教練實際用得到的（§3 沒列，2026-09-12 加）：
 
-   student_name           學員姓名。手動填，或綁定時由前端帶上來。
+   student_name           學員自己在評測裡填的稱呼（B01）。接上作答後端之後自動帶入，
+                          在那之前留空。**發碼時不需要填** —— 教練不用先知道學員叫什麼。
+   line_display_name      LINE 的顯示名稱，綁定時自動記下來。純給教練認人用。
    activation_code_plain  ⚠️ **明碼**，只存在「發出」到「第一次使用」之間，
                           用掉的瞬間由 authBind_ 清空。
-   note                   備註，純給人看。
+   note                   備註，純給人看。LINE 名稱跟本人對不起來的時候寫在這裡。
 
    ── 為什麼敢存明碼 ──
    原本只在執行紀錄印一次，教練沒抄到就得重發，實務上很痛。
@@ -69,6 +71,7 @@ var BINDING_SHEET = '帳號綁定';
    ⚠️ 但**驗證永遠比對 activation_code_hash，不是比對明碼** ——
    明碼欄純粹是給人看的便條，被手動改掉也不會影響驗證。 */
 var BINDING_COLS = ['binding_id', 'line_user_id', 'student_id', 'student_name',
+                    'line_display_name',
                     'access_scope', 'status', 'activation_code_hash',
                     'activation_code_plain', 'activation_expires_at',
                     'activation_used_at', 'linked_at', 'last_login_at', 'note'];
@@ -85,8 +88,17 @@ function doPost(e) {
     var body = parseBody_(e);
     var action = String(body.action || '');
 
-    if (action === 'auth.exchange') return ok_(authExchange_(body));
-    if (action === 'auth.bind')     return ok_(authBind_(body));
+    if (action === 'auth.exchange')  return ok_(authExchange_(body));
+    if (action === 'auth.bind')      return ok_(authBind_(body));
+    if (action === 'student.load')   return ok_(studentLoad_(body));
+    /* ⚠️ 藍圖雖然是全體共用、沒有個資，仍然**要先驗身分** ——
+       不驗的話任何人都能用一個亂打的 Token 叫 GAS 去動你的試算表
+       （blueprintSheet_() 會建分頁）。踩過：上線第一次探測就中。 */
+    if (action === 'blueprint.load') {
+      requireBinding_(body);
+      return ok_({ blueprint: blueprintLoad_() });
+    }
+    if (action === 'state.save')     return ok_(stateSaveAction_(body));
 
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
   } catch (err) {
@@ -134,7 +146,7 @@ function doGet() {
     channelConfigured: !!channelId_(),
     channelSource: prop_('LINE_CHANNEL_ID') ? 'script-property' : 'default-constant',
     sheetReady: sheetReady,
-    hint: '這個端點只接 POST。action：auth.exchange / auth.bind'
+    hint: '這個端點只接 POST。action：auth.exchange / auth.bind / student.load / blueprint.load / state.save'
   });
 }
 
@@ -229,10 +241,11 @@ function authBind_(body) {
       setCell_(sh, line, 'status', 'active');
       /* ⚠️ 明碼用掉就清掉。殘留窗口只該存在於「發出 → 第一次使用」之間。 */
       setCell_(sh, line, 'activation_code_plain', '');
-      /* 前端若帶了顯示名稱就順手記下來，表裡只有 student_id 對教練不好認人。
-         沒帶也無所謂 —— 教練可以自己在表裡填。 */
-      if (body.displayName && !r.student_name) {
-        setCell_(sh, line, 'student_name', String(body.displayName).slice(0, 40));
+      /* 前端若帶了 LINE 顯示名稱就順手記下來，表裡只有 student_id 對教練不好認人。
+         ⚠️ 這是 **LINE 名稱**，不是本名 —— 兩者常常對不起來，所以分開存，
+         不要覆蓋 student_name（那一欄是學員在評測裡自己填的稱呼）。 */
+      if (body.displayName) {
+        setCell_(sh, line, 'line_display_name', String(body.displayName).slice(0, 40));
       }
       SpreadsheetApp.flush();
 
@@ -244,6 +257,112 @@ function authBind_(body) {
     /* 找不到對應的雜湊。訊息刻意跟「已使用」「已過期」不同 ——
        那三種情況教練要用不同方式處理。 */
     throw new AppError('UNAUTHENTICATED', '啟用碼不正確');
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* ══ 資料動作 ═══════════════════════════════════════════
+   ⚠️ **studentId 一律從綁定表推出來，不從請求裡拿。**
+   前端送什麼名字、什麼 ID 都不採信 —— 那是最容易被繞過的一環。
+   只有 access_scope === 'manage' 的帳號才可以指定別人。 */
+
+function requireBinding_(body) {
+  var v = verifyToken_(body.idToken);
+  var b = findBindingByLine_(v.sub);
+  if (!b) throw new AppError('UNBOUND_ACCOUNT', '這個 LINE 帳號還沒有綁定學員');
+  if (b.status !== 'active') throw new AppError('FORBIDDEN_STUDENT', '這個帳號已被停用');
+  return b;
+}
+
+/** 這次請求可以動哪位學員。manage 才能指定別人，其餘一律是自己。 */
+function targetStudent_(b, body) {
+  var want = String(body.studentId || '').trim();
+  if (!want || want === String(b.student_id)) return String(b.student_id);
+  if (b.access_scope !== 'manage') {
+    console.warn('越權存取被擋 from=' + b.student_id);
+    throw new AppError('FORBIDDEN_STUDENT', '這個帳號不能存取那位學員的資料');
+  }
+  return want;
+}
+
+/* student.load —— 一次把這一頁要的東西全拿回去。
+   ⚠️ 不可以讓 53 題各打一個請求（BACKEND-WORKFLOW.md §4）。
+   藍圖也一起帶回來，省一個來回；要單獨重讀才用 blueprint.load。 */
+function studentLoad_(body) {
+  var b = requireBinding_(body);
+  var sid = targetStudent_(b, body);
+  touchLastLogin_(b.row);
+
+  var answers = {}, raw = stateLoad_('assessment', sid);
+  for (var q in raw) answers[q] = raw[q].answer;
+
+  return {
+    studentId: sid,
+    studentName: String(b.student_name || ''),
+    lineDisplayName: String(b.line_display_name || ''),
+    accessScope: b.access_scope || 'self',
+    answers: answers,
+    report: (stateLoad_('report', sid).report || {}),
+    tasks: stateLoad_('task', sid),
+    blueprint: blueprintLoad_()
+  };
+}
+
+/* state.save —— 單格 patch。
+   scope 決定寫哪張分頁，field 走哪張白名單。 */
+function stateSaveAction_(body) {
+  var b = requireBinding_(body);
+  var sid = targetStudent_(b, body);
+
+  var scope = String(body.scope || '');
+  if (!STATE_SHEETS[scope]) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
+
+  var itemId = String(body.itemId || '').trim();
+  var field = String(body.field || '').trim();
+  if (!itemId || itemId.length > 60) throw new AppError('INVALID_INPUT', '項目 id 不正確');
+  if (!field || field.length > 40) throw new AppError('INVALID_INPUT', '欄位名稱不正確');
+
+  if (scope === 'assessment' && field !== 'answer') {
+    throw new AppError('INVALID_INPUT', '評測只接受 answer 欄位');
+  }
+  if (scope === 'report') {
+    if (itemId !== 'report') throw new AppError('INVALID_INPUT', '教練報告的項目 id 必須是 report');
+    if (REPORT_FIELDS.indexOf(field) < 0) throw new AppError('INVALID_INPUT', '不認識的報告欄位');
+  }
+  if (scope === 'task' && TASK_FIELDS.indexOf(field) < 0) {
+    throw new AppError('INVALID_INPUT', '不認識的任務欄位');
+  }
+
+  var value = body.value;
+  if (typeof value === 'string' && value.length > 8000) {
+    throw new AppError('INVALID_INPUT', '內容太長');
+  }
+
+  /* ⚠️ 「報告完成」不能由前端說了算。前端也會檢查，但那是為了體驗（早點跳提示）；
+     真正算數的是這裡 —— 五段說明與一封信都在表裡，才准設成 true。 */
+  if (scope === 'report' && field === 'complete' && value === true) {
+    var have = stateLoad_('report', sid).report || {};
+    var missing = ['values', 'emo', 'image', 'circle', 'flirt'].filter(function (k) {
+      var t = have['note.' + k];
+      return typeof t !== 'string' || t.trim() === '';
+    });
+    if (typeof have.letter !== 'string' || have.letter.trim() === '') missing.push('letter');
+    if (missing.length) {
+      throw new AppError('INVALID_INPUT', '還有 ' + missing.length + ' 個欄位沒填完，不能開放報告');
+    }
+  }
+
+  /* ⚠️ 「找列 → 新增／更新」整段包在鎖裡，否則兩個請求會各自新增一列。 */
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new AppError('CONFLICT', '系統忙碌，請再試一次');
+  try {
+    var at = stateSave_(scope, sid, itemId, field,
+                        String(body.label || '').slice(0, 60), value,
+                        String(body.requestId || '').slice(0, 60));
+    SpreadsheetApp.flush();
+    return { saved: true, scope: scope, itemId: itemId, field: field,
+             value: value, updatedAt: at.toISOString() };
   } finally {
     lock.releaseLock();
   }
@@ -512,6 +631,11 @@ function setup() {
   bindingSheet_();
   rehashPlainCodes_();
 
+  /* 資料分頁。藍圖只在空的時候灌一次，之後試算表上的內容才是唯一來源。 */
+  blueprintSheet_();
+  seedBlueprint_();
+  for (var scope in STATE_SHEETS) stateSheet_(scope);
+
   /* 容器繫結用簡單 onOpen，不需要安裝觸發條件。 */
 
   /* ⚠️ **不要在這裡自動發新的啟用碼。** 舊版會，結果每跑一次 setup
@@ -519,7 +643,7 @@ function setup() {
   console.log('setup 完成。分頁：' + ss.getSheets().map(function (s) {
     return s.getName();
   }).join('、'));
-  console.log('要發啟用碼：試算表上的「UC 雲端教練」選單，或執行 newActivationCode(\'STU-001\', \'姓名\')');
+  console.log('要發啟用碼：試算表上的「UC 雲端教練」選單，或執行 newActivationCode(\'STU-001\')');
 }
 
 /**
@@ -558,7 +682,7 @@ function rehashPlainCodes_() {
  * 發一組一次性啟用碼給某位學員，寫進「帳號綁定」分頁。
  * 明碼會同時寫進表裡（用掉自動清空），所以不必急著抄執行紀錄。
  * @param {string} studentId  學員 ID，例如 STU-TEST-001
- * @param {string} name       學員姓名（可省略，之後可在表裡手填）
+ * @param {string} name       學員姓名（通常省略 —— 綁定時會自動帶 LINE 名稱進來）
  * @param {number} days       幾天後過期，預設 14
  */
 function newActivationCode(studentId, name, days) {
@@ -615,10 +739,9 @@ function menuNewCode() {
   var id = a.getResponseText().trim();
   if (!id) { ui.alert('沒有輸入學員 ID'); return; }
 
-  var b = ui.prompt('發新的啟用碼', '學員姓名（可留空，之後在表裡填也行）', ui.ButtonSet.OK_CANCEL);
-  if (b.getSelectedButton() !== ui.Button.OK) return;
-
-  var code = newActivationCode(id, b.getResponseText().trim());
+  /* 姓名不問。學員綁定時會帶 LINE 名稱進來，評測填完之後 student_name 也會自己長出來。
+     教練要備註「這個 LINE 名稱是誰」就直接在表裡的 note 欄寫。 */
+  var code = newActivationCode(id);
   ui.alert('啟用碼：' + code
     + '\n\n已經寫進「' + BINDING_SHEET + '」分頁，學員用掉之後那一格會自動清空。'
     + '\n14 天後過期。');
@@ -721,6 +844,51 @@ function selftest() {
   t('auth.bind 也會先驗 Token', !r5.ok && r5.error.code === 'UNAUTHENTICATED');
   var r6 = post({ action: 'auth.bind', idToken: 'x.y.z', activationCode: 'AAAAAAAA' });
   t('Token 沒過就不會去檢查啟用碼', !r6.ok && r6.error.code === 'UNAUTHENTICATED');
+
+  /* ── 資料層 ────────────────────────────────────── */
+
+  var r8 = post({ action: 'student.load', idToken: 'x.y.z' });
+  t('student.load 要先驗 Token', !r8.ok && r8.error.code === 'UNAUTHENTICATED');
+  var r9 = post({ action: 'state.save', idToken: 'x.y.z', scope: 'assessment' });
+  t('state.save 要先驗 Token', !r9.ok && r9.error.code === 'UNAUTHENTICATED');
+
+  t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
+  var bpMiss = [];
+  if (ss && ss.getSheetByName(BLUEPRINT_SHEET)) {
+    var bm = colMap_(blueprintSheet_());
+    bpMiss = BLUEPRINT_COLS.filter(function (c) { return !bm[c]; });
+  }
+  t('「' + BLUEPRINT_SHEET + '」欄位齊全' + (bpMiss.length ? '（缺 ' + bpMiss.join('、') + '）' : ''),
+    bpMiss.length === 0);
+
+  var bp = [];
+  try { bp = blueprintLoad_(); } catch (e) {}
+  t('藍圖讀得到內容（目前 ' + bp.length + ' 條）', bp.length > 0);
+  var dupe = {}, dupeIds = [];
+  bp.forEach(function (x) { if (dupe[x.id]) dupeIds.push(x.id); dupe[x.id] = 1; });
+  t('kr_id 沒有重複' + (dupeIds.length ? '（' + dupeIds.join('、') + '）' : ''), dupeIds.length === 0);
+  t('每條 KR 都有內容', bp.every(function (x) { return x.kr !== ''; }));
+
+  var scMiss = [];
+  for (var sc in STATE_SHEETS) {
+    var shx = ss && ss.getSheetByName(STATE_SHEETS[sc]);
+    if (!shx) { scMiss.push(STATE_SHEETS[sc] + '（沒有分頁）'); continue; }
+    var cmx = colMap_(shx);
+    STATE_COLS.forEach(function (c) { if (!cmx[c]) scMiss.push(STATE_SHEETS[sc] + '/' + c); });
+  }
+  t('三張學員分頁齊全' + (scMiss.length ? '（缺 ' + scMiss.join('、') + '）' : ''),
+    scMiss.length === 0);
+
+  /* value 一律 JSON —— 直接存原值的話 Sheet 會把 "01" 變成 1（踩過）。 */
+  t('value 編碼可往返', decodeValue_(encodeValue_('01')) === '01'
+    && decodeValue_(encodeValue_(0)) === 0
+    && decodeValue_(encodeValue_(false)) === false
+    && String(decodeValue_(encodeValue_([1, 2]))) === '1,2');
+
+  t('報告欄位白名單涵蓋五維與信',
+    REPORT_FIELDS.indexOf('note.values') >= 0 && REPORT_FIELDS.indexOf('adjust.flirt') >= 0
+    && REPORT_FIELDS.indexOf('letter') >= 0 && REPORT_FIELDS.indexOf('complete') >= 0
+    && REPORT_FIELDS.indexOf('letter; DROP') < 0);
 
   var r7 = JSON.parse(doGet().getContent());
   t('doGet 健康檢查可用', r7.ok === true && r7.data.stage === 3);
