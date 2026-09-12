@@ -80,3 +80,90 @@ function repairMisplaced() {
   console.log('收拾完成\n' + log.join('\n'));
   return log.join('\n');
 }
+
+/* ═══ 總覽改成會自己長 ═══════════════════════════════════
+   現況（2026-09-12 用 inspectFormulas 量的）有三個問題：
+
+   ① **只有兩列有公式**（第 6、7 列）。第三位學員加進來就是空白，
+      而且不會有任何提示 —— 你只會覺得「他怎麼沒出現」。
+   ② **範圍寫死**：學員填寫只到第 246 列。53 題 × 4 位就滿了，
+      滿了之後多出來的人統計永遠是 0，一樣沒有提示。
+   ③ `E6 =COUNTIF('學員填寫'!$B$6:$B$246,$A6)` 把「評測總數」定義成
+      **這位學員已經有幾列**，所以進度永遠是「已填 ÷ 有幾列」。
+      一題都還沒填的人是 0/0，看起來跟填完的人一樣（IFERROR 吃掉了）。
+
+   改法：整欄用一條 ARRAYFORMULA，範圍開到 1000 列，
+   評測總數改成固定的 53（從「欄位定義」數 module_id = assessment 的列）。
+
+   ⚠️ 只改第 6 列往下的 A–J 欄，標題、說明、右邊那塊「檢核流程」都不碰。
+   跑之前建議先「檔案 → 建立副本」。
+*/
+function upgradeOverview_() {
+  var ss = sheet_();
+  var sh = ss.getSheetByName('總覽');
+  if (!sh) return '找不到「總覽」分頁';
+
+  var HEAD = 5, FIRST = HEAD + 1;
+
+  /* 評測總數＝題庫題數。寫死在這裡不好，所以從「欄位定義」數出來。 */
+  var fd = ss.getSheetByName('欄位定義');
+  var total = 0;
+  if (fd && fd.getLastRow() > HEAD) {
+    var m = mapAt_(fd, HEAD);
+    var v = fd.getRange(FIRST, 1, fd.getLastRow() - HEAD, fd.getLastColumn()).getValues();
+    for (var i = 0; i < v.length; i++) {
+      var r = rowObj_(v[i], m);
+      if (String(r.module_id) === 'assessment' && String(r.owner) === 'student') total++;
+    }
+  }
+  if (!total) return '從「欄位定義」數不出評測題數，先不動總覽';
+
+  /* 先把舊的逐列公式清掉，再放一組 ARRAYFORMULA 在第一列。 */
+  var last = Math.max(sh.getLastRow(), FIRST);
+  sh.getRange(FIRST, 1, last - HEAD, 10).clearContent();
+
+  var S = "'學員'!", A = "'學員填寫'!", T = "'任務狀態'!", G = "'成長紀錄'!", C = "'課程工具'!";
+  var ids = S + '$A$6:$A$1000';
+
+  function arr(expr) {
+    /* 空白列不要算 —— 沒有這層 IF，下面 900 列會全部長出 0。 */
+    return '=ARRAYFORMULA(IF(' + ids + '="","",' + expr + '))';
+  }
+  var put = [
+    [1, arr(ids)],
+    [2, arr(S + '$B$6:$B$1000')],
+    [3, arr(S + '$D$6:$D$1000')],
+    [4, arr('SUMIF(' + A + '$B$6:$B$5000,' + ids + ',' + A + '$H$6:$H$5000)')],
+    [5, arr(total)],
+    [6, arr('SUMIF(' + A + '$B$6:$B$5000,' + ids + ',' + A + '$H$6:$H$5000)/' + total)],
+    [7, arr('COUNTIFS(' + T + '$B$6:$B$3000,' + ids + ',' + T + '$F$6:$F$3000,TRUE)')],
+    [8, arr('COUNTIFS(' + T + '$B$6:$B$3000,' + ids + ',' + T + '$G$6:$G$3000,TRUE)')],
+    [9, arr('COUNTIF(' + G + '$B$6:$B$3000,' + ids + ')')],
+    [10, arr('COUNTIF(' + C + '$B$6:$B$3000,' + ids + ')')]
+  ];
+  put.forEach(function (p) { sh.getRange(FIRST, p[0]).setFormula(p[1]); });
+
+  /* 進度那一欄是比例，給它百分比格式，不然會顯示 0.43 */
+  sh.getRange(FIRST, 6, 1, 1).setNumberFormat('0%');
+
+  SpreadsheetApp.flush();
+  var msg = '「總覽」已改成 ARRAYFORMULA：學員加進「學員」分頁就會自動出現，'
+    + '最多 995 位。評測總數固定為 ' + total + ' 題（從「欄位定義」數出來的）。';
+  console.log(msg);
+  return msg;
+}
+
+/** 選單用的包裝：先確認再動，並且回報結果。 */
+function menuUpgradeOverview() {
+  var ui = SpreadsheetApp.getUi();
+  var a = ui.alert('改善「總覽」',
+    '會把第 6 列以下的 A–J 欄換成 ARRAYFORMULA：\n\n'
+    + '・學員加進「學員」分頁就自動出現（現在只有前兩位有公式）\n'
+    + '・範圍從 246 列放寬到 5000 列\n'
+    + '・評測進度改用固定題數當分母（現在是「已填÷有幾列」，0/0 看起來像滿分）\n\n'
+    + '⚠️ 標題、說明與右邊的「檢核流程」都不會動。\n'
+    + '建議先「檔案 → 建立副本」。要繼續嗎？',
+    ui.ButtonSet.OK_CANCEL);
+  if (a !== ui.Button.OK) return;
+  ui.alert(upgradeOverview_());
+}

@@ -492,16 +492,39 @@ var BINDING_NOTES = {
 /* 標題與說明，跟骨架其他分頁同一個形狀：
    第 1 列空、第 2 列標題、第 3 列說明、第 4 列空、第 5 列表頭。 */
 function decorateBinding_(sh) {
-  sh.getRange(2, 1).setValue('帳號綁定');
+  var NAVY = '#131B2E', BEIGE = '#E8E4DC', SALMON = '#E8A898';
+  var w = Math.max(sh.getLastColumn(), BINDING_COLS.length);
+
+  sh.getRange(2, 1).setValue('帳號綁定')
+    .setFontSize(16).setFontWeight('bold').setFontColor(NAVY);
   sh.getRange(3, 1).setValue(
     '一列 ＝ 一個 LINE 帳號對到哪位學員。這張表由程式維護，'
     + '你平常只需要改 access_scope、status 與 note 三欄。'
-    + '　⚠️ 人的主檔在「學員」分頁；姓名以學員在評測填的為準。');
+    + '　⚠️ 人的主檔在「學員」分頁；姓名以學員在評測填的為準。')
+    .setFontSize(10).setFontStyle('italic').setFontColor('#6B7280');
+
+  /* 表頭的深藍色塊 —— 跟「學員」「學員填寫」那幾張同一套，
+     四色之外不引入新顏色。上緣的鮭粉細線是骨架原本就有的分隔。 */
+  sh.getRange(4, 1, 1, w).setBorder(null, null, true, null, null, null,
+                                    SALMON, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(BINDING_HEADER_ROW, 1, 1, w)
+    .setBackground(NAVY).setFontColor(BEIGE).setFontWeight('bold')
+    .setVerticalAlignment('middle');
+  sh.setRowHeight(BINDING_HEADER_ROW, 30);
   sh.setFrozenRows(BINDING_HEADER_ROW);
   sh.setColumnWidth(1, 130);
+
   var map = mapAt_(sh, BINDING_HEADER_ROW);
   for (var col in BINDING_NOTES) {
     if (map[col]) sh.getRange(BINDING_HEADER_ROW, map[col]).setNote(BINDING_NOTES[col]);
+  }
+  /* 你平常真的要改的三欄標成鮭粉底 —— 其他欄是程式在寫，不要手動碰。 */
+  ['access_scope', 'status', 'note'].forEach(function (c) {
+    if (map[c]) sh.getRange(BINDING_HEADER_ROW, map[c]).setBackground(SALMON).setFontColor(NAVY);
+  });
+  /* ⚠️ line_user_id 是個資，標出來提醒不要外流。 */
+  if (map.line_user_id) {
+    sh.getRange(BINDING_HEADER_ROW, map.line_user_id).setFontColor(SALMON);
   }
 }
 
@@ -897,6 +920,8 @@ function onOpen() {
     .addItem('發教練用的共用授權碼…', 'menuCoachCode')
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('查這份表的狀態', 'menuStatus')
+    .addSeparator()
+    .addItem('改善「總覽」的公式…', 'menuUpgradeOverview')
     .addToUi();
 }
 

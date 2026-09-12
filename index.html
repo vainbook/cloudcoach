@@ -2087,6 +2087,33 @@ html.task-open, html.task-open body { overflow: hidden; }
    boot.js 一載入就把 data-uc-boot 設成 line；退回 demo 時改成 demo。 */
 [data-uc-boot="line"] .hero-form { display: none; }
 
+/* ═══ 手機：面板貼底，人物留在上面看得見 ═══════════════
+   使用者 2026-09-13：「手機版本把框框也放到人物旁邊，點選時會先跑人物動畫，
+   再跳出框框。」
+
+   窄螢幕沒有「旁邊」可用（人物就佔掉大半個寬度），所以改成**上下**：
+   人物留在上半部、面板貼在底下，兩個同時看得見。
+   ⚠️ 遮罩的模糊要調低 —— 10px 的話人物糊成一團，那盞剛點亮的燈就白點了。 */
+@media (max-width: 720px) {
+  .taskveil {
+    place-items: end stretch; padding: 0;
+    background: linear-gradient(to bottom,
+      rgba(19, 27, 46, .10) 0 34%, rgba(19, 27, 46, .72) 52%, rgba(19, 27, 46, .86));
+    backdrop-filter: blur(2px) saturate(105%);
+    -webkit-backdrop-filter: blur(2px) saturate(105%);
+  }
+  .taskpanel {
+    width: 100%; max-height: 62vh; padding: 26px 22px 24px;
+    border-width: 1px 0 0;
+  }
+  /* 由下往上推，不要從中間放大 —— 那會讀成「蓋住人物」。 */
+  .taskveil.on .taskpanel { animation: taskpanel-up .34s var(--ease) both; }
+}
+@keyframes taskpanel-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
 </style>
 </head>
 <body>
@@ -2150,7 +2177,7 @@ html.task-open, html.task-open body { overflow: hidden; }
   <a href="#/okr">藍圖</a>
   <a href="#/growth">成長</a>
   <a href="#/library">資源</a>
-  <a href="#/">登出</a>
+  <a href="#/" id="navOut">登出</a>
 </nav>
 
 <script>
@@ -4570,6 +4597,21 @@ window.UC_SELFTEST = function () {
     nav('#/assess');
   });
 
+  /* ── 登出 ─────────────────────────────────────────
+     ⚠️ demo 時代它只是 `<a href="#/">`，回首頁就等於登出。
+     接上 LINE 之後那條路**原地彈回來** —— go() 會把 remote 模式的 #/ 跳走
+     （2026-09-13 使用者回報「按登出鍵沒有任何反應」，是我上一輪弄壞的）。
+     真的登出要做三件事：把沒送完的存檔送出去、跟 LIFF 說登出、重新載入。 */
+  el('navOut').addEventListener('click', function (e) {
+    if (!(window.UC_STORE && window.UC_STORE.isRemote())) return;   /* demo 照舊 */
+    e.preventDefault();
+    if (!confirm('登出後要重新從 LINE 進來。確定嗎？')) return;
+    window.UC_STORE.flush();                 /* 佇列裡的東西不能跟著消失 */
+    try { if (window.liff && liff.isLoggedIn()) liff.logout(); } catch (err) {}
+    /* replace 而不是 assign —— 不要讓上一頁按回去又回到已登出的畫面。 */
+    location.replace(location.pathname);
+  });
+
   el('demoBtn').addEventListener('click', function () {
     /* ⚠️ 用 replaceState 就地換內容，**不要 `S = ...`** ——
        教練報告那邊有 `var cr = S.coachReport` 的閉包別名，
@@ -5687,6 +5729,7 @@ window.UC_SELFTEST = function () {
     m.hidden = false;
     m.classList.add('on');
     document.documentElement.classList.add('task-open');
+    figLit(dim);                 /* 面板開著的時候那一塊要一直亮著 */
     var panel = m.querySelector('.taskpanel');
     if (panel) panel.focus();
   }
@@ -5717,6 +5760,7 @@ window.UC_SELFTEST = function () {
     if (!TASKMODAL || TASKMODAL.hidden) return;
     TASKMODAL.classList.remove('on');
     TASKMODAL.hidden = true;
+    figLit(null);
     document.documentElement.classList.remove('task-open');
     if (restore !== false && TASKRETURN && document.contains(TASKRETURN)) TASKRETURN.focus();
     TASKRETURN = null;
@@ -5789,7 +5833,16 @@ window.UC_SELFTEST = function () {
       b.addEventListener('click', function () { okrTo('book'); });
     });
     [].forEach.call(pane.querySelectorAll('[data-cover-dim]'), function (b) {
-      b.addEventListener('click', function () { openTaskModal(b.dataset.coverDim, b); });
+      b.addEventListener('click', function () {
+        var k = b.dataset.coverDim;
+        /* ⚠️ 手機沒有 hover，人物那組動畫**從來沒有機會播**（使用者 2026-09-13）。
+           所以點下去先亮人物，等它跑完再開面板 —— 面板一開就蓋住人物的話，
+           那組動畫等於白做。 */
+        figLit(k);
+        var quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        setTimeout(function () { openTaskModal(k, b); },
+                   quick ? 0 : (figToTop() ? FIG_LEAD + 180 : FIG_LEAD));
+      });
     });
     bindFigure(pane);
     /* 總覽頁：平常設定「當前任務」與「完成」；需要時才開啟隱藏管理。
@@ -6062,20 +6115,51 @@ window.UC_SELFTEST = function () {
 
   /* 能力卡 ←→ 人物部位。只改容器上的 data-lit，其餘交給 CSS。
      滑鼠與鍵盤都要接（focus/blur），不然只有滑鼠使用者看得到這個對應。 */
+  /* 人物的高亮。**模組層級，不是 bindFigure 的區域函式** ——
+     點格子開面板時也要用它（見 bindOkrPane 的 click）。 */
+  function figLit(k) {
+    var fig = document.getElementById('bpcFig');
+    if (!fig) return;
+    var r = k && FIGREGION[k];
+    if (r) fig.setAttribute('data-lit', r); else fig.removeAttribute('data-lit');
+  }
+
+  /* 點下去到面板出現之間留多久給人物。
+     .fxhi 的 transition 是 .18s，留到 360ms 才看得出「亮起來」這件事。 */
+  var FIG_LEAD = 360;
+
+  /* 手機上面板貼底，人物如果停在畫面下半部就只露出一小截，那盞燈等於白點。
+     所以開面板前先把人物捲到上方。回傳「有沒有真的捲」——
+     有捲的話要多留一點時間給捲動跑完，不然面板會追上來。
+     ⚠️ 桌機不捲：那邊面板是置中的，本來就看得到人物。 */
+  function figToTop() {
+    if (innerWidth > 720) return false;
+    var fig = document.getElementById('bpcFig');
+    if (!fig) return false;
+    var r = fig.getBoundingClientRect(), want = 56;
+    if (Math.abs(r.top - want) < 28) return false;
+    /* 捲完之後高亮的位置會變，但 data-lit 是 class 不是座標，不用重算。 */
+    /* ⚠️ **不要用 behavior: 'smooth'。** 平滑捲動是靠 rAF 一格一格跑的，
+       而面板一開就會套上 `html.task-open { overflow: hidden }` 把捲動鎖死 ——
+       捲到一半被腰斬，停在哪裡看運氣。直接跳過去，反正面板馬上蓋上來。 */
+    window.scrollTo(0, Math.max(0, scrollY + r.top - want));
+    return false;          /* 瞬間完成，不必多等 */
+  }
+
   function bindFigure(pane) {
-    var fig = pane.querySelector('#bpcFig'); if (!fig) return;
-    function lit(k) {
-      var r = k && FIGREGION[k];
-      if (r) fig.setAttribute('data-lit', r); else fig.removeAttribute('data-lit');
-    }
+    if (!pane.querySelector('#bpcFig')) return;
+    /* 桌機有 hover，滑過去就亮；手機沒有，所以另外靠點擊（見 bindOkrPane）。 */
     [].forEach.call(pane.querySelectorAll('[data-cover-dim]'), function (b) {
       var k = b.dataset.coverDim;
-      b.addEventListener('mouseenter', function () { lit(k); });
-      b.addEventListener('focus',      function () { lit(k); });
-      b.addEventListener('mouseleave', function () { lit(null); });
-      b.addEventListener('blur',       function () { lit(null); });
+      b.addEventListener('mouseenter', function () { figLit(k); });
+      b.addEventListener('focus',      function () { figLit(k); });
+      /* ⚠️ 面板開著的時候不要把燈關掉 —— 那盞燈正在說明面板講的是哪一塊。 */
+      b.addEventListener('mouseleave', function () { if (!taskOpen()) figLit(null); });
+      b.addEventListener('blur',       function () { if (!taskOpen()) figLit(null); });
     });
   }
+
+  function taskOpen() { return !!(TASKMODAL && !TASKMODAL.hidden); }
 
   /* ── 課程藍圖：攤開的書 ───────────────────────────────
      左頁是目錄（五個大主題的橫幅書籤）與那一維的 KR 清單，右頁是選到的那一條。
