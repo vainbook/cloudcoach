@@ -60,6 +60,17 @@ var BINDING_SHEET = '帳號綁定';
    這顆按鈕只是省得從清單裡找。 */
 var DEMO_STUDENT_ID = 'STU-DEMO-001';
 
+/* ⚠️ selftest 會故意送空 body、壞 JSON 與假 Token 進去撞錯誤路徑，
+   所以執行紀錄裡會出現一整排黃色警告 —— 那些是**預期的**。
+   問題是：真的出事的時候也會混在那堆黃字裡，看不出來。
+   所以自我檢查期間把訊息標起來、降成 info。 */
+var IN_SELFTEST = false;
+
+function logProbe_(msg) {
+  if (IN_SELFTEST) console.log('　（自我檢查的預期錯誤）' + msg);
+  else console.warn(msg);
+}
+
 /* 帳號綁定的欄位。前十個是 BACKEND-WORKFLOW.md §3 定的，順序不要改。
    後三個是教練實際用得到的（§3 沒列，2026-09-12 加）：
 
@@ -120,7 +131,7 @@ function doPost(e) {
        前者該叫使用者重新登入，後者該叫他等一下再試（踩過）。
        我們自己丟的 AppError 帶著分類，照原樣回；只有非預期的例外才是 INTERNAL_ERROR。 */
     if (err instanceof AppError && KNOWN_ERRORS.indexOf(err.code) >= 0) {
-      console.warn('doPost 已知錯誤 ' + err.code);
+      logProbe_('doPost 已知錯誤 ' + err.code);
       return fail_(err.code, err.message, err.detail);
     }
     console.error('doPost 未預期例外', err);
@@ -659,7 +670,7 @@ function verifyLineIdToken_(idToken, channelId) {
        真正不能外流的是 stack、Sheet 內容與 Token 原文，那些仍然不回。 */
     var le = {};
     try { le = JSON.parse(text) || {}; } catch (e) {}
-    console.warn('LINE verify 失敗 code=' + code + ' error=' + le.error);
+    logProbe_('LINE verify 失敗 code=' + code + ' error=' + le.error);
     throw new AppError('UNAUTHENTICATED', 'ID Token 未通過 LINE 驗證',
       { httpStatus: code, lineError: le.error || null,
         lineErrorDescription: le.error_description || null });
@@ -976,8 +987,13 @@ function menuStatus() {
    驗「錯誤路徑會不會乖乖回錯誤」與「試算表的鎖有沒有生效」。 */
 
 function selftest() {
-  var log = [], ok = true;
   _ss = null;                    /* 清掉快取，確保這次是真的重開一次 */
+  IN_SELFTEST = true;            /* 故意撞出來的錯誤降成 info，不要混進真的警告裡 */
+  try { return runSelftest_(); } finally { IN_SELFTEST = false; }
+}
+
+function runSelftest_() {
+  var log = [], ok = true;
   function t(name, cond) { log.push((cond ? '  ok   ' : '  FAIL ') + name); if (!cond) ok = false; }
   function post(o) {
     return JSON.parse(doPost({ postData: { contents:
@@ -1171,6 +1187,7 @@ function selftest() {
   t('doGet 不洩漏 SHEET_ID',
     !prop_('SHEET_ID') || JSON.stringify(r7).indexOf(prop_('SHEET_ID')) < 0);
 
-  console.log('UC GAS selftest ' + (ok ? 'PASS' : 'FAIL') + '\n' + log.join('\n'));
+  console.log('UC GAS selftest ' + (ok ? 'PASS' : 'FAIL') + '\n' + log.join('\n')
+    + (ok ? '\n\n（上面那排「自我檢查的預期錯誤」是這支程式自己撞出來的，不是問題）' : ''));
   return ok;
 }
