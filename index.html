@@ -2181,6 +2181,13 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 深色底上降透明度會糊掉，改用邊框說明它是靜止的 */
 .field-locked :is(input, select, textarea) { border-style: dashed; }
 
+/* ?diag=1 的診斷表。只有除錯會看到，所以求清楚不求好看。 */
+.diagt { width: 100%; margin: 0 0 16px; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11.5px; text-align: left; }
+.diagt td { padding: 5px 6px; border-bottom: 1px solid var(--beige-08);
+  color: var(--beige-70); word-break: break-all; }
+.diagt td:first-child { width: 42%; color: var(--salmon); }
+
 </style>
 </head>
 <body>
@@ -7565,8 +7572,45 @@ window.UC_SELFTEST = function () {
 
   /* 對外。⚠️ 即使沒有 LINE 也要掛上去 —— 呼叫端只要 UC_SHARE 在就能用，
      不必自己判斷現在是不是 LIFF 模式（降級在這裡面處理掉了）。 */
+  /* 為什麼「傳到 LINE」不能用？**不要猜，問它。**
+     sendMessages 只有在 LIFF **開在聊天室裡**才有（context.type 是
+     utou／room／group）。直接開 GitHub Pages 的網址，就算是在 LINE 的
+     內建瀏覽器裡，context 也是 external —— 那條路一定不可用。
+     真正的入口是 LIFF 網址 https://liff.line.me/<LIFF_ID>。
+
+     網址加 ?diag=1 會在畫面上印出這一整包，截圖就能判斷卡在哪。 */
+  function diag() {
+    var d = { liffSdk: !!window.liff, liffId: LIFF_ID };
+    try {
+      d.inClient = liff.isInClient();
+      d.loggedIn = liff.isLoggedIn();
+      d.os = liff.getOS();
+      d.lineVersion = liff.getLineVersion();
+      var c = liff.getContext();
+      d.contextType = c ? c.type : '(null)';
+      d.shareTargetPicker = liff.isApiAvailable('shareTargetPicker');
+      d.sendMessages = liff.isApiAvailable('sendMessages');
+    } catch (e) { d.error = String(e && e.message || e); }
+    return d;
+  }
+
+  function showDiag() {
+    var d = diag();
+    var rows = Object.keys(d).map(function (k) {
+      return '<tr><td>' + esc(k) + '</td><td>' + esc(String(d[k])) + '</td></tr>';
+    }).join('');
+    ui('<p class="ey">Diagnostics</p><h2>分享功能診斷</h2>'
+      + '<table class="diagt">' + rows + '</table>'
+      + '<button type="button" class="btn" id="diagClose">關掉</button>');
+    /* ⚠️ 自己接關閉，**不要用 data-gate** —— 那個委派監聽在下面的
+       early return 之後才註冊，走診斷這條路的話根本沒跑到。 */
+    var c = document.getElementById('diagClose');
+    if (c) c.addEventListener('click', done);
+  }
+
   window.UC_SHARE = {
     text: shareText,
+    diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
     canSend: function () {
       try {
@@ -7581,6 +7625,15 @@ window.UC_SELFTEST = function () {
      掛在後面的話那兩種情況下 UC_SHARE 是 undefined，按鈕直接爆掉。 */
 
   var q = location.search;
+  /* ?diag=1：LIFF 初始化完就把診斷印出來，不進登入流程。 */
+  if (/[?&]diag=1/.test(q)) {
+    load(SDK)
+      .then(function () { return liff.init({ liffId: LIFF_ID }); })
+      .then(showDiag)
+      .catch(function (e) { fatal('診斷失敗', (e && e.message) || ''); });
+    return;
+  }
+
   if (/[?&]demo=1/.test(q)) return;             /* 明講要 demo 就不要碰 LINE */
   /* ⚠️ 自我檢查與文字稽核**不可以觸發登入**。
      `#selftest` 會把整個 body 換掉，而 liff.login() 會直接把頁面導去 LINE ——
