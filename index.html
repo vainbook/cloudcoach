@@ -7538,25 +7538,53 @@ window.UC_SELFTEST = function () {
      ⚠️ **不要預設第 1、2 條一定能用。** isApiAvailable 會說實話，照著問就好。
      ⚠️ 回傳的 Promise 永遠 resolve，給的是 'share' / 'send' / 'copy' / 'fail'，
         呼叫端據此決定要說什麼 —— 不要讓一顆分享鈕丟出未捕捉的例外。 */
+  /* ⚠️ **`liff.isApiAvailable()` 只認得少數幾個名稱**（shareTargetPicker、
+     multipleLiffTransition、subwindowOpen、scanCodeV2…）。
+     拿 'sendMessages' 去問它會直接丟 `Unexpected API name.` ——
+     第一版就是這樣，例外被 try/catch 吞掉，於是永遠判定「不能用」，
+     明明 context 是 utou、功能一直都在（2026-09-13 靠 ?diag=1 才抓到）。
+
+     sendMessages 沒有 isApiAvailable 可以問，判斷條件是**文件寫死的**：
+     必須在 LINE 裡面（isInClient），而且 context.type 是 utou／room／group。 */
+  function hasPicker() {
+    try {
+      return !!(window.liff && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'));
+    } catch (e) { return false; }
+  }
+
+  function hasSend() {
+    try {
+      if (!window.liff || !liff.isInClient || !liff.isInClient()) return false;
+      var c = liff.getContext();
+      return !!c && ['utou', 'room', 'group'].indexOf(c.type) >= 0;
+    } catch (e) { return false; }
+  }
+
   function shareText(text) {
     text = String(text == null ? '' : text).trim();
     if (!text) return Promise.resolve('fail');
 
     var msg = [{ type: 'text', text: text.slice(0, 4900) }];   /* LINE 單則上限 5000 */
 
+    /* 先試選對象（可以傳給任何人），沒有才退回「送進目前這個聊天室」。 */
     try {
-      if (window.liff && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
+      if (hasPicker()) {
         return liff.shareTargetPicker(msg)
           .then(function (res) { return res ? 'share' : 'cancel'; })
-          .catch(function () { return copyText(text); });
+          .catch(function () { return sendOrCopy(msg, text); });
       }
-      if (window.liff && liff.isApiAvailable && liff.isApiAvailable('sendMessages')) {
-        return liff.sendMessages(msg)
-          .then(function () { return 'send'; })
-          .catch(function () { return copyText(text); });
-      }
+      return sendOrCopy(msg, text);
     } catch (e) {}
     return copyText(text);
+  }
+
+  function sendOrCopy(msg, text) {
+    if (!hasSend()) return copyText(text);
+    try {
+      return liff.sendMessages(msg)
+        .then(function () { return 'send'; })
+        .catch(function () { return copyText(text); });
+    } catch (e) { return copyText(text); }
   }
 
   function copyText(text) {
@@ -7588,9 +7616,12 @@ window.UC_SELFTEST = function () {
       d.lineVersion = liff.getLineVersion();
       var c = liff.getContext();
       d.contextType = c ? c.type : '(null)';
-      d.shareTargetPicker = liff.isApiAvailable('shareTargetPicker');
-      d.sendMessages = liff.isApiAvailable('sendMessages');
     } catch (e) { d.error = String(e && e.message || e); }
+    /* ⚠️ 這兩項**各自包 try**。第一版全部包在同一個 try 裡，
+       結果 isApiAvailable('sendMessages') 一丟例外，後面就全部沒印出來 ——
+       而那一項正好是我們要看的（踩過）。 */
+    d.shareTargetPicker = hasPicker();
+    d.sendMessages = hasSend();
     return d;
   }
 
@@ -7612,12 +7643,7 @@ window.UC_SELFTEST = function () {
     text: shareText,
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
-    canSend: function () {
-      try {
-        return !!(window.liff && liff.isApiAvailable
-          && (liff.isApiAvailable('shareTargetPicker') || liff.isApiAvailable('sendMessages')));
-      } catch (e) { return false; }
-    }
+    canSend: function () { return hasPicker() || hasSend(); }
   };
 
   /* ⚠️ UC_SHARE 要在下面那幾個 early return **之前**掛好。
