@@ -5721,6 +5721,7 @@ window.UC_SELFTEST = function () {
         /* ⚠️ 退回複製的時候**要講為什麼**。只說「已複製」的話，
            按鈕明明寫「傳到 LINE」卻複製給你，看起來就是壞了（踩過）。 */
         toast({ share: '已經送出去了', send: '已經送進聊天室',
+                system: '已交給手機的分享選單',
                 copy: why ? '傳不出去（' + why + '），已改成複製' : '已複製，貼到聊天室就好',
                 cancel: '取消了',
                 /* 連複製都失敗時也要講理由 —— 「這個環境沒辦法分享」等於沒說。 */
@@ -7594,18 +7595,53 @@ window.UC_SELFTEST = function () {
   var lastError = '';
 
   function sendOrCopy(msg, text) {
-    if (!hasSend()) { lastError = '這個畫面不是從聊天室開的'; return copyText(text); }
+    if (!hasSend()) return sysShare(text);
     try {
       return liff.sendMessages(msg)
         .then(function () { lastError = ''; return 'send'; })
         .catch(function (e) {
-          lastError = String((e && (e.message || e.code)) || e || '未知');
-          return copyText(text);
+          lastError = friendly(e);
+          return sysShare(text);
         });
     } catch (e) {
-      lastError = String((e && e.message) || e);
-      return copyText(text);
+      lastError = friendly(e);
+      return sysShare(text);
     }
+  }
+
+  /* LINE 的錯誤碼翻成看得懂的話。
+     ⚠️ INVALID_RECEIVER 很容易被誤讀成「權限沒開」，其實是收件者不對 ——
+     sendMessages 只能送進**官方帳號的聊天室**，從別的對話開就一定是這個錯。 */
+  function friendly(e) {
+    var code = (e && (e.code || e.message)) || '';
+    if (/INVALID_RECEIVER/.test(code)) {
+      return '這個對話不是官方帳號的聊天室，LINE 不讓程式往這裡送';
+    }
+    if (/chat_message\.write|FORBIDDEN|permission/i.test(code)) {
+      return '還沒同意「傳送訊息」的權限，登出再登入一次';
+    }
+    return String(code || '未知');
+  }
+
+  /* ── 系統分享（不依賴任何 LINE 設定）────────────────
+     shareTargetPicker 要在 Console 開、sendMessages 只能送進官方帳號的聊天室，
+     兩條路都有前提。navigator.share 沒有 —— 它會叫出手機自己的分享選單，
+     裡面就有 LINE，選了之後可以挑任何對話。
+     ⚠️ 必須在使用者的點擊裡直接呼叫，隔一個 await 就會被瀏覽器擋掉；
+     這裡是 .catch 接下來的同一個微任務，還算在同一次使用者手勢裡。 */
+  function sysShare(text) {
+    try {
+      if (navigator.share) {
+        return navigator.share({ text: text })
+          .then(function () { return 'system'; })
+          .catch(function (e) {
+            /* 使用者自己按取消不算失敗，不要再退一層去複製。 */
+            if (e && e.name === 'AbortError') return 'cancel';
+            return copyText(text);
+          });
+      }
+    } catch (e) {}
+    return copyText(text);
   }
 
   function copyText(text) {
@@ -7643,6 +7679,7 @@ window.UC_SELFTEST = function () {
        而那一項正好是我們要看的（踩過）。 */
     d.shareTargetPicker = hasPicker();
     d.sendMessages = hasSend();
+    d.systemShare = !!navigator.share;
     d.lastShareError = lastError || '(無)';
     return d;
   }
@@ -7665,7 +7702,7 @@ window.UC_SELFTEST = function () {
     text: shareText,
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
-    canSend: function () { return hasPicker() || hasSend(); },
+    canSend: function () { return hasPicker() || hasSend() || !!navigator.share; },
     /* 上一次為什麼沒能送出去。空字串代表沒問題。 */
     lastError: function () { return lastError; }
   };
