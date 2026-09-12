@@ -2,7 +2,8 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#131B2E">
 <title>UC Training Cloud Coach</title>
 <meta name="description" content="UC Training 雲端教練 — 情感能力評測與成長路徑">
 <meta name="robots" content="noindex">
@@ -113,7 +114,7 @@ a { color: var(--salmon); }
 .top {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 12px;
-  padding: 12px var(--pad);
+  padding: calc(12px + env(safe-area-inset-top)) var(--pad) 12px;
   background: rgba(19, 27, 46, .88);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--beige-08);
@@ -122,7 +123,7 @@ a { color: var(--salmon); }
 .top .who { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; opacity: .55; margin-left: auto; }
 /* 底部導覽（uc-design 的膠囊 nav-bar，改成頁面切換） */
 .nav {
-  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
   z-index: 30;
   display: flex; gap: 2px;
   background: rgba(19, 27, 46, .92);
@@ -139,10 +140,11 @@ a { color: var(--salmon); }
   font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
   color: var(--beige-70); text-decoration: none;
   padding: 7px 13px; border-radius: 30px; white-space: nowrap;
+  min-height: 44px; display: flex; align-items: center;
   transition: background .2s, color .2s;
 }
 .nav a[aria-current="page"] { background: var(--salmon); color: var(--navy); font-weight: 600; }
-.pagepad { padding-bottom: 92px; }
+.pagepad { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 /* ── 控件 ──────────────────────────────────────────── */
 
 .btn {
@@ -241,6 +243,19 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
   .hero-form input { text-align: left; }
   .hero-form .btn { white-space: nowrap; }
 }
+@media (max-width: 560px) {
+  /* LIFF 開啟後要立刻能操作；桌機的長入場節奏在手機上會像載入卡住。 */
+  .hero-mark circle { animation-delay: 0s; animation-duration: .55s; }
+  .hero-mark text { animation-delay: .12s; }
+  .hero-ey { animation-delay: .08s; }
+  .hero-h .mask > span { animation-delay: .12s; animation-duration: .55s; }
+  .hero-h .mask:last-child > span { animation-delay: .18s; }
+  .hero-sub { animation-delay: .22s; animation-duration: .55s; }
+  .hero-div { animation-delay: .26s; animation-duration: .55s; }
+  .hero-lead { animation-delay: .3s; animation-duration: .55s; }
+  .hero-form { animation-delay: .36s; animation-duration: .55s; }
+  .hero-alt { animation-delay: .42s; animation-duration: .55s; }
+}
 /* ── 評測頁（一頁式・米白考卷）───────────────────────
    九區攤在同一頁往下捲。整張是一張浮在深藍上的**米白紙**（使用者指定：像考試紙），
    跟報告頁的 .paper 同一套語彙：米白底、上緣一條鮭粉細線、四周有陰影當紙的邊界。
@@ -264,7 +279,7 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
    .top 改高度這裡要跟著改，不然會疊在一起。
    左右負邊界是為了讓它貼齊紙的兩側 —— 黏住的時候，內容不能從側邊的留白穿過去。 */
 .asbar {
-  position: sticky; top: 55px; z-index: 15;
+  position: sticky; top: calc(55px + env(safe-area-inset-top)); z-index: 15;
   background: var(--beige);
   margin: 0 -30px; padding: 0 30px 10px;
   border-bottom: 1px solid var(--navy-12);
@@ -439,6 +454,9 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 .secfoot .btn.pri { color: var(--navy); border-color: var(--salmon); }
 
 @media (max-width: 560px) {
+  /* LIFF 在 iOS 仍使用 WebKit；16px 可避免點進欄位時自動放大頁面。 */
+  input[type=text], input[type=number], input[type=password], select, textarea { font-size: 16px; }
+  .rv { transition-duration: .35s; }
   #assessBody { margin: 16px 10px 40px; padding: 0 18px 20px; }
   /* 手機一律整排。375px 上併排等於兩邊都放不下。 */
   .qlist { display: block; }
@@ -451,7 +469,7 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
   /* ⚠️ 箭頭要絕對定位。留在 flex 流裡的話，答案一長就被擠到下一行去，
      整排箭頭高低不一（踩過）。 */
   .qcar { position: absolute; right: 4px; top: 16px; margin: 0; }
-  .assec { scroll-margin-top: 166px; }
+  .assec { scroll-margin-top: calc(166px + env(safe-area-inset-top)); }
 }
 /* ── 報告頁 ────────────────────────────────────────── */
 
@@ -470,6 +488,18 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 #v-report section, #v-okr section, #v-growth section { padding: 46px 0 8px; }
 #v-report h2 { margin-bottom: 0; }
 .snote { font-size: 12.5px; opacity: .5; margin: -8px 0 22px; }
+/* 欄位歸屬。教練與學員看同一套介面，只標出誰負責填寫；
+   真正的可編輯權限由 LIFF 登入後的角色與後端驗證決定。 */
+.fieldtag {
+  display: inline-flex; align-items: center; width: max-content;
+  margin: 0 0 14px; padding: 3px 8px;
+  border: 1px solid var(--beige-18); border-radius: 20px;
+  color: var(--beige-70); font: 500 9px/1.35 var(--mono); letter-spacing: .08em;
+}
+.fieldtag.coach { color: var(--salmon); border-color: var(--salmon-30); }
+.fieldtag.shared { border-style: dashed; }
+.fieldtag.compact { display: block; margin: 3px 0 0; padding: 0; border: 0; border-radius: 0;
+  font-size: 8px; line-height: 1.35; letter-spacing: .04em; opacity: .68; }
 /* 能力圖 */
 /* ⚠️ max-width 必須跟 .radar 一樣（480）—— 評語面板是 inset:0 貼著 .chart，
    兩者不同寬就對不上。
@@ -761,6 +791,8 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .tplan tbody tr:last-child td { border-bottom: 0; }
 .tplan th { color: var(--salmon); font-weight: 500; letter-spacing: .04em; background: rgba(232, 228, 220, .04); }
 .tplan td { min-width: 86px; opacity: .72; }
+.tplan td.fieldcell { opacity: 1; background: rgba(232, 228, 220, .035); }
+.tplan td.fieldcell.coach { background: rgba(232, 168, 152, .075); }
 .tplan td:empty::after { content: '待填'; opacity: .28; }
 .tsource { margin-top: 18px; }
 /* ── toast ─────────────────────────────────────────── */
@@ -833,6 +865,46 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .lsign { margin: 30px 0 0; text-align: right; font-family: var(--serif); font-size: 15px; }
 .ldate { margin: 6px 0 0; text-align: right; font-family: var(--mono); font-size: 10px;
   letter-spacing: .12em; opacity: .42; }
+
+/* 教練評測編輯：一個維度一列，手機與桌機都只需要往下填。 */
+.creview { max-width: 760px; }
+.crstatus, .crmeta, .crfoot { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.crstatus { margin-bottom: 18px; }
+.crstatus p { margin: 0; }
+.crstatus #crProgress { font-family: var(--mono); font-size: 11px; opacity: .5; }
+.crgrid { display: grid; gap: 12px; }
+.crrow { padding: 20px; border: 1px solid rgba(19, 27, 46, .12); }
+.crmeta .ey { margin: 0 0 4px; color: var(--salmon-ink); }
+.crmeta h3 { margin: 0; font-family: var(--serif); font-size: 20px; }
+.crscore { flex: none; font-size: 12px; font-weight: 700; }
+.crscore select {
+  display: block; min-width: 112px; margin-top: 6px; padding: 9px 30px 9px 10px;
+  color: var(--navy); background: transparent; border: 1px solid rgba(19, 27, 46, .22);
+  border-radius: 2px; font: inherit;
+}
+.crfacet { margin: 10px 0 15px; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .05em; line-height: 1.7; opacity: .48; }
+.crnote, .crletter { display: block; font-size: 12px; font-weight: 700; }
+.crnote textarea, .crletter textarea {
+  display: block; width: 100%; min-height: 104px; margin-top: 7px; padding: 12px 13px;
+  resize: vertical; color: var(--navy); background: rgba(19, 27, 46, .035);
+  border: 1px solid rgba(19, 27, 46, .18); border-radius: 2px;
+  font: 400 14px/1.85 var(--sans);
+}
+.crnote textarea:focus, .crletter textarea:focus, .crscore select:focus {
+  outline: 2px solid rgba(193, 102, 82, .22); border-color: var(--salmon-ink);
+}
+.crletter { margin-top: 28px; font-family: var(--serif); font-size: 17px; }
+.crletter textarea { min-height: 210px; font-family: var(--sans); font-size: 14.5px; }
+.crfoot { align-items: flex-end; margin-top: 22px; }
+.crfoot p { max-width: 30em; margin: 0; font-size: 12px; line-height: 1.8; opacity: .55; }
+@media (max-width: 560px) {
+  .crrow { padding: 16px; }
+  .crmeta { align-items: flex-start; }
+  .crscore select { min-width: 102px; }
+  .crfoot { align-items: stretch; flex-direction: column; }
+  .crfoot .btn { width: 100%; }
+}
 
 /* ═══ 引用學員自己的話 ═════════════════════════════════ */
 
@@ -1387,7 +1459,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 .bands .gmk { cursor: pointer; opacity: 0; transition: opacity .3s ease; }
 .bands .gmk.on { opacity: 1; }
 .bands .ghit { fill: transparent; }
-/* 顏色分層：重複最多的（電話 28 通）最安靜 */
+/* 顏色分層：範例裡較密的通話記錄最安靜 */
 .bands .gy.ph { stroke: var(--beige); opacity: .62; }
 .bands .gy.pk { fill: var(--beige); opacity: .55; }
 .bands .gy.tr, .bands .gy.h { stroke: var(--salmon); opacity: .9; }
@@ -1702,7 +1774,7 @@ html.task-open, html.task-open body { overflow: hidden; }
    ⚠️ 勾選**不重建整頁**（見 bindOkr），避免連續設定時失去捲動位置。 */
 .edt { font-size: 13px; }
 .edth {
-  position: sticky; top: 52px; z-index: 2;
+  position: sticky; top: calc(52px + env(safe-area-inset-top)); z-index: 2;
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 9px 0; margin-bottom: 6px;
   background: var(--navy); border-bottom: 1px solid var(--beige-18);
@@ -1783,7 +1855,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 .edtr.is-hidden .edthidden { display: inline-block; }
 @media (max-width: 900px) {
   /* 手機也不放寬 —— 這一頁的目的就是密。只把勾選框撐到能點。 */
-  .edth { top: 48px; }
+  .edth { top: calc(48px + env(safe-area-inset-top)); }
   .edtr { padding: 6px 4px; }
   .edtr input { width: 18px; height: 18px; }
 }
@@ -1903,7 +1975,8 @@ html.task-open, html.task-open body { overflow: hidden; }
         這三個月，我們一起把「你想要什麼樣的關係」從模糊變成一條走得到的路。</p>
 
       <form class="hero-form" id="loginForm" autocomplete="off">
-        <input type="text" id="loginName" placeholder="你的名字或代號" aria-label="你的名字或代號" required>
+        <input type="text" id="loginName" placeholder="你的名字或代號" aria-label="你的名字或代號"
+          data-field-id="student.profile.name" data-field-owner="student" data-field-label="學員稱呼" required>
         <button class="btn pri" type="submit">進入我的教練室</button>
       </form>
 
@@ -1936,8 +2009,8 @@ html.task-open, html.task-open body { overflow: hidden; }
    討論過程與逐條理由見 coach_portal/QUESTIONS-v2.md。
 
    **兩種題目，界線很硬：**
-   ① 01–07 區（34 題）＝**教練評估用，一律不計分**。type 全部是 info。
-   ② 08 情感能力（25 題）＝**唯一計分的一區**。五個維度各 5 題。
+   ① 01–05 區（28 題）＝**教練評估用，一律不計分**。type 全部是 info。
+   ② 06 情感能力（25 題）＝**唯一計分的一區**。五個維度各 5 題。
 
    計分題全部是「五級階梯」：選項由普到優，delta 固定 −10 / −5 / 0 / +5 / +10。
    raw 從 50 起算，一維五題全選最低 = 0、全選最高 = 100，剛好鋪滿整個區間。
@@ -1953,7 +2026,7 @@ html.task-open, html.task-open body { overflow: hidden; }
         ⚠️ 只有**相鄰**的短題目會併在同一排（CSS grid 照順序排，不會重排），
         所以要併排就得把它們寫在一起。
    ladder: true —— 五級階梯題。評測頁收合時會多畫五顆菱形標出級數。
-   ref: []     —— 題目底下的可收合參考清單。空陣列 = 不渲染（04 的清單內容待討論）。
+   ref: []     —— 題目底下的可收合參考清單。空陣列 = 不渲染。
 
    寫題目的三條規則（STYLE.md ⑥），改題目前先讀：
    1. **問已經發生的事、問通常怎麼做，不問自我評價。**
@@ -1985,15 +2058,11 @@ window.UC_QUESTIONS = (function () {
         lead: '過去的經驗不是成績，是線索。這一區只問輪廓，教練會在訪談時再跟你討論更具體的細節。' },
       { k: 'family',  no: '03', name: '家庭狀況',     en: 'Family',
         lead: '你第一次學會怎麼靠近一個人，是在家裡學的。' },
-      { k: 'hobby',   no: '04', name: '興趣愛好',     en: 'Interests',
-        lead: '你熱愛的事情，同時是你的魅力來源與你的生活圈入口。' },
-      { k: 'social',  no: '05', name: '社群使用習慣', en: 'Social Media',
-        lead: '現在認識一個人，多半是先看到他的帳號。這一區問的是那個入口。' },
-      { k: 'money',   no: '06', name: '經濟狀況',     en: 'Resources',
-        lead: '這一區只問級距，不問細節，用來判斷可執行的行動範圍。' },
-      { k: 'circle',  no: '07', name: '人際關係',     en: 'Circle',
+      { k: 'life',    no: '04', name: '生活狀況',     en: 'Lifestyle',
+        lead: '這一區整理你現在的興趣、工作、居住、交通與可運用的生活條件。' },
+      { k: 'circle',  no: '05', name: '人際關係',     en: 'Circle',
         lead: '你會遇到誰、你跟誰講話，決定了你有多少機會。' },
-      { k: 'ability', no: '08', name: '情感能力',     en: 'Ability',
+      { k: 'ability', no: '06', name: '情感能力',     en: 'Ability',
         lead: '這一區是唯一計分的。問的都是已經發生的事——照實際狀況選，不要選你希望的那個。' }
     ],
 
@@ -2023,12 +2092,12 @@ window.UC_QUESTIONS = (function () {
       opts: ['INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP',
              'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP', '沒測過'],
       helpText: '沒測過的話，這裡有免費版本', sample: 'INTJ' },
-    { id: 'T03', col: 2, sec: 'basic', name: '愛之語', type: 'info', input: 'select',
-      q: '愛之語（你最需要被對待的方式）',
+    { id: 'T03', col: 2, sec: 'basic', name: '愛之語', type: 'info', input: 'checks', max: 2, exclusive: '不知道',
+      q: '愛之語（最多選兩個）',
       /* ⚠️ 選項字串就是 dimensions.js 的 lenses[T03].map 的 key，兩邊要一模一樣。
          改這裡要一起改那裡，不然 #selftest 會報「缺選項的文本」。 */
       opts: ['肯定的言語', '精心的時刻', '接受禮物', '服務的行動', '身體的接觸', '不知道'],
-      helpText: '沒測過的話，這裡有免費版本', sample: '肯定的言語' },
+      helpText: '沒測過的話，這裡有免費版本', sample: '肯定的言語、精心的時刻' },
     { id: 'T04', col: 2, sec: 'basic', name: '依戀關係', type: 'info', input: 'select',
       q: '依戀關係',
       opts: ['安全型', '焦慮型', '逃避型', '混亂型（焦慮逃避）', '不知道'],
@@ -2042,11 +2111,10 @@ window.UC_QUESTIONS = (function () {
     /* ══ 02 感情狀況（6 題・不計分）════════════════════ */
     { id: 'L01', col: 2, sec: 'love', name: '感情狀態', type: 'info', input: 'select',
       q: '目前的感情狀態',
-      opts: ['單身，沒有在認識對象', '單身，有在認識對象', '曖昧中', '交往中', '挽回中'],
-      sample: '單身，沒有在認識對象' },
-    { id: 'L02', col: 2, sec: 'love', name: '交往次數', type: 'info', input: 'select',
-      q: '交往過幾段關係？',
-      opts: ['0 段', '1 段', '2–3 段', '4–6 段', '7 段以上'], sample: '1 段' },
+      opts: ['單身', '曖昧中', '交往中', '挽回中'],
+      sample: '單身' },
+    { id: 'L02', col: 2, sec: 'love', name: '交往次數', type: 'info', input: 'number',
+      q: '交往過幾段關係？', ph: '請填數字', min: 0, sample: '1' },
     { id: 'L03', col: 2, sec: 'love', name: '最長的一段', type: 'info', input: 'select',
       q: '最長的一段維持多久？',
       opts: ['沒有交往過', '3 個月以內', '半年', '1–2 年', '2 年以上'], sample: '半年' },
@@ -2079,185 +2147,151 @@ window.UC_QUESTIONS = (function () {
       ph: '我從家裡學到……；我不想變成……',
       sample: '我從家裡學到不要製造麻煩，有事自己扛。壞處是我很不習慣講自己的狀態，別人問我就說還好。我不想變成我爸那樣。' },
 
-    /* ══ 04 興趣愛好（3 題・不計分）════════════════════ */
-    { id: 'H01', sec: 'hobby', name: '興趣與專業', type: 'info', input: 'textarea',
+    /* ══ 04 生活狀況（7 題・不計分）════════════════════ */
+    { id: 'H01', sec: 'life', name: '興趣與專業', type: 'info', input: 'textarea',
       q: '你的興趣／愛好／專業有哪些？有相關的成就也一起寫。',
       note: '不要只填名詞。「打球」不如「大學系籃打了四年，拿過分區第三，現在每週三固定去」。獎項、證照、作品、名次，有就寫。',
       ph: '做什麼、做多久、有沒有拿過什麼',
       sample: '重訓四年，臥推破過一百。工作上帶過三個製程改善案，有拿過公司的年度提案獎。' },
-    { id: 'H11', sec: 'hobby', name: '每週投入', type: 'info', input: 'select',
-      q: '上面這些，你一週實際花多少時間？',
-      opts: ['幾乎沒有', '1–3 小時', '4–7 小時', '8–14 小時', '15 小時以上'], sample: '4–7 小時' },
-    /* ref 先留空 —— 30 項參考清單的內容還在討論，空陣列不會渲染。 */
-    { id: 'H02', sec: 'hobby', name: '想嘗試的', type: 'info', input: 'textarea',
-      q: '想嘗試但還沒開始的是什麼？為什麼還沒做？',
-      ph: '想做的那件事＋還沒去做的原因', ref: [],
-      sample: '想學衝浪跟調酒。衝浪是覺得要有人一起去，調酒是想不到什麼時候用得到。' },
-
-    /* ══ 05 社群使用習慣（4 題・不計分）════════════════ */
-    { id: 'SM01', col: 2, sec: 'social', name: '社群帳號', type: 'info', input: 'text',
-      q: '你的 Instagram 帳號', ph: '@your_id，沒有就留空', sample: '@rui_1027' },
-    { id: 'SM02', col: 2, sec: 'social', name: '手機使用時間', type: 'info', input: 'select',
-      q: '一天大概花多少時間在手機上？',
-      opts: ['1 小時以內', '1–3 小時', '3–5 小時', '5–8 小時', '8 小時以上'], sample: '3–5 小時' },
-    { id: 'SM03', sec: 'social', name: '使用方式', type: 'info', input: 'checks',
-      q: '你在社群上主要做什麼？可複選。',
-      opts: ['無聊的時候滑', '記錄自己的生活', '跟朋友聯絡', '追蹤特定的人',
-             '專業或作品發表', '找活動與資訊', '幾乎只看不發'],
-      sample: '無聊的時候滑、幾乎只看不發' },
-    { id: 'SM04', sec: 'social', name: '拍照習慣', type: 'info', input: 'select',
-      q: '拍照這件事（拍自己、也拍身邊的東西），你的狀況比較接近？',
-      opts: ['幾乎不拍，相簿是空的', '偶爾拍食物或風景', '會拍東西，很少拍自己',
-             '自己和東西都會拍', '常常在拍，也會後製'],
-      sample: '會拍東西，很少拍自己' },
-
-    /* ══ 06 經濟狀況（4 題・不計分）════════════════════ */
-    { id: 'M01', col: 2, sec: 'money', name: '年收入', type: 'info', input: 'select',
+    { id: 'SM01', col: 2, sec: 'life', name: '社群帳號', type: 'info', input: 'text',
+      q: '你的 Instagram 帳號', ph: '@your_id，沒有請填「沒有」', sample: '@rui_1027' },
+    { id: 'LS01', col: 2, sec: 'life', name: '居住狀況', type: 'info', input: 'select',
+      q: '你目前的居住狀況',
+      opts: ['與家人同住', '租屋', '自有住宅（貸款中）', '自有住宅（無貸款）', '宿舍／公司住所', '其他'],
+      sample: '租屋' },
+    { id: 'LS02', col: 2, sec: 'life', name: '交通工具', type: 'info', input: 'checks',
+      q: '你平常可使用的交通工具有哪些？可複選。',
+      opts: ['步行', '腳踏車', '大眾運輸', '機車', '汽車'], sample: '大眾運輸、機車' },
+    { id: 'M01', col: 2, sec: 'life', name: '年收入', type: 'info', input: 'select',
       q: '年收入區間（稅前）',
       opts: ['50 萬以下', '50–80 萬', '80–120 萬', '120–200 萬', '200–350 萬', '350 萬以上'],
       sample: '80–120 萬' },
-    { id: 'M07', col: 2, sec: 'money', name: '財務狀態', type: 'info', input: 'select',
-      q: '你目前的財務狀況最接近哪一種？',
-      opts: ['有負債，每個月要還', '沒有負債，但每個月月光', '收支打平，存不太下來',
-             '存得下來，可進行額外消費', '『錢不是問題！！』'],
-      sample: '存得下來，可進行額外消費' },
-    { id: 'M04', col: 2, sec: 'money', name: '社交預算', type: 'info', input: 'select',
+    { id: 'M04', col: 2, sec: 'life', name: '社交預算', type: 'info', input: 'select',
       q: '每個月可以花在社交、約會、學習上的預算',
       opts: ['3,000 以下', '3,000–6,000', '6,000–10,000', '10,000–20,000', '20,000 以上'],
       sample: '6,000–10,000' },
-    { id: 'M08', col: 2, sec: 'money', name: '約會消費', type: 'info', input: 'select',
+    { id: 'M08', col: 2, sec: 'life', name: '約會消費', type: 'info', input: 'select',
       q: '約會的錢，你的做法比較接近？',
       opts: ['我請客，不讓對方出', '各付各的，比較自在', '輪流，這次我下次她', '看情況，沒有固定做法'],
       sample: '我請客，不讓對方出' },
 
-    /* ══ 07 人際關係（4 題・不計分）════════════════════ */
-    { id: 'C10', sec: 'circle', name: '生活圈結構', type: 'info', input: 'textarea',
-      q: '你現在的生活圈有哪些？主要的、次要的都寫。',
-      ph: '例：公司同事（主要）、大學同學（一年兩次）、健身房（只有點頭之交）',
-      sample: '公司同事是主要的，每天都見。大學同學一年聚兩次。健身房只有點頭之交，沒講過話。' },
-    { id: 'C11', sec: 'circle', name: '核心友誼', type: 'info', input: 'textarea',
-      q: '你的好朋友有誰？跟他們是什麼樣的關係？平常會一起做什麼？',
-      note: '認識多久、多久見一次、假日會不會約，一起講。都自己一個人的話就這樣寫，那也是一個答案。',
-      ph: '例：阿凱，高中認識的，一個月吃一次飯，都在講工作',
-      sample: '阿凱跟小杜，高中認識的，一個月吃一次飯，講的都是工作。假日大多自己一個人。' },
+    /* ══ 05 人際關係（2 題・不計分）════════════════════ */
+    { id: 'C10', sec: 'circle', name: '生活圈', type: 'info', input: 'textarea',
+      q: '你的生活圈有哪些？請寫下固定會見面、交流的人。',
+      note: '可以按公司、朋友、家人、社團或活動分組，寫下對方是誰、多久見一次，平常會聊什麼或一起做什麼。',
+      ph: '例：公司同事阿傑，每週見面五天；高中朋友阿凱，每月吃一次飯……',
+      sample: '公司同事每週都會見面，主要聊工作。高中朋友阿凱跟小杜每月吃一次飯，偶爾會聊近況。' },
     { id: 'C12', sec: 'circle', name: '情感支持來源', type: 'info', input: 'textarea',
       q: '有心事的時候，你會跟誰講？',
       ph: '沒有人可以講的話，就寫沒有',
       sample: '幾乎沒有。真的很悶的時候會去健身房，練完就過了。' },
-    { id: 'C13', sec: 'circle', name: '陌生人互動', type: 'info', input: 'select',
-      q: '跟不認識的人在同一個空間時，你通常是？',
-      opts: ['不主動，等別人先開口', '有人問我才會多講', '會禮貌性地聊幾句',
-             '會主動找話題認識', '通常是我在帶氣氛'],
-      sample: '有人問我才會多講' },
-
-    /* ══ 08 情感能力（25 題・唯一計分的一區）═══════════
+    /* ══ 06 情感能力（25 題・唯一計分的一區）═══════════
        五個維度交錯排列，**不要按維度分組** —— 分組等於直接告訴作答者
        這五題在測同一件事，會誘發一致性作答（STYLE.md ⑥ 規則 5）。 */
 
     /* ── 第一輪 ───────────────────────────────────── */
-    { id: 'AV1', sec: 'ability', name: '陌生場合的狀態', type: 'choice', ladder: true,
-      q: '上一次跟一群不熟的人吃飯，整場下來你的狀態是？',
+    { id: 'AV1', sec: 'ability', name: '陌生社交', type: 'choice', ladder: true,
+      q: '在陌生的社交場合，你通常是什麼反應？',
       o: L('values', ['全程不太自在，早點走了', '有人跟我講話才放鬆', '前半場緊，後來就還好',
                       '大致自在，偶爾走神', '很自在，講了不少話']) },
-    { id: 'AE1', sec: 'ability', name: '聊天的節奏', type: 'choice', ladder: true,
-      q: '跟有興趣的對象聊天，你們通常是什麼節奏？',
-      o: L('emo', ['我傳三句她回一句', '我起話題她才會接', '一來一往，但會斷掉',
-                   '她也會主動找話題', '常常聊到很晚才收']) },
+    { id: 'AE1', sec: 'ability', name: '聊天狀況', type: 'choice', ladder: true,
+      q: '主動和心儀對象聊天的狀況通常是？',
+      o: L('emo', ['對方沒有回覆或已讀不回', '我開話題她偶爾會接', '一來一往正常聊天',
+                   '她也會主動找話題', '會固定通話或視訊']) },
     { id: 'AF1', sec: 'ability', name: '性經驗', type: 'choice', ladder: true,
-      q: '性經驗的部分，選最接近的。這一題只用來判斷起點。',
-      o: L('flirt', ['沒有經驗', '只有花錢的經驗', '1–2 位', '3–6 位', '7 位以上']) },
-    { id: 'AI1', sec: 'ability', name: '別人對外型的評語', type: 'choice', ladder: true,
-      q: '認識的人對你外型的評語，最常聽到的是？',
-      o: L('image', ['沒有人講過', '說我看起來很老實', '說我看起來很乾淨',
-                     '說我有自己的風格', '說我整個人很有型']) },
-    { id: 'AC1', sec: 'ability', name: '單身時約會頻率', type: 'choice', ladder: true,
-      q: '單身的時候，你平均一個月會約會幾次？',
+      q: '完整的性經驗次數。',
+      o: L('flirt', ['沒有經驗', '只有非戀愛對象的經驗', '伴侶 1–3 位', '伴侶 4–9 位', '10 位以上']) },
+    { id: 'AI1', sec: 'ability', name: '外在形象', type: 'choice', ladder: true,
+      q: '你最常聽到的外型評價是？',
+      o: L('image', ['通常不是正面的評論', '沒有收過什麼評論', '說我看起來很乾淨',
+                     '說我有自己的風格', '說我很帥、很有魅力']) },
+    { id: 'AC1', sec: 'ability', name: '約會頻率', type: 'choice', ladder: true,
+      q: '單身的時候，你平均一個月能約會幾次？（不限對象來源）',
       o: L('circle', ['0 次', '1 次', '2–3 次', '4–6 次', '7 次以上']) },
 
     /* ── 第二輪 ───────────────────────────────────── */
     { id: 'AV2', sec: 'ability', name: '別人的評語', type: 'choice', ladder: true,
-      q: '認識你的人形容你的時候，最常出現的是哪一類？',
-      o: L('values', ['沒什麼人形容過我', '人很好，很好相處', '穩重可靠，做事負責',
-                      '很有趣，也很有想法', '很有魅力，很吸引人']) },
-    { id: 'AE2', sec: 'ability', name: '從聊天到見面', type: 'choice', ladder: true,
-      q: '在網路上認識的陌生對象，從開始聊到第一次見面，通常花多久？',
+      q: '你聽過別人怎麼形容你？',
+      o: L('values', ['不是什麼正面的評論', '很少人會提及我', '說我有自己的個性',
+                      '成熟可靠，值得信任', '很有魅力，很吸引人']) },
+    { id: 'AE2', sec: 'ability', name: '邀約能力', type: 'choice', ladder: true,
+      q: '邀約陌生對象第一次見面，通常花多久？',
       note: '寫平均的狀況，不是寫你最順的那一次。',
-      o: L('emo', ['沒有約成功過', '一個月以上，常常沒下文', '兩三週，要鋪陳很久',
-                   '一兩週，順的話更快', '幾天內，聊得來就約']) },
+      o: L('emo', ['沒有約成功過', '通常一個月以上', '通常一個月以內',
+                   '通常一週之內', '有幾次當天就約出來']) },
     { id: 'AF2', sec: 'ability', name: '浪漫程度', type: 'choice', ladder: true,
-      q: '關於「製造浪漫」這件事，你的狀況比較接近？',
-      o: L('flirt', ['想不到有什麼', '送過禮物而已', '從小細節給對方驚喜',
-                     '安排豐富的約會行程', '對方親口說我很浪漫']) },
+      q: '關於「浪漫／儀式感」這件事，你的狀況比較接近？',
+      o: L('flirt', ['想不到有什麼／我不喜歡浪漫', '送禮／請客這一類的', '從小細節給對方驚喜',
+                     '會安排豐富的約會行程', '常有人說我是浪漫的人']) },
     { id: 'AI2', sec: 'ability', name: '社群追蹤數', type: 'choice', ladder: true,
       q: '你 Instagram 的追蹤人數大概是？沒有帳號就選第一個。',
-      o: L('image', ['100 以下', '100–300', '300–800', '800–2,000', '2,000 以上']) },
-    { id: 'AC2', sec: 'ability', name: '週末在做什麼', type: 'choice', ladder: true,
-      q: '最近三個月的週末，你大部分時間在做什麼？',
-      o: L('circle', ['都在家，沒特別安排', '在家，偶爾出門買東西', '有幾天跟朋友出門，但不多',
-                      '幾乎每個週末都有事', '行程滿到要推掉幾個']) },
+      o: L('image', ['150 以下', '150–1,000', '1,000–2,000', '2,000–5,000', '5,000 以上']) },
+    { id: 'AC2', sec: 'ability', name: '週末規劃', type: 'choice', ladder: true,
+      q: '最近三個月的週末／休假，你大部分時間在做什麼？',
+      o: L('circle', ['沒特別安排', '偶爾出門辦事但不是社交', '有跟固定的朋友見面',
+                      '常跟不同的朋友見面', '常有約會或是社交活動']) },
 
     /* ── 第三輪 ───────────────────────────────────── */
-    { id: 'AV3', sec: 'ability', name: '已讀不回的應對', type: 'choice', ladder: true,
-      /* 問**應對動作**不問心情。原本最高分是「幾乎沒放在心上」——
-         不在意本身不值得加分，能把話重新接起來才值得（使用者指正）。 */
-      q: '訊息傳出去被已讀不回，你通常怎麼處理？',
-      o: L('values', ['反覆看訊息，不敢再傳', '再傳一次問她是不是沒看到', '就不傳了，等她主動',
-                      '放著，過幾天當作沒事再聊', '換一個她有興趣的話題重開']) },
-    { id: 'AE3', sec: 'ability', name: '懂不懂女生', type: 'choice', ladder: true,
+    { id: 'AV3', sec: 'ability', name: '聊天能力', type: 'choice', ladder: true,
+      q: '面對已讀不回，你通常怎麼面對？',
+      o: L('values', ['不知道怎麼辦，但是會影響心情', '再傳一次問她是不是沒看到', '過幾天再聊，開別的話題',
+                      '主動另開話題，通常也有用', '通常不會遇到這個情況']) },
+    { id: 'AE3', sec: 'ability', name: '異性思維', type: 'choice', ladder: true,
       q: '對於女生在想什麼，你的狀況比較接近？',
-      o: L('emo', ['完全不懂，常常猜錯', '知道她不開心，猜不出原因', '會給建議，但她好像不想聽',
-                   '知道她要的是被聽懂', '連她沒說的細節也接得到']) },
-    { id: 'AF3', sec: 'ability', name: '約會行程', type: 'choice', ladder: true,
-      q: '平均來說，前三次約會你們會做到哪裡？',
-      o: L('flirt', ['短暫碰個面就散', '吃飯或喝杯飲料', '吃飯，再加一個轉場',
-                     '安排過三四個點的行程', '有過過夜的約會']) },
+      o: L('emo', ['完全不懂女生', '被女生說過我是直男', '看得懂但不知道怎麼應對',
+                   '知道女生要的是什麼', '連女生都說我很懂女生']) },
+    { id: 'AF3', sec: 'ability', name: '約會進展', type: 'choice', ladder: true,
+      q: '平均來說，前三次約會你會進展到什麼程度？',
+      o: L('flirt', ['曾被放鳥／見面被對方嫌棄', '單純吃飯或喝杯飲料', '吃飯，再加一個轉場',
+                     '能出去半日遊', '過夜的約會']) },
     { id: 'AI3', sec: 'ability', name: '穿搭能力', type: 'choice', ladder: true,
       q: '關於穿搭，你的狀況比較接近？',
-      o: L('image', ['有什麼穿什麼，沒在想', '乾淨為主，款式很固定', '會照場合換，但不太會搭',
-                     '搭得起來，也有幾套定番', '有自己的風格，會被問']) },
-    { id: 'AC3', sec: 'ability', name: '有陌生人的場合', type: 'choice', ladder: true,
+      o: L('image', ['曾被說穿搭需要提升', '有什麼穿什麼，沒在想', '乾淨為主，款式很固定',
+                     '根據場合有不同的穿搭', '有自己的風格，被說很會穿搭']) },
+    { id: 'AC3', sec: 'ability', name: '交朋友習慣', type: 'choice', ladder: true,
       /* 前兩級都是 0 次，但診斷意義不同：不想去是意願問題，
          不知道去哪是資訊問題（後者教練給一張場合清單就解決了）。所以分數要有差。 */
-      q: '一個月你會去幾次「有不認識的人在」的場合？',
-      o: L('circle', ['不想去', '想去但不知道去哪', '1 次', '2–3 次', '4 次以上']) },
+      q: '一個月你會去幾次「能認識陌生人」的場合？',
+      o: L('circle', ['不想去', '想去但不知道去哪', '1 次', '2–5 次', '6 次或以上']) },
 
     /* ── 第四輪 ───────────────────────────────────── */
     { id: 'AV4', sec: 'ability', name: '人生規劃', type: 'choice', ladder: true,
       q: '關於未來三到五年，你現在的狀態是？',
-      o: L('values', ['沒特別想，過一天算一天', '有大概方向，還沒有行動', '想清楚了，正在準備',
-                      '已經在做，有具體進度', '做出成果，也在帶人做']) },
-    { id: 'AE4', sec: 'ability', name: '別人找你談心', type: 'choice', ladder: true,
-      q: '最近三個月，有沒有人找你談他最難過或最丟臉的事？',
-      o: L('emo', ['沒有，都聊表面的事', '有過一次，我不知道怎麼接', '有一兩次，聽完就過了',
-                   '有幾次，我也講了我的', '常常有，他們會特地找我']) },
-    { id: 'AF4', sec: 'ability', name: '肢體進展', type: 'choice', ladder: true,
-      q: '平均來說，前三次約會的肢體距離走到哪裡？',
-      o: L('flirt', ['全程沒有碰到', '只有不小心碰到', '過馬路的時候會牽',
-                     '自然地牽手或攬肩', '會走到發生關係']) },
-    { id: 'AI4', sec: 'ability', name: '交友軟體進度', type: 'choice', ladder: true,
-      q: '交友軟體上，你現在有幾個在穩定聊天的？',
-      o: L('image', ['沒有在用', '0 個', '1–2 個', '3–5 個', '6 個以上']) },
-    { id: 'AC4', sec: 'ability', name: '週末約得出來的人', type: 'choice', ladder: true,
-      q: '這個週末臨時想約人吃飯，你約得出來的有幾個？',
+      o: L('values', ['不期待未來', '沒想過未來', '有想過但沒有特別執行',
+                      '對未來有一定的規劃與執行', '都規劃好了，人生非常順遂']) },
+    { id: 'AE4', sec: 'ability', name: '深度對話', type: 'choice', ladder: true,
+      q: '最近三個月，有沒有人找你談心或討論重要議題？',
+      o: L('emo', ['沒有，沒什麼人可以聊天', '沒有，身邊的人都聊表面的事情', '有過，但不知道怎麼接',
+                   '有過，能進行深度的對話', '常常有，通常是向我尋求建議']) },
+    { id: 'AF4', sec: 'ability', name: '升溫能力', type: 'choice', ladder: true,
+      q: '平均來說，前三次約會的肢體接觸程度？',
+      o: L('flirt', ['觸碰後對方表現反感', '沒有特別注意', '會想肢體接觸，但是只有基本互動',
+                     '能到牽手、攬肩、摟腰', '發生性關係']) },
+    { id: 'AI4', sec: 'ability', name: '交友軟體使用', type: 'choice', ladder: true,
+      q: '交友軟體上，你現在有幾個在聊天的？',
+      o: L('image', ['沒有在用', '遇到詐騙或已讀不回居多', '1–3 個能穩定聊天的',
+                     '5–10 個能穩定聊天的', '配對多到聊不完']) },
+    { id: 'AC4', sec: 'ability', name: '朋友圈', type: 'choice', ladder: true,
+      q: '這個週末臨時想約人出門，你能約出幾個人？',
       o: L('circle', ['0 個', '1 個', '2–3 個', '4–6 個', '7 個以上']) },
 
     /* ── 第五輪 ───────────────────────────────────── */
     { id: 'AV5', sec: 'ability', name: '實踐程度', type: 'choice', ladder: true,
-      q: '你心裡在意、想做的那些事，實際上做到多少？',
-      o: L('values', ['大多停在想，沒有開始', '開始過，通常做不久', '有一兩件持續在做',
-                      '在意的事大致都做得到', '想做就會做，很少落空']) },
-    { id: 'AE5', sec: 'ability', name: '朋友抱怨伴侶', type: 'choice', ladder: true,
-      q: '上一次朋友跟你抱怨他的伴侶，你的第一句話是？',
-      o: L('emo', ['那你就跟他講啊', '我覺得他也沒錯', '這種事很常見啦',
-                   '所以你現在是什麼感覺', '難怪你會這樣，換我也會']) },
-    { id: 'AF5', sec: 'ability', name: '回頭看談過的關係', type: 'choice', ladder: true,
-      q: '回想你談過的關係，你現在的感覺比較接近？',
-      o: L('flirt', ['沒談過，只能靠想像', '談過，但整段很模糊', '知道發生什麼，不知道為什麼',
-                     '講得出哪幾步走錯', '知道怎麼讓對方喜歡我']) },
+      q: '你設定的目標或願望能做到多少？',
+      o: L('values', ['不常為自己設定目標', '設定目標後沒有動力去做', '會去做但沒有很滿意',
+                      '通常是會說到做到', '都能夠超乎期待地完成']) },
+    { id: 'AE5', sec: 'ability', name: '同理心', type: 'choice', ladder: true,
+      q: '朋友跟你抱怨另一半，你的反應是？',
+      o: L('emo', ['不想聽', '會聽但是不知道要說什麼', '幫忙分析給建議',
+                   '會好奇地問下去', '同理對方的感受並安慰']) },
+    { id: 'AF5', sec: 'ability', name: '戀愛經驗回顧', type: 'choice', ladder: true,
+      q: '過往的戀愛經驗你學到什麼？',
+      o: L('flirt', ['沒談過', '談過但還是不太懂感情', '談過，而且學會避免再犯',
+                     '我知道怎麼讓自己脫單', '我知道怎麼經營好感情']) },
     { id: 'AI5', sec: 'ability', name: '照片的反應', type: 'choice', ladder: true,
       q: '你放上網的照片，別人的反應通常是？',
-      o: L('image', ['我不會用社群軟體', '我沒有放過照片', '沒什麼人有反應',
-                     '認識的人會按讚', '有人會特地留言說好看']) },
+      o: L('image', ['我不太用社群軟體', '我不會放自己的照片', '通常沒什麼反應',
+                     '認識的人會按讚', '會有人說好看']) },
     { id: 'AC5', sec: 'ability', name: '從網路認識人', type: 'choice', ladder: true,
       q: '最近半年，有沒有從 IG、Threads 這類地方認識到後來還有聯絡的人？',
       o: L('circle', ['沒有，也沒試過', '試過但都沒有回應', '有聊過，後來斷了',
@@ -2817,7 +2851,9 @@ window.UC_LIBRARY = {
 </script>
 <script>
 /* 課程工具區。這一版只記錄已確認的十種工具與預計表格，
-   不做假的輸入、勾選或儲存功能。文案與欄位仍待教練審核。 */
+   不做假的輸入、勾選或儲存功能。每張表先標出穩定 id、rowIds 與各欄 owner，
+   讓前端和後端能辨認欄位，不必拿顯示文字當資料鍵。
+   owner: system 固定內容／coach 教練填寫／student 學員填寫。 */
 (function () {
   var Q36 = [
     '如果可以邀請世界上的任何人吃一頓飯，你會選誰？',
@@ -2873,7 +2909,11 @@ window.UC_LIBRARY = {
         lead: '整理生活現況、想去的方向，以及下一步怎麼實踐。',
         body: '從健康、生活與人際關係三大議題盤點自己，讓生活有規劃，也把真實經驗累積成能與人分享的內容。',
         tables: [
-          { t: '生活藍圖', cols: ['議題', '子題', '現況描述', '目標設定', '如何實踐'], rows: [
+          { id: 'life-overview', t: '生活藍圖',
+            cols: ['議題', '子題', '現況描述', '目標設定', '如何實踐'],
+            colIds: ['topic', 'subtopic', 'current', 'target', 'action'],
+            owners: ['system', 'system', 'student', 'student', 'student'],
+            rowIds: ['health-food', 'health-exercise', 'life-interest', 'life-career', 'relationships'], rows: [
             ['健康', '飲食', '', '', ''], ['健康', '運動', '', '', ''],
             ['生活', '興趣', '', '', ''], ['生活', '事業', '', '', ''],
             ['人際關係', '重要關係', '', '', '']
@@ -2885,12 +2925,20 @@ window.UC_LIBRARY = {
         lead: '認識自己的故事，再把故事整理成可以自然展開的聊天素材。',
         body: '整合「人生重大話題」與「對話脈絡」：先整理事件與感受，再為每個故事補上能引導對方分享的問題。',
         tables: [
-          { t: '人生重大話題', cols: ['面向', '故事主題', '重大事件', '感受', '我的故事'], rows: [
+          { id: 'life-stories', t: '人生重大話題',
+            cols: ['面向', '故事主題', '重大事件', '感受', '我的故事'],
+            colIds: ['aspect', 'theme', 'event', 'feeling', 'story'],
+            owners: ['system', 'system', 'student', 'student', 'student'],
+            rowIds: ['attraction', 'connection', 'intimacy'], rows: [
             ['吸引', '興趣／生活／專業', '', '', ''],
             ['談心', '人際／家庭／脆弱', '', '', ''],
             ['曖昧親密', '初戀／浪漫／情傷', '', '', '']
           ] },
-          { t: '對話脈絡', cols: ['故事標題', '情緒', '人格特質', '故事中的價值', '引導問題'], rows: [['', '', '', '', '']] }
+          { id: 'conversation-context', t: '對話脈絡',
+            cols: ['故事標題', '情緒', '人格特質', '故事中的價值', '引導問題'],
+            colIds: ['title', 'emotion', 'trait', 'value', 'prompt'],
+            owners: ['student', 'student', 'student', 'student', 'student'],
+            rowIds: ['entry-01'], rows: [['', '', '', '', '']] }
         ] },
 
       { k: 'datemap', t: '約會地圖', en: 'Date Map', status: 'preview',
@@ -2898,7 +2946,11 @@ window.UC_LIBRARY = {
         lead: '把一次約會的地點、順序與轉場整理成完整行程。',
         body: '分成朋友聚會、曖昧約會與情侶約會三種情境，分別規劃適合的行程與結束方式。',
         tables: [
-          { t: '約會行程', cols: ['類型', '出發', '行程一', '轉場', '行程二', '結束'], rows: [
+          { id: 'date-itinerary', t: '約會行程',
+            cols: ['類型', '出發', '行程一', '轉場', '行程二', '結束'],
+            colIds: ['type', 'start', 'stop-01', 'transition', 'stop-02', 'ending'],
+            owners: ['system', 'student', 'student', 'student', 'student', 'student'],
+            rowIds: ['friends', 'dating', 'couple'], rows: [
             ['朋友聚會', '', '', '', '', ''], ['曖昧約會', '', '', '', '', ''], ['情侶約會', '', '', '', '', '']
           ] }
         ] },
@@ -2908,7 +2960,11 @@ window.UC_LIBRARY = {
         lead: '從負面標籤與不自信，找出正在影響自己的信念。',
         body: '記下自己怎麼看女生、怎麼看自己，再回到形成這些看法的經驗，整理信念如何影響行為與結果。',
         tables: [
-          { t: '信念整理', cols: ['負面標籤／不自信', '形成經驗', '我的信念', '帶來的行為', '造成的結果'], rows: [['', '', '', '', '']] }
+          { id: 'belief-review', t: '信念整理',
+            cols: ['負面標籤／不自信', '形成經驗', '我的信念', '帶來的行為', '造成的結果'],
+            colIds: ['label', 'origin', 'belief', 'behavior', 'result'],
+            owners: ['student', 'student', 'student', 'student', 'student'],
+            rowIds: ['entry-01'], rows: [['', '', '', '', '']] }
         ] },
 
       { k: 'responsible', t: '負責任版本', en: 'Responsible Version', status: 'preview',
@@ -2916,7 +2972,11 @@ window.UC_LIBRARY = {
         lead: '寫下自己的脆弱面故事，再整理成能為自己選擇負責的版本。',
         body: '負責任不是把錯都攬在身上，而是分清發生了什麼、自己能負責什麼，以及接下來要做什麼。',
         tables: [
-          { t: '故事改寫', cols: ['發生的事', '當時的感受', '受害者版本', '我能負責的部分', '負責任版本', '下一步'], rows: [['', '', '', '', '', '']] }
+          { id: 'story-rewrite', t: '故事改寫',
+            cols: ['發生的事', '當時的感受', '受害者版本', '我能負責的部分', '負責任版本', '下一步'],
+            colIds: ['event', 'feeling', 'victim-version', 'responsibility', 'responsible-version', 'next-step'],
+            owners: ['student', 'student', 'student', 'student', 'student', 'student'],
+            rowIds: ['entry-01'], rows: [['', '', '', '', '', '']] }
         ] },
 
       { k: 'relationshipvalues', t: '感情價值觀', en: 'Relationship Values', status: 'preview',
@@ -2924,7 +2984,11 @@ window.UC_LIBRARY = {
         lead: '透過三門，整理喜歡的對象、想經營的關係與長期檢核方式。',
         body: '這裡同時包含情感目標，讓選擇對象、經營關係與判斷長期適配有一套自己的標準。',
         tables: [
-          { t: '感情價值觀三門', cols: ['門', '核心問題', '我的答案', '檢核方式'], rows: [
+          { id: 'relationship-three-doors', t: '感情價值觀三門',
+            cols: ['門', '核心問題', '我的答案', '檢核方式'],
+            colIds: ['door', 'question', 'answer', 'review'],
+            owners: ['system', 'system', 'student', 'student'],
+            rowIds: ['door-01', 'door-02', 'door-03'], rows: [
             ['第一門', '我喜歡什麼樣的對象？', '', ''],
             ['第二門', '我想經營怎樣的關係？', '', ''],
             ['第三門', '我如何檢核長期關係？', '', '']
@@ -2936,7 +3000,11 @@ window.UC_LIBRARY = {
         lead: '觀看教練推薦的電影，記下自己的感受與心得。',
         body: '電影清單之後由教練補上；這裡先保留觀看狀態與心得欄位，不把心得寫成電影評論。',
         tables: [
-          { t: '推薦電影', cols: ['電影', '觀看狀態', '觀看日期', '心得感想'], rows: [['教練片單待補', '', '', '']] }
+          { id: 'recommended-films', t: '推薦電影',
+            cols: ['電影', '觀看狀態', '觀看日期', '心得感想'],
+            colIds: ['film', 'status', 'date', 'reflection'],
+            owners: ['coach', 'student', 'student', 'student'],
+            rowIds: ['film-01'], rows: [['教練片單待補', '', '', '']] }
         ] },
 
       { k: 'interests', t: '興趣清單', en: 'Interest List', status: 'preview',
@@ -2944,7 +3012,11 @@ window.UC_LIBRARY = {
         lead: '從教練推薦的活動中，勾出自己願意實際嘗試的項目。',
         body: '先建立活動清單，再記錄是否有興趣與想嘗試的原因；推薦內容之後由教練補上。',
         tables: [
-          { t: '推薦活動', cols: ['活動', '類型', '有興趣', '為什麼想嘗試'], rows: [['教練清單待補', '', '', '']] }
+          { id: 'recommended-activities', t: '推薦活動',
+            cols: ['活動', '類型', '有興趣', '為什麼想嘗試'],
+            colIds: ['activity', 'type', 'interested', 'reason'],
+            owners: ['coach', 'coach', 'student', 'student'],
+            rowIds: ['activity-01'], rows: [['教練清單待補', '', '', '']] }
         ] },
 
       { k: 'humor', t: '幽默清單', en: 'Humor List', status: 'preview',
@@ -2952,7 +3024,11 @@ window.UC_LIBRARY = {
         lead: '把聽過、想到或實際用過的笑話記錄下來。',
         body: '先累積素材，再慢慢看出哪些幽默適合自己、適合什麼情境。',
         tables: [
-          { t: '笑話紀錄', cols: ['笑話／素材', '來源', '適合情境', '使用心得'], rows: [['', '', '', '']] }
+          { id: 'humor-notes', t: '笑話紀錄',
+            cols: ['笑話／素材', '來源', '適合情境', '使用心得'],
+            colIds: ['material', 'source', 'context', 'reflection'],
+            owners: ['student', 'student', 'student', 'student'],
+            rowIds: ['entry-01'], rows: [['', '', '', '']] }
         ] },
 
       { k: 'curiosity', t: '好奇心話題庫', en: 'Curiosity Library', status: 'preview',
@@ -2961,8 +3037,15 @@ window.UC_LIBRARY = {
         body: '第一版先放入「36 題愛上你」的三組漸進題庫，再保留傷心、驕傲、緊張、甜蜜與無厘頭五種情緒話題。',
         source: '題庫依 Aron 等人（1997）的親密感研究整理；中文為本網站的改寫草稿。',
         tables: [
-          { t: '36 題愛上你', cols: ['題號', '組別', '問題'], rows: qRows() },
-          { t: '情緒話題', cols: ['情緒', '引導問題', '我的故事', '對方的故事'], rows: [
+          { id: 'questions-36', t: '36 題愛上你', cols: ['題號', '組別', '問題'],
+            colIds: ['number', 'group', 'question'],
+            owners: ['system', 'system', 'system'],
+            rowIds: Q36.map(function (_, i) { return 'question-' + ('0' + (i + 1)).slice(-2); }), rows: qRows() },
+          { id: 'emotion-topics', t: '情緒話題',
+            cols: ['情緒', '引導問題', '我的故事', '對方的故事'],
+            colIds: ['emotion', 'prompt', 'my-story', 'partner-story'],
+            owners: ['system', 'coach', 'student', 'student'],
+            rowIds: ['sad', 'proud', 'nervous', 'sweet', 'playful'], rows: [
             ['傷心', '', '', ''], ['驕傲', '', '', ''], ['緊張', '', '', ''], ['甜蜜', '', '', ''], ['無厘頭', '', '', '']
           ] }
         ] }
@@ -2981,9 +3064,9 @@ window.UC_COACH = {
   name: '（教練姓名）',
   title: 'UC 雲端教練',
   photo: '',
-  signedOn: '訪談後 3 個工作日內交付',
+  signedOn: '',
   note: '我看完你的評測了，先講一件事——你的分數裡最低的那一條，不是你的弱點，是你目前最沒有被使用的資源。\n'
-      + '這三個月我們不會五條一起練。照藍圖的順序走，一次動一條，每週兩通電話盯著進度，卡住的當週就處理掉。\n'
+      + '這三個月我們不會五條一起練。照藍圖的順序走，一次動一條；每次通話都留下記錄，卡住時就一起調整。\n'
       + '訪談的時候我會問你最近三個月實際發生的事，不是你對自己的評價——那兩件常常差很多，而差距本身就是我們要找的東西。'
 };
 
@@ -3004,28 +3087,24 @@ window.UC_COACH = {
    但要說的是「還沒開始」—— 看圖的人正好就是那個前八週沒有約會的人。
    錄音本來就是記錄、本來就是過去式，靜音不等於死亡。
 
-   所以：三條獨立的軌（電話／社交／約會，由上到下），起點對齊在同一個 x。
+   所以：三條獨立的軌（通話記錄／社交／約會，由上到下），起點對齊在同一個 x。
    圖案只在最左側的示意欄出現一次，軌上不放圖案。
    **一筆紀錄＝一組電平段，段數＝那一筆的狀況（一段差／兩段好／三段優）。**
    段數可以用數的，不是目測高低。軌與軌之間不能互相比較，只在同一軌內比。
 
-   三軌的密度差本身就是診斷：電話每週都有、社交中等且第 5 週才離地、約會稀疏且第 9 週才開始。
+   範例資料裡三軌的密度不同：通話記錄較多、社交第 5 週才離地、約會第 9 週才開始。
    第 1–4 週社交與約會是靜音的 —— 那不是留白，是「還沒開始」（圖上就是這麼寫的）。
 
    欄位：
-     kind     call 教練電話（話筒）／ social 外出社交（三個小圓）／ date 實際約會（愛心）
+     kind     call 通話記錄（話筒）／ social 外出社交（三個小圓）／ date 實際約會（愛心）
      by       記錄者（coach / student）
      lv       狀況：1 差／2 好／3 優。**電平段的段數就是這個值**
      t        標題（短）
      outcome  **成果** —— 卡片的主體顯示。「過程也以成果來呈現」
      note     補充（可省）
 
-   教練評分已取消（使用者：「電話就可以記錄教練評分了」）—— 所以電話那一通的 lv
-   就是教練對那一週的評估，不另設評分事件。
+   教練評分已取消，通話記錄裡的 lv 就是那一筆的狀況，不另設評分事件。
    成就也已取消（使用者：「沒有成就」）。
-
-   電話是**一週一通**（使用者指定）。原本 28 通裡的多通已併成每週一通，
-   四次覆盤的內容併進第 1／4／8／12 週那一通。
 
    review: false = 劇本內容待教練審。 */
 window.UC_GROWTH = {
@@ -3038,7 +3117,7 @@ window.UC_GROWTH = {
      兩者不一致就擋下來。 */
   start: '2026-05-25',
   events: [
-    /* ── 教練電話：一週一通，lv 是教練對那一週的評估 ─── */
+    /* ── 通話記錄：範例資料保留十二筆，不代表固定頻率 ─── */
     { id: 'C1', w: 1, d: '2026-05-27', by: 'coach', kind: 'call', lv: 2, t: '評測回顧',
       outcome: '外型與聊天都在高段，生活圈掛在最底。你不缺能力，缺的是會遇到人的場合，以及想清楚要走向誰。這三個月先動生活圈與人格魅力，其他兩條先不加東西。',
       note: '把「想交到女朋友」改寫成一個可以驗收的畫面：三個月後有一個你願意介紹給朋友的人。' },
@@ -3278,7 +3357,8 @@ window.UC_SAMPLE = function () {
 
   return {
     name: '示範學員 ・ 阿睿', answers: answers, picked: [], key: {},
-    taskNow: {}, hidden: {}, done: {}, log: []
+    taskNow: {}, hidden: {}, done: {},
+    coachReport: { scores: {}, notes: {}, letter: '', complete: false }, log: []
   };
 };
 
@@ -3351,8 +3431,10 @@ window.UC_SELFTEST = function () {
     t(q.id + ' 有題目文字', typeof q.q === 'string' && q.q.length > 0);
     t(q.id + ' 的 sec「' + q.sec + '」存在', !!secSet[q.sec]);
     if (q.type === 'info') {
-      t(q.id + ' info 題有 input', ['text', 'textarea', 'select', 'checks'].indexOf(q.input) >= 0);
+      t(q.id + ' info 題有 input', ['text', 'textarea', 'number', 'select', 'checks'].indexOf(q.input) >= 0);
       if (q.input === 'select') t(q.id + ' select 有 opts', q.opts && q.opts.length > 1);
+      if (q.input === 'checks') t(q.id + ' checks 有 opts', q.opts && q.opts.length > 1);
+      if (q.max != null) t(q.id + ' max 只用於 checks', q.input === 'checks' && q.max > 0);
       t(q.id + ' info 題不該帶 delta', !q.o);
       return;
     }
@@ -3513,7 +3595,7 @@ window.UC_SELFTEST = function () {
      dimensions.js 的 quoteNote 欄位還留著（沒有畫面在用），要復原就把這段接回去。 */
 
   /* 5c. 教練署名 */
-  ['name', 'title', 'note', 'signedOn'].forEach(function (f) {
+  ['name', 'title', 'note'].forEach(function (f) {
     t('coach.' + f + ' 非空', typeof CO[f] === 'string' && CO[f].length > 0);
   });
 
@@ -3557,24 +3639,18 @@ window.UC_SELFTEST = function () {
     byKind[e.kind]++;
   });
 
-  /* 三軌的節奏：電話一週一通，社交與約會要有明確的「第一次」 */
-  t('教練電話 12 通（一週一通）', byKind.call === 12);
+  /* 三軌的節奏：只確認範例有通話記錄；不把通話頻率寫成產品規則。 */
+  t('範例有通話記錄', byKind.call > 0);
   var firstSocial = Math.min.apply(null, G.events.filter(function (e) { return e.kind === 'social'; }).map(function (e) { return e.w; }));
   var firstDate = Math.min.apply(null, G.events.filter(function (e) { return e.kind === 'date'; }).map(function (e) { return e.w; }));
   t('社交在第 ' + firstSocial + ' 週才出現（不是第 1 週）', firstSocial > 1);
   t('約會在第 ' + firstDate + ' 週才出現，且晚於社交', firstDate > firstSocial);
-  /* 電話那一軌每週恰好一通 —— 少了基底會斷，多了就不是「一週一次」 */
-  for (var cw = 1; cw <= G.weeks; cw++) {
-    var week = cw;
-    t('第 ' + week + ' 週恰好一通教練電話',
-      G.events.filter(function (e) { return e.kind === 'call' && e.w === week; }).length === 1);
-  }
   /* 三個程度都要用到，否則起伏形同虛設 */
   [1, 2, 3].forEach(function (v) {
     t('狀況 ' + v + ' 至少用到一次', G.events.some(function (e) { return e.lv === v; }));
   });
 
-  log.push('── 成長　' + G.events.length + ' 筆事件　電話 ' + byKind.call + '／社交 ' + byKind.social
+  log.push('── 成長　' + G.events.length + ' 筆事件　通話記錄 ' + byKind.call + '／社交 ' + byKind.social
     + '／約會 ' + byKind.date);
   /* 同一軌相鄰兩筆至少隔 2 天 —— 一天只有 span/84 寬，太近段堆會疊在一起。
      （第九版之後重疊不會弄壞圖形了，但資料仍然該保持乾淨） */
@@ -3697,15 +3773,28 @@ window.UC_SELFTEST = function () {
     try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) { raw = null; }
     var b = blank();
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return b;
+    var answers = obj(raw.answers);
+    /* 題庫精簡後保留舊存檔的內容，但轉成新欄位的格式。 */
+    if (answers.L01 === '單身，沒有在認識對象'
+        || answers.L01 === '單身，有在認識對象') answers.L01 = '單身';
+    if (typeof answers.L02 === 'string') {
+      var count = answers.L02.match(/^\d+/);
+      if (count) answers.L02 = count[0];
+    }
+    if (answers.C11) {
+      answers.C10 = [answers.C10, answers.C11].filter(Boolean).join('\n');
+      delete answers.C11;
+    }
     return {
       name:    typeof raw.name === 'string' ? raw.name : b.name,
-      answers: obj(raw.answers),
+      answers: answers,
       picked:  Array.isArray(raw.picked) ? raw.picked.filter(function (x) {
                  return typeof x === 'string'; }) : b.picked,
       key:     obj(raw.key),
       taskNow: obj(raw.taskNow),
       hidden:  obj(raw.hidden),
       done:    obj(raw.done),
+      coachReport: normalizeCoachReport(raw.coachReport),
       log:     Array.isArray(raw.log) ? raw.log : b.log
     };
     function obj(v) {
@@ -3714,7 +3803,21 @@ window.UC_SELFTEST = function () {
   }
   /* picked／key 是暫時保留的書本狀態；taskNow ＝各能力的當前任務；hidden ＝不給學員看的任務。 */
   function blank() {
-    return { name: '', answers: {}, picked: [], key: {}, taskNow: {}, hidden: {}, done: {}, log: [] };
+    return {
+      name: '', answers: {}, picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
+      coachReport: normalizeCoachReport(), log: []
+    };
+  }
+  function normalizeCoachReport(v) {
+    v = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+    var scores = v.scores && typeof v.scores === 'object' && !Array.isArray(v.scores) ? v.scores : {};
+    var notes = v.notes && typeof v.notes === 'object' && !Array.isArray(v.notes) ? v.notes : {};
+    return {
+      scores: scores,
+      notes: notes,
+      letter: typeof v.letter === 'string' ? v.letter : '',
+      complete: v.complete === true
+    };
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
@@ -3724,6 +3827,71 @@ window.UC_SELFTEST = function () {
     });
   }
   function el(id) { return document.getElementById(id); }
+
+  /* ── 同一介面的欄位權限 ─────────────────────────────
+     頁面不分教練版／學員版；每個資料欄位用 data-field-owner 表示誰能寫。
+     正式登入完成後呼叫 UC_APP.setRole('coach'|'student')。
+     這裡只避免誤操作，真正的授權仍要由 GAS 依 Session 再驗證。 */
+  var ACTOR_ROLE = window.UC_ROLE === 'coach' || window.UC_ROLE === 'student' ? window.UC_ROLE : '';
+  var fieldTimer = null;
+
+  function writableBy(owner) {
+    if (!ACTOR_ROLE) return true; // 本機 demo 尚未登入時不鎖欄位
+    return owner === 'shared' || owner === ACTOR_ROLE;
+  }
+
+  function fieldControls(field) {
+    var out = [];
+    if (field.matches('input,select,textarea,.opt,.chk')) out.push(field);
+    return out.concat([].slice.call(field.querySelectorAll('input,select,textarea,.opt,.chk')));
+  }
+
+  function applyFieldAccess(root) {
+    var fields = (root || document).querySelectorAll('[data-field-owner]');
+    [].forEach.call(fields, function (field) {
+      var owner = field.dataset.fieldOwner || '';
+      var locked = !!ACTOR_ROLE && (owner === 'state' || !writableBy(owner));
+      field.dataset.fieldAccess = locked ? 'read' : 'write';
+      field.classList.toggle('field-locked', locked);
+      fieldControls(field).forEach(function (control) {
+        var textLike = control.matches('textarea,input[type="text"],input[type="number"],input[type="password"]');
+        if (locked) {
+          if (textLike) {
+            if (!control.readOnly) control.dataset.roleReadonly = '1';
+            control.readOnly = true;
+          } else {
+            if (!control.disabled) control.dataset.roleDisabled = '1';
+            control.disabled = true;
+          }
+          control.setAttribute('aria-readonly', 'true');
+        } else {
+          if (control.dataset.roleReadonly === '1') { control.readOnly = false; delete control.dataset.roleReadonly; }
+          if (control.dataset.roleDisabled === '1') { control.disabled = false; delete control.dataset.roleDisabled; }
+          control.removeAttribute('aria-readonly');
+        }
+      });
+    });
+    /* 記錄者不是手填內容；正式登入時固定由目前身分帶入。 */
+    if (ACTOR_ROLE) {
+      [].forEach.call((root || document).querySelectorAll('#fBy'), function (by) {
+        by.value = ACTOR_ROLE;
+        if (!by.disabled) by.dataset.roleDisabled = '1';
+        by.disabled = true;
+        by.setAttribute('aria-readonly', 'true');
+      });
+    }
+  }
+
+  function setRole(role) {
+    ACTOR_ROLE = role === 'coach' || role === 'student' ? role : '';
+    document.documentElement.dataset.ucRole = ACTOR_ROLE || 'demo';
+    applyFieldAccess(document);
+  }
+
+  new MutationObserver(function () {
+    if (!ACTOR_ROLE || fieldTimer) return;
+    fieldTimer = setTimeout(function () { fieldTimer = null; applyFieldAccess(document); }, 0);
+  }).observe(document.body, { childList: true, subtree: true });
 
   /* ── 捲動揭示 ─────────────────────────────────────── */
   var io = 'IntersectionObserver' in window
@@ -3788,15 +3956,18 @@ window.UC_SELFTEST = function () {
 
   /* ── 評測頁 ───────────────────────────────────────── */
 
+  function hasValue(v) {
+    return typeof v === 'string' ? v.trim() !== '' : v != null && v !== '';
+  }
+
   function answeredCount() {
     return window.UC_SCORE.questions.filter(function (q) {
-      var v = S.answers[q.id];
-      return v != null && v !== '';
+      return hasValue(S.answers[q.id]);
     }).length;
   }
 
   /* ── 評測（一頁式）───────────────────────────────────
-     九區全部攤在同一頁往下捲，最上面那排是**跳躍錨點不是分頁**。
+     六區全部攤在同一頁往下捲，最上面那排是**跳躍錨點不是分頁**。
      每一題預設收合，只露出「短標題 ＋ 你的答案」；點開才出現題目與選項。
      這樣教練讀到的和學員填的是同一塊 —— 不需要另外做一份訪談摘要。
      ⚠️ 收合狀態不存進 S.answers，重整就全部收回去。那是刻意的：
@@ -3806,7 +3977,7 @@ window.UC_SELFTEST = function () {
     var total = E.questions.length;
 
     function secFull(g) {
-      return g.items.every(function (q) { var v = S.answers[q.id]; return v != null && v !== ''; });
+      return g.items.every(function (q) { return hasValue(S.answers[q.id]); });
     }
 
     var h = '<div class="asbar">'
@@ -3829,8 +4000,10 @@ window.UC_SELFTEST = function () {
         + '</section>';
     }).join('');
 
+    var assessFull = answeredCount() === total;
     h += '<div class="secfoot"><span></span>'
-      + '<button class="btn pri" id="toReport">看我的報告</button></div>';
+      + '<button class="btn pri" id="toReport"' + (assessFull ? '' : ' disabled') + '>'
+      + (assessFull ? '前往報告' : '完成全部題目後查看報告') + '</button></div>';
 
     var body = el('assessBody');
     body.innerHTML = h;
@@ -3911,7 +4084,7 @@ window.UC_SELFTEST = function () {
     if (!t.dataset || !t.dataset.q || t.classList.contains('opt')) return;
     S.answers[t.dataset.q] = t.value; save();
     var row = t.closest('.qrow');
-    row.classList.toggle('answered', t.value !== '');
+    row.classList.toggle('answered', hasValue(t.value));
     /* 填空題的格子就是輸入框本身，沒有另一格要重畫。 */
     if (!row.classList.contains('free')) refreshVal(row);
     syncProgress();
@@ -3920,6 +4093,7 @@ window.UC_SELFTEST = function () {
   /* 輸入框跟著內容長高。先歸零再讀 scrollHeight —— 不歸零的話只會愈長愈高，
      刪字不會縮回去（踩過的經典）。 */
   function grow(t) {
+    if (!t || t.tagName !== 'TEXTAREA') return;
     t.style.height = 'auto';
     t.style.height = (t.scrollHeight + 2) + 'px';
   }
@@ -3951,18 +4125,23 @@ window.UC_SELFTEST = function () {
       var pip = document.querySelector('#v-assess .pip[data-jump="sec-' + g.sec.k + '"]');
       if (!pip) return;
       pip.classList.toggle('full', g.items.every(function (q) {
-        var v = S.answers[q.id]; return v != null && v !== '';
+        return hasValue(S.answers[q.id]);
       }));
     });
+    var rep = el('toReport');
+    if (rep) {
+      rep.disabled = n !== total;
+      rep.textContent = n === total ? '前往報告' : '完成全部題目後查看報告';
+    }
   }
 
   /* 收合時的答案格。
-     `ladder: true`（08 情感能力那 25 題）畫五顆菱形標出級數，**再接上選到的那句話** ——
+     `ladder: true`（06 情感能力那 25 題）畫五顆菱形標出級數，**再接上選到的那句話** ——
      只有菱形的話教練得回頭點開才知道他選了什麼，那就違背「收合狀態就是一份摘要」。
      ⚠️ **沒有 ladder 的選擇題不要畫菱形**。菱形是刻度，只有選項真的由低到高排的題目
      才能用；其他題的選項沒有順序，畫成刻度會騙人。 */
   function valHTML(q, v) {
-    var has = v != null && v !== '';
+    var has = hasValue(v);
     if (!has) return '<em class="qnil">未填</em>';
     if (q.type === 'choice' || q.type === 'number') {
       var o = q.o[+v];
@@ -3979,19 +4158,25 @@ window.UC_SELFTEST = function () {
 
   function qRow(q) {
     var v = S.answers[q.id];
-    var has = v != null && v !== '';
+    var has = hasValue(v);
     /* 兩種列，行為完全不同：
        free  —— 填空題。格子本身就是輸入框，直接在原位打字，會跟著內容長高。
                  提示文字放在格子裡（placeholder），不再另外寫「未填」。
        其餘 —— 選擇／複選。點了在原地彈出浮層，不往下展開。 */
-    var free = q.type === 'info' && (q.input === 'text' || q.input === 'textarea');
+    var free = q.type === 'info' && (q.input === 'text' || q.input === 'textarea' || q.input === 'number');
     var h = '<div class="qrow' + (has ? ' answered' : '') + (free ? ' free' : '')
-      + '" data-qid="' + q.id + '"' + (q.col ? ' data-col="' + q.col + '"' : '') + '>';
+      + '" data-qid="' + q.id + '" data-field-id="assessment.answer.' + q.id
+      + '" data-field-owner="student" data-field-label="' + esc(q.name) + '"'
+      + (q.col ? ' data-col="' + q.col + '"' : '') + '>';
     if (free) {
       h += '<div class="qsum"><span class="qname">' + esc(q.name) + '</span>'
         + '<div class="qval">'
-        + '<textarea class="qfield" rows="1" data-q="' + q.id + '" placeholder="'
-        + esc(q.ph || q.q) + '">' + esc(v || '') + '</textarea>'
+        + (q.input === 'number'
+          ? '<input class="qfield" type="number" inputmode="numeric" step="1" data-q="' + q.id + '"'
+            + (q.min != null ? ' min="' + q.min + '"' : '')
+            + ' placeholder="' + esc(q.ph || q.q) + '" value="' + esc(v == null ? '' : v) + '">'
+          : '<textarea class="qfield" rows="1" data-q="' + q.id + '" placeholder="'
+            + esc(q.ph || q.q) + '">' + esc(v || '') + '</textarea>')
         + (q.note ? '<p class="qhint">' + esc(q.note) + '</p>' : '')
         + '</div></div>';
     } else {
@@ -4006,7 +4191,7 @@ window.UC_SELFTEST = function () {
 
   /* ── 原地彈出的選項浮層 ───────────────────────────────
      position: fixed，所以它完全不參與版面 —— 開、關、換題目都不會推動任何東西。
-     ⚠️ 只有一個浮層，重複使用。每一列各自帶一個的話，59 個隱藏節點會拖慢
+     ⚠️ 只有一個浮層，重複使用。每一列各自帶一個的話，53 個隱藏節點會拖慢
      整頁的 reflow，而且同時只會開一個。 */
   var POP = null, POPROW = null;
 
@@ -4055,6 +4240,9 @@ window.UC_SELFTEST = function () {
     var q = qById(row.dataset.qid);
     if (!q) return;
     var pop = ensurePop();
+    pop.setAttribute('data-field-id', row.getAttribute('data-field-id') || 'assessment.answer.' + row.dataset.qid);
+    pop.setAttribute('data-field-owner', row.getAttribute('data-field-owner') || 'student');
+    pop.setAttribute('data-field-label', row.getAttribute('data-field-label') || q.name || q.id);
     pop.innerHTML = qFields(q, S.answers[q.id]);
     pop.classList.add('on');
     POPROW = row;
@@ -4077,6 +4265,16 @@ window.UC_SELFTEST = function () {
     });
     [].forEach.call(pop.querySelectorAll('.chk'), function (b) {
       b.addEventListener('click', function () {
+        var turningOn = !b.classList.contains('sel');
+        if (turningOn && q.exclusive) {
+          if (b.dataset.v === q.exclusive) {
+            [].forEach.call(pop.querySelectorAll('.chk.sel'), function (x) { x.classList.remove('sel'); });
+          } else {
+            var exclusive = pop.querySelector('.chk[data-v="' + q.exclusive + '"]');
+            if (exclusive) exclusive.classList.remove('sel');
+          }
+        }
+        if (turningOn && q.max && pop.querySelectorAll('.chk.sel').length >= q.max) return;
         b.classList.toggle('sel');
         var picked = [].map.call(pop.querySelectorAll('.chk.sel'), function (x) { return x.dataset.v; });
         S.answers[q.id] = picked.join('、'); save();
@@ -4103,7 +4301,11 @@ window.UC_SELFTEST = function () {
       h += '<div class="checks">' + q.opts.map(function (o) {
         return '<button type="button" class="chk' + (on.indexOf(o) >= 0 ? ' sel' : '') + '"'
           + ' data-v="' + esc(o) + '">' + esc(o) + '</button>';
-      }).join('') + '</div>';
+      }).join('') + '</div>'
+        + (q.max ? '<p class="qhelp">最多選 ' + q.max + ' 個</p>' : '')
+        + (q.helpText ? '<p class="qhelp">' + (q.helpUrl
+          ? '<a href="' + esc(q.helpUrl) + '" target="_blank" rel="noopener">' + esc(q.helpText) + ' →</a>'
+          : esc(q.helpText) + '<em>（連結待補）</em>') + '</p>' : '');
     } else if (q.type === 'info') {
       h += '<div class="opts' + (tight ? ' tight' : '') + '">' + q.opts.map(function (o) {
         return '<button type="button" class="opt' + (v === o ? ' sel' : '') + '"'
@@ -4300,10 +4502,9 @@ window.UC_SELFTEST = function () {
         var d = null;
         D.forEach(function (x) { if (x.k === k) d = x; });
         if (!d) return;
-        var bd = d.bands[SC.bandOf(vals[k])];
-        /* 評語（band 標題）＋敘述，**全文不截斷** —— 面板罩住整張雷達圖，
-           空間夠（現有 15 段最長 78 字）。不放維度名也不放星星。 */
-        box.innerHTML = '<b>' + esc(bd.title) + '</b><p>' + esc(bd.read || '') + '</p>'
+        var comment = opts.comments && typeof opts.comments[k] === 'string' ? opts.comments[k] : '';
+        /* 報告只顯示教練親自填寫的維度說明，不再從 bands 自動生成評語。 */
+        box.innerHTML = '<b>' + esc(d.label) + '</b><p>' + esc(comment) + '</p>'
           + '<button type="button" class="rx" aria-label="收起評語">×</button>';
         /* 換維度時要重播動畫。animation 不會因為改內容自己重跑，
            必須先拿掉 class、強迫重排、再加回去（.bands 那邊踩過同一個坑）。 */
@@ -4412,74 +4613,177 @@ window.UC_SELFTEST = function () {
 
   /* ── 報告頁 ───────────────────────────────────────── */
 
-  function renderReport() {
-    var E = window.UC_SCORE, D = window.UC_DIMENSIONS, CO = window.UC_COACH;
-    var r = E.score(S.answers);
-    var body = el('reportBody');
+  var REPORT_EDIT = false;
 
-    if (r.answered < 5) {
-      body.innerHTML = wrap('<div class="empty"><p class="ey">no data</p>'
-        + '<h1>還沒有足夠的作答</h1><div class="divider"><i></i><s></s></div>'
-        + '<p>報告需要先完成評測。目前已填 ' + r.answered + ' / ' + r.total + ' 題計分題。</p>'
+  function coachReportValid() {
+    var cr = S.coachReport || normalizeCoachReport();
+    return window.UC_DIMENSIONS.dims.every(function (d) {
+      var score = Number(cr.scores[d.k]);
+      return score >= 1 && score <= 5 && Number.isInteger(score)
+        && typeof cr.notes[d.k] === 'string' && cr.notes[d.k].trim() !== '';
+    }) && typeof cr.letter === 'string' && cr.letter.trim() !== '';
+  }
+
+  function coachReportReady() {
+    return !!(S.coachReport && S.coachReport.complete && coachReportValid());
+  }
+
+  function coachReportValues() {
+    var vals = {}, E = window.UC_SCORE, cr = S.coachReport || normalizeCoachReport();
+    window.UC_DIMENSIONS.dims.forEach(function (d) {
+      var n = Math.max(1, Math.min(5, Number(cr.scores[d.k]) || 1));
+      vals[d.k] = E.starMid[n - 1];
+    });
+    return vals;
+  }
+
+  function coachReportLow() {
+    var dims = window.UC_DIMENSIONS.dims, cr = S.coachReport || normalizeCoachReport();
+    return dims.slice().sort(function (a, b) {
+      return Number(cr.scores[a.k]) - Number(cr.scores[b.k]);
+    })[0].k;
+  }
+
+  function renderCoachReportEditor(body) {
+    var dims = window.UC_DIMENSIONS.dims;
+    var cr = S.coachReport || normalizeCoachReport();
+    S.coachReport = cr;
+
+    var rows = dims.map(function (d) {
+      var score = Number(cr.scores[d.k]) || 0;
+      var options = '<option value="">未評分</option>';
+      for (var n = 1; n <= 5; n++) {
+        options += '<option value="' + n + '"' + (score === n ? ' selected' : '') + '>'
+          + n + '／5</option>';
+      }
+      return '<section class="crrow">'
+        + '<div class="crmeta"><div><p class="ey">Dimension</p><h3>' + esc(d.label) + '</h3></div>'
+        + '<label class="crscore">教練評分<select data-report-score="' + d.k + '"'
+        + ' data-field-id="report.score.' + d.k + '" data-field-owner="coach">' + options + '</select></label></div>'
+        + (d.facets && d.facets.length ? '<p class="crfacet">' + esc(d.facets.join('・')) + '</p>' : '')
+        + '<label class="crnote">維度說明<textarea rows="4" data-report-note="' + d.k + '"'
+        + ' data-field-id="report.note.' + d.k + '" data-field-owner="coach"'
+        + ' placeholder="請填寫這個維度目前的狀態、觀察與建議。">'
+        + esc(cr.notes[d.k] || '') + '</textarea></label></section>';
+    }).join('');
+
+    body.innerHTML = wrap('<header class="rhead">'
+      + '<p class="ey">Coach Review ・ ' + answeredCount() + '/' + window.UC_SCORE.questions.length + ' 題</p>'
+      + '<h1>完成教練評測</h1><div class="divider"><i></i><s></s></div>'
+      + '<p class="lead">依照學員的回答與實際互動，完成五個維度的評分與說明，再寫一封信。全部完成後，學員才會看到報告。</p>'
+      + '</header>')
+      + '<div class="paper"><section><div class="wrap creview">'
+      + '<div class="crstatus"><p class="fieldtag coach">教練填寫</p><p id="crProgress"></p></div>'
+      + '<div class="crgrid">' + rows + '</div>'
+      + '<label class="crletter">寫給學員的一封信<textarea rows="8" data-report-letter'
+      + ' data-field-id="report.letter" data-field-owner="coach"'
+      + ' placeholder="請寫下你對這位學員整體狀況的理解，以及接下來最重要的一步。">'
+      + esc(cr.letter) + '</textarea></label>'
+      + '<div class="crfoot"><p>未完成前，學員不會看到任何評測內容。</p>'
+      + '<button type="button" class="btn pri" id="finishReport">完成評測並開放報告</button></div>'
+      + '</div></section></div>';
+
+    function syncReview() {
+      var filled = 0;
+      dims.forEach(function (d) {
+        var score = Number(cr.scores[d.k]);
+        if (score >= 1 && score <= 5) filled++;
+        if (typeof cr.notes[d.k] === 'string' && cr.notes[d.k].trim()) filled++;
+      });
+      if (cr.letter.trim()) filled++;
+      var p = el('crProgress'), done = coachReportValid();
+      if (p) p.textContent = '已完成 ' + filled + ' / 11 個欄位';
+      var btn = el('finishReport');
+      if (btn) btn.disabled = !done;
+    }
+
+    [].forEach.call(body.querySelectorAll('[data-report-score]'), function (select) {
+      select.addEventListener('change', function () {
+        cr.scores[select.dataset.reportScore] = select.value ? Number(select.value) : '';
+        cr.complete = false; save(); syncReview();
+      });
+    });
+    [].forEach.call(body.querySelectorAll('[data-report-note]'), function (textarea) {
+      grow(textarea);
+      textarea.addEventListener('input', function () {
+        cr.notes[textarea.dataset.reportNote] = textarea.value;
+        cr.complete = false; save(); grow(textarea); syncReview();
+      });
+    });
+    var letter = body.querySelector('[data-report-letter]');
+    if (letter) {
+      grow(letter);
+      letter.addEventListener('input', function () {
+        cr.letter = letter.value; cr.complete = false; save(); grow(letter); syncReview();
+      });
+    }
+    el('finishReport').addEventListener('click', function () {
+      if (!coachReportValid()) return;
+      cr.complete = true; REPORT_EDIT = false; save(); renderReport();
+    });
+    syncReview();
+    applyFieldAccess(body);
+    reveal(body);
+  }
+
+  function renderReport() {
+    var E = window.UC_SCORE, CO = window.UC_COACH;
+    var body = el('reportBody');
+    var total = E.questions.length, filled = answeredCount();
+
+    if (filled !== total) {
+      body.innerHTML = wrap('<div class="empty"><p class="ey">Assessment Incomplete</p>'
+        + '<h1>評測尚未完成</h1><div class="divider"><i></i><s></s></div>'
+        + '<p>必須完成全部題目，教練才能開始評測。目前已填 ' + filled + ' / ' + total + ' 題。</p>'
         + '<button class="btn pri" id="goAssess">回到評測</button></div>');
       el('goAssess').addEventListener('click', function () { nav('#/assess'); });
       return;
     }
 
-    var byK = {}; D.dims.forEach(function (d) { byK[d.k] = d; });
+    if (!coachReportReady()) {
+      if (ACTOR_ROLE === 'student') {
+        body.innerHTML = wrap('<div class="empty"><p class="ey">Coach Review</p>'
+          + '<h1>教練正在完成評測</h1><div class="divider"><i></i><s></s></div>'
+          + '<p>教練完成五個維度的評分、說明與一封信後，報告會在這裡開放。</p>'
+          + '<button class="btn" id="goAssess">查看我的回答</button></div>');
+        el('goAssess').addEventListener('click', function () { nav('#/assess'); });
+        return;
+      }
+      renderCoachReportEditor(body);
+      return;
+    }
 
-    /* 封面（深藍）。
-       ⚠️ **頁首只有標題，沒有說明段。** 說明放在它描述的那張圖／那張表旁邊 ——
-       擺在頁首等於要人先讀一段話才能看到東西。
-       原本這裡那句「最強的一條是…」是在講能力圖，已經搬到圖底下；
-       「跟誰比」的但書搬到逐條解讀的開頭（它講的是那五條曲線）。
-       未填提醒留著 —— 那是狀態警告，不是說明。 */
+    if (REPORT_EDIT && ACTOR_ROLE !== 'student') {
+      renderCoachReportEditor(body);
+      return;
+    }
+
+    var cr = S.coachReport, vals = coachReportValues(), low = coachReportLow();
     var h = wrap('<header class="rhead">'
-      + '<p class="ey">Assessment Report ・ ' + r.answered + '/' + r.total + ' 題</p>'
+      + '<p class="ey">Assessment Report ・ 教練評測完成</p>'
       + '<h1>' + esc(S.name || '學員') + '　情感能力評測</h1>'
       + '<div class="divider"><i></i><s></s></div>'
-      + (r.complete ? '' : '<p class="warn">尚有 ' + (r.total - r.answered) + ' 題計分題未填，分數會偏向中段。</p>')
+      + (ACTOR_ROLE === 'student' ? '' : '<button type="button" class="btn" id="editReport">編輯評測</button>')
       + '</header>');
 
-    /* 能力圖（深藍）。圖底下**沒有五條 bar** —— 它們說的三件事在別處都已經說過：
-       級數在逐條解讀的星等、級數裡的位置在那張分佈曲線、短句在 .dband。
-       這一節的工作只有一個：讓人記住自己的形狀。
-       「最強哪條、最該先動哪條」原本在頁首 —— 那句話講的是**這張圖**，所以搬到圖底下。 */
     h += wrap(head('01', 'Ability Map', '情感能力')
       + '<div class="chart" id="chart"></div>'
-      + '<p class="chint" id="chint">點維度名　·　看教練評語</p>', 'rv chartwrap');
+      + '<p class="chint" id="chint">點維度名　·　看教練說明</p>', 'rv chartwrap');
 
-    /* ── 米白閱讀區（uc-design：章節頁深色、內容頁米白，交替出現）── */
-    var paper = '';
-
-    var hits = D.crosses.filter(function (c) {
-      return (c.hi || []).every(function (k) { return r.band[k] === 2; })
-          && (c.lo || []).every(function (k) { return r.band[k] === 0; });
-    }).slice(0, 3);
-    if (!hits.length) hits = [{
-      title: '沒有明顯的偏斜',
-      text: '五條分數都落在中段，沒有觸發任何組合特徵。這通常代表兩件事之一：你各方面都還在建立中，'
-        + '或者這五個維度目前彼此沒有互相拖累。前者的做法是照分數順序推進——最低的是「'
-        + byK[r.low].label + '」，先動它；後者則要靠教練在訪談時用最近三個月的實際事件來分辨，自我評估看不出來。'
-    }];
-    /* 白色區塊只剩這一節（使用者指示）。它讀起來要像**一封信**：
-       稱謂 → 正文（組合特徵一段接一段，不編號、不下小標當標題用）→ 署名。
-       原本的 03 逐條解讀／04 詮釋視角／05 訪談摘要已移除，存檔在
-       coach_portal/_removed/report-03-05-sections.js.txt（本專案沒有 git）。 */
-    paper += wrap(head('02', 'Coach Letter', '教練評語')
+    var paper = wrap(head('02', 'Coach Letter', '教練的信')
       + '<div class="letter">'
       + '<p class="lsalu">' + esc(S.name || '學員') + '，你好：</p>'
-      + hits.map(function (c) {
-          return '<p class="lpara"><b>' + esc(c.title) + '</b>' + esc(c.text) + '</p>';
-        }).join('')
+      + '<div class="lbody"><p class="lpara">' + esc(cr.letter) + '</p></div>'
       + '<p class="lsign">' + esc(CO.title) + '　' + esc(CO.name) + '</p>'
-      + '<p class="ldate">' + esc(CO.signedOn) + '</p>'
+      + (CO.signedOn ? '<p class="ldate">' + esc(CO.signedOn) + '</p>' : '')
       + '</div>', 'rv');
 
     h += '<div class="paper">' + paper + '</div>';
 
     body.innerHTML = h;
-    drawRadar(el('chart'), r.show, { comment: true, lead: r.low });
+    drawRadar(el('chart'), vals, { comment: true, comments: cr.notes, lead: low });
+    var edit = el('editReport');
+    if (edit) edit.addEventListener('click', function () { REPORT_EDIT = true; renderReport(); });
     reveal(body);
   }
 
@@ -5226,7 +5530,8 @@ window.UC_SELFTEST = function () {
     }).length;
     var nDone = completedCount();
 
-    return wrap('<div class="edt" data-no-copy-edit="1">'
+    return wrap('<div class="edt" data-no-copy-edit="1" data-field-scope="blueprint.coach-settings">'
+      + '<p class="fieldtag coach">教練填寫</p>'
       + '<div class="edth"><span>' + esc(ui.total) + ' ' + O.items.length + ' 條</span>'
       + '<span>' + esc(ui.hiddenCount) + ' <b>' + nHidden + '</b></span>'
       + '<span>' + esc(ui.currentCount) + ' <b>' + nNow + '</b></span>'
@@ -5256,12 +5561,18 @@ window.UC_SELFTEST = function () {
                         + '" data-dim="' + k + '">'
                         + '<input type="checkbox" class="now" data-current="' + it.id
                         + '" data-current-dim="' + k + '" aria-label="設為' + esc(byK[k].label) + '的當前任務"'
+                        + ' data-field-id="blueprint.current.' + k + '" data-field-owner="coach"'
+                        + ' data-field-label="' + esc(byK[k].label) + '當前任務"'
                         + (current ? ' checked' : '') + (hidden || done ? ' disabled' : '') + '>'
                         + '<input type="checkbox" class="done" data-done="' + it.id
                         + '" aria-label="' + esc(ui.doneLabel) + '：' + esc(it.kr) + '"'
+                        + ' data-field-id="blueprint.done.' + it.id + '" data-field-owner="coach"'
+                        + ' data-field-label="' + esc(ui.doneLabel) + '：' + esc(it.kr) + '"'
                         + (done ? ' checked' : '') + '>'
                         + '<input type="checkbox" class="hide" data-hidden="' + it.id
                         + '" aria-label="' + esc(ui.hideLabel) + '：' + esc(it.kr) + '"'
+                        + ' data-field-id="blueprint.hidden.' + it.id + '" data-field-owner="coach"'
+                        + ' data-field-label="' + esc(ui.hideLabel) + '：' + esc(it.kr) + '"'
                         + (hidden ? ' checked' : '') + '>'
                         + '<b>' + esc(it.kr) + '</b>'
                         + '<em class="edthidden">' + esc(ui.hiddenMark) + '</em>'
@@ -5289,9 +5600,9 @@ window.UC_SELFTEST = function () {
   /* 成就的概念已移除（使用者：「沒有成就」）—— 每一筆都是一樣的紀錄 */
   var GPOS = {};                          // 週次色帶的幾何（x0／每週寬），供就地更新
 
-  /* 三軌。順序由使用者指定：電話在上，社交第二，約會第三。 */
+  /* 三軌。順序由使用者指定：通話記錄在上，社交第二，約會第三。 */
   var GLANE = [
-    { k: 'call',   label: '教練電話', who: 'coach',   glyph: 'phone' },
+    { k: 'call',   label: '通話記錄', who: 'coach',   glyph: 'phone' },
     { k: 'social', label: '外出社交', who: 'student', glyph: 'trio' },
     { k: 'date',   label: '實際約會', who: 'student', glyph: 'heart' }
   ];
@@ -5391,7 +5702,7 @@ window.UC_SELFTEST = function () {
       + '</div>'
       + '<p class="rdhint">← 左右捲動看完十二週 →</p>'
       /* 這段原本在頁首。它講的是**這張圖**，所以放在圖底下。 */
-      + '<p class="cap">三條軌由上而下是<b>教練電話</b>、<b>外出社交</b>、<b>實際約會</b>，'
+      + '<p class="cap">三條軌由上而下是<b>通話記錄</b>、<b>外出社交</b>、<b>實際約會</b>，'
       + '由左到右十二週。前幾週靜音的那兩條不是留白，是還沒開始。'
       + '一筆紀錄＝一組電平段，<b>段數就是那一筆的狀況</b>（一段差／兩段好／三段優）'
       + '—— 同一條軌內比才有意義。</p>'
@@ -5611,7 +5922,7 @@ window.UC_SELFTEST = function () {
       + '" y2="' + BOT + '"/>';
 
     GEL.band.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bands" role="img"'
-      + ' aria-label="十二週的三條紀錄軌跡：教練電話、外出社交、實際約會">' + g + '</svg>';
+      + ' aria-label="十二週的三條紀錄軌跡：通話記錄、外出社交、實際約會">' + g + '</svg>';
 
     sweep();
     markWeek();
@@ -5756,39 +6067,41 @@ window.UC_SELFTEST = function () {
 
   /* ── 雙向紀錄表單 ─────────────────────────────────── */
   var OUTPH = {
-    call:   '教練給了什麼調整？（一句可執行的）',
+    call:   '這次通話確認了什麼調整？（一句可執行的）',
     social: '認識了誰、有什麼下一步？',
     date:   '進展到哪一步？'
   };
 
   function renderForm() {
     if (!GFORM) { GEL.form.innerHTML = ''; return; }
-    /* 三種類型一律都能記，身分是表單裡的一個欄位（使用者：「紀錄都可以一起做」）。
-       GLANE 的 who 留著當「這一類通常誰記」的預設值，換類型時自動跟著跳。 */
+    /* 三種類型一律都能記。正式登入時記錄者由 LIFF 身分固定；
+       GLANE 的 who 只在沒有登入角色的本機範例模式提供預設值。 */
     var kinds = GLANE;
 
-    var h = '<div class="gfm"><p class="ey">新增紀錄</p>'
-      + '<div class="gfr"><label>類型</label><select id="fKind">'
+    var h = '<div class="gfm" data-field-scope="growth.event"><p class="ey">新增紀錄</p>'
+      + '<p class="fieldtag shared">教練與學員皆可填寫</p>'
+      + '<div class="gfr"><label for="fKind">類型</label><select id="fKind" data-field-id="growth.event.kind" data-field-owner="shared" data-field-label="紀錄類型">'
       + kinds.map(function (ln) { return '<option value="' + ln.k + '">' + ln.label + '</option>'; }).join('')
       + '</select></div>'
-      + '<div class="gfr"><label>記錄者</label><select id="fBy">'
+      + '<div class="gfr"><label for="fBy">記錄者</label><select id="fBy" data-field-id="growth.event.author" data-field-owner="state" data-field-label="記錄者">'
       + '<option value="coach">教練</option><option value="student">學員</option>'
-      + '</select><s class="gfh">換類型時會自動跳成常見的那一邊，可以改</s></div>'
-      + '<div class="gfr"><label>日期</label><input type="date" id="fDate"'
+      + '</select><s class="gfh">正式登入後會自動使用目前身分；範例模式可切換</s></div>'
+      + '<div class="gfr"><label for="fDate">日期</label><input type="date" id="fDate" data-field-id="growth.event.date" data-field-owner="shared" data-field-label="紀錄日期"'
       + ' min="' + G0 + '" max="' + G1 + '" value="' + gIso((GW - 1) * 7 + 3) + '">'
       + '<s class="gfh">在 12 週的範圍內選一天，週次會自己算</s></div>'
-      + '<div class="gfr"><label>標題</label><input type="text" id="fT" placeholder="例：第一次一個人去陌生活動"></div>'
-      + '<div class="gfr"><label>狀況</label><select id="fLv">'
+      + '<div class="gfr"><label for="fT">標題</label><input type="text" id="fT" data-field-id="growth.event.title" data-field-owner="shared" data-field-label="紀錄標題" placeholder="例：第一次一個人去陌生活動"></div>'
+      + '<div class="gfr"><label for="fLv">狀況</label><select id="fLv" data-field-id="growth.event.level" data-field-owner="shared" data-field-label="紀錄狀況">'
       + '<option value="1">差</option><option value="2" selected>好</option><option value="3">優</option>'
       + '</select><s class="gfh">決定這一筆在軌上是幾段</s></div>'
-      + '<div class="gfr"><label>成果</label><textarea id="fO" placeholder="' + OUTPH[kinds[0].k] + '"></textarea></div>'
-      + '<div class="gfr"><label>補充</label><textarea id="fN" placeholder="當下的感覺、發生了什麼（可留空）"></textarea></div>';
+      + '<div class="gfr"><label for="fO">成果</label><textarea id="fO" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄成果" placeholder="' + OUTPH[kinds[0].k] + '"></textarea></div>'
+      + '<div class="gfr"><label for="fN">補充</label><textarea id="fN" data-field-id="growth.event.note" data-field-owner="shared" data-field-label="紀錄補充" placeholder="當下的感覺、發生了什麼（可留空）"></textarea></div>';
 
     h += '<div class="gfb"><button class="btn pri" id="fSave">加到時間帶</button>'
       + '<button class="btn gh" id="fCancel">取消</button></div></div>';
     GEL.form.innerHTML = h;
 
     function syncBy() {
+      if (ACTOR_ROLE) { el('fBy').value = ACTOR_ROLE; return; }
       var ln = GLANE.filter(function (l) { return l.k === el('fKind').value; })[0];
       if (ln) el('fBy').value = ln.who;
     }
@@ -5926,11 +6239,25 @@ window.UC_SELFTEST = function () {
           }).join('') + '</div>';
     }
     if (t.tables && t.tables.length) {
-      x += '<div class="tplans">' + t.tables.map(function (p) {
+      x += '<div class="tplans">' + t.tables.map(function (p, pi) {
+        var tableId = p.id || ('table-' + (pi + 1));
         return '<section class="tplan"><h3>' + esc(p.t) + '</h3><div class="tplan-scroll"><table>'
-          + '<thead><tr>' + p.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead>'
-          + '<tbody>' + p.rows.map(function (row) {
-              return '<tr>' + row.map(function (cell) { return '<td>' + esc(cell || '') + '</td>'; }).join('') + '</tr>';
+          + '<thead><tr>' + p.cols.map(function (c, ci) {
+              var owner = p.owners && p.owners[ci] || 'system';
+              var tag = owner === 'coach' ? '教練填寫' : owner === 'student' ? '學員填寫' : '';
+              return '<th>' + esc(c) + (tag ? '<small class="fieldtag ' + owner + ' compact">' + tag + '</small>' : '') + '</th>';
+            }).join('') + '</tr></thead>'
+          + '<tbody>' + p.rows.map(function (row, ri) {
+              var rowId = p.rowIds && p.rowIds[ri] || ('row-' + (ri + 1));
+              return '<tr>' + row.map(function (cell, ci) {
+                var owner = p.owners && p.owners[ci] || 'system';
+                var colId = p.colIds && p.colIds[ci] || ('col-' + (ci + 1));
+                var field = owner === 'system' ? ''
+                  : ' class="fieldcell ' + owner + '" data-field-id="tool.' + esc(t.k) + '.' + esc(tableId)
+                    + '.' + esc(rowId) + '.' + esc(colId) + '" data-field-owner="' + owner
+                    + '" data-field-label="' + esc(p.cols[ci]) + '"';
+                return '<td' + field + '>' + esc(cell || '') + '</td>';
+              }).join('') + '</tr>';
             }).join('') + '</tbody></table></div></section>';
       }).join('') + '</div>';
     }
@@ -5963,13 +6290,20 @@ window.UC_SELFTEST = function () {
   if (location.hash === '#selftest') { window.UC_SELFTEST && window.UC_SELFTEST(); return; }
   go(location.hash || '#/');
 
-  window.UC_APP = { S: function () { return S; }, save: save, esc: esc, reveal: reveal, nav: nav, el: el };
+  document.documentElement.dataset.ucRole = ACTOR_ROLE || 'demo';
+  applyFieldAccess(document);
+  window.UC_APP = {
+    S: function () { return S; }, save: save, esc: esc, reveal: reveal, nav: nav, el: el,
+    setRole: setRole, role: function () { return ACTOR_ROLE; }, applyFieldAccess: applyFieldAccess
+  };
 })();
 
 </script>
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   文案直接編輯（demo 專用）　uc_copy_v1
+   文案直接編輯（內部工具）　uc_copy_v1
+
+   開啟方式：網址加上 ?edit=1。正常網站與 ?audit=1 都不啟用。
 
    用途：不用先把所有文案想好 —— 直接在畫面上打字改，改完自動存，重開還在。
 
@@ -6002,7 +6336,9 @@ window.UC_SELFTEST = function () {
    `UC_COPY.reset()`  全部還原
    ══════════════════════════════════════════════════════════════════════ */
 (function () {
-  if (location.hash === '#selftest') return;
+  var enabled = false;
+  try { enabled = new URLSearchParams(location.search).get('edit') === '1'; } catch (e) {}
+  if (!enabled || location.hash === '#selftest') return;
 
   var KEY = 'uc_copy_v1';
   /* 可以留在「一段文字」裡面的行內標籤。有其他標籤就代表它是容器不是文字。 */

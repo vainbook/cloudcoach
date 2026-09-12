@@ -16,8 +16,19 @@
  *
  * ── ⚠️ 只准碰一份試算表 ──
  * 使用者明確要求：千萬不要動到別的表單。
- * Google 沒有給獨立式腳本「只授權單一檔案」的權限，`spreadsheets` scope
- * 涵蓋帳號底下所有試算表。所以改用三道程式鎖：
+ *
+ * 2026-09-12 起這支腳本**綁定在「高級雲端教練後台」底下**（容器繫結）——
+ * 從試算表「擴充功能 → Apps Script」直接打得開，不必去雲端硬碟翻。
+ * 綁定另一個好處是可以用簡單的 onOpen() 加選單，不必安裝觸發條件。
+ *
+ * ⚠️ 但**權限還是廣的**。容器繫結理論上可以把 scope 縮成
+ * `spreadsheets.currentonly`（Google 強制只能碰容器），前提是
+ * `SpreadsheetApp.getActive()` 在**匿名 web app 情境**下回傳得到容器 ——
+ * 那一點沒有官方保證。所以這一版先維持 `openById` ＋ 完整 `spreadsheets`，
+ * 並在 doGet 順手量 `getActive()` 的結果（`activeOk` / `activeNameMatches`）。
+ * 量到 true 之後才值得花一次重新授權去把權限縮小。
+ *
+ * 在那之前，安全仍然靠三道程式鎖：
  *   ① SHEET_ID 只從 Script Properties 讀，**任何路徑都不接受請求帶來的 ID 或網址**
  *   ② 開檔後比對名稱必須等於 EXPECTED_SHEET_NAME，不符立刻中止，不做任何讀寫
  *   ③ selftest() 逐項驗證上面兩件事
@@ -103,9 +114,23 @@ function doPost(e) {
 function doGet() {
   var sheetReady = false;
   try { sheet_(); sheetReady = true; } catch (e) {}
+
+  /* 探針：容器繫結的腳本在**匿名 web app**情境下，getActive() 拿不拿得到容器？
+     拿得到才有機會把 scope 縮成 spreadsheets.currentonly。
+     ⚠️ 只回布林，不回 ID —— 試算表名稱本來就是程式裡的公開常數，不算洩漏。 */
+  var activeOk = false, activeNameMatches = false;
+  try {
+    var act = SpreadsheetApp.getActive();
+    activeOk = !!act;
+    activeNameMatches = !!act && act.getName() === EXPECTED_SHEET_NAME;
+  } catch (e) {}
+
   return ok_({
     service: 'uc-cloud-coach',
     stage: 3,
+    bound: true,
+    activeOk: activeOk,
+    activeNameMatches: activeNameMatches,
     channelConfigured: !!channelId_(),
     channelSource: prop_('LINE_CHANNEL_ID') ? 'script-property' : 'default-constant',
     sheetReady: sheetReady,
@@ -485,23 +510,48 @@ function setup() {
   }
 
   bindingSheet_();
+  rehashPlainCodes_();
 
-  /* 裝「開啟試算表時加選單」的可安裝觸發條件。重複跑 setup 不要裝第二個。 */
-  var has = ScriptApp.getProjectTriggers().some(function (t) {
-    return t.getHandlerFunction() === 'onOpenInstalled';
-  });
-  if (!has) {
-    ScriptApp.newTrigger('onOpenInstalled').forSpreadsheet(ss).onOpen().create();
-    console.log('已安裝試算表選單的觸發條件');
-  } else {
-    console.log('選單觸發條件已存在');
-  }
+  /* 容器繫結用簡單 onOpen，不需要安裝觸發條件。 */
 
-  var code = newActivationCode('STU-TEST-001', '測試學員', 14);
+  /* ⚠️ **不要在這裡自動發新的啟用碼。** 舊版會，結果每跑一次 setup
+     就往正式表塞一列測試資料。發碼改用選單或 newActivationCode()。 */
   console.log('setup 完成。分頁：' + ss.getSheets().map(function (s) {
     return s.getName();
   }).join('、'));
-  return code;
+  console.log('要發啟用碼：試算表上的「UC 雲端教練」選單，或執行 newActivationCode(\'STU-001\', \'姓名\')');
+}
+
+/**
+ * 用目前的 CODE_SALT 重算「還沒用掉」的啟用碼雜湊。
+ *
+ * ⚠️ 這是搬家用的。指令碼屬性不會跟著程式走，所以新專案的 CODE_SALT 是新的，
+ * 而表裡既有的 activation_code_hash 是用**舊鹽**算的 —— 不處理的話，
+ * 所有還沒用掉的碼會突然全部「不正確」，而且看不出原因。
+ *
+ * 因為 activation_code_plain 還留著（用掉才清空），所以可以無損重算。
+ * 已經用掉的列不碰：明碼早就清了，hash 也不再被查詢。
+ * 沒有明碼可依據的未使用列會被列出來 —— 那些只能重發。
+ */
+function rehashPlainCodes_() {
+  var sh = bindingSheet_(), map = colMap_(sh);
+  var rows = sh.getDataRange().getValues();
+  var fixed = 0, orphan = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rowObj_(rows[i], map);
+    if (r.activation_used_at) continue;              /* 用過了，不管 */
+    if (!r.activation_code_hash) continue;           /* 空列 */
+    if (!r.activation_code_plain) { orphan.push(r.student_id || ('第 ' + (i + 1) + ' 列')); continue; }
+    var want = hashCode_(String(r.activation_code_plain).trim().toUpperCase());
+    if (String(r.activation_code_hash) === want) continue;   /* 已經對了 */
+    setCell_(sh, i + 1, 'activation_code_hash', want);
+    fixed++;
+  }
+  if (fixed) console.log('已用新的 CODE_SALT 重算 ' + fixed + ' 組還沒用掉的啟用碼');
+  if (orphan.length) {
+    console.warn('這些未使用的碼沒有明碼可依據，只能重發：' + orphan.join('、'));
+  }
+  return { fixed: fixed, orphan: orphan };
 }
 
 /**
@@ -547,10 +597,10 @@ function newActivationCode(studentId, name, days) {
 
 /* ── 試算表上的選單 ────────────────────────────────
    讓教練不用進 Apps Script 編輯器就能發碼。
-   ⚠️ 獨立式腳本不能用簡單的 onOpen 加選單，要**可安裝的觸發條件**
-   （setup() 會裝）。少了這段，選單不會出現。 */
+   容器繫結之後可以用**簡單觸發條件** —— 不必安裝、不必 script.scriptapp 權限。
+   （獨立式的舊版要靠 ScriptApp.newTrigger 安裝，那段已經拿掉。） */
 
-function onOpenInstalled() {
+function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('UC 雲端教練')
     .addItem('發新的啟用碼…', 'menuNewCode')
@@ -625,6 +675,21 @@ function selftest() {
   }
   t('「' + BINDING_SHEET + '」欄位齊全' + (miss.length ? '（缺 ' + miss.join('、') + '）' : ''),
     miss.length === 0);
+
+  /* 搬家之後最容易無聲壞掉的一件事：鹽換了，舊 hash 對不上。
+     有明碼可以驗，就一定要驗。 */
+  var mismatch = [];
+  try {
+    var s3 = bindingSheet_(), m3 = colMap_(s3), r3 = s3.getDataRange().getValues();
+    for (var k = 1; k < r3.length; k++) {
+      var rw = rowObj_(r3[k], m3);
+      if (rw.activation_used_at || !rw.activation_code_hash || !rw.activation_code_plain) continue;
+      if (hashCode_(String(rw.activation_code_plain).trim().toUpperCase())
+          !== String(rw.activation_code_hash)) mismatch.push(rw.student_id);
+    }
+  } catch (e) {}
+  t('未使用的啟用碼雜湊對得上目前的鹽' + (mismatch.length ? '（' + mismatch.join('、') + '）' : ''),
+    mismatch.length === 0);
 
   /* 已經用掉的碼不該還留著明碼。 */
   var leaked = [];
