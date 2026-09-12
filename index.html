@@ -3871,7 +3871,8 @@ window.UC_SELFTEST = function () {
       out['assessment|' + qid + '|answer'] = {
         scope: 'assessment', itemId: qid, field: 'answer',
         label: (byId[qid] && (byId[qid].name || byId[qid].q)) || qid,
-        value: S.answers[qid]
+        value: S.answers[qid],
+        display: answerText(byId[qid], S.answers[qid])
       };
     });
 
@@ -3915,6 +3916,15 @@ window.UC_SELFTEST = function () {
     return out;
   }
 
+  /* 試算表上要看得懂。階梯題存的是選項索引，光看數字沒有意義 ——
+     把那一級的敘述一起帶上去（只給人看，後端任何判斷都讀 value）。 */
+  function answerText(q, v) {
+    if (v == null || v === '') return '';
+    if (q && q.ladder && q.o && typeof v === 'number' && q.o[v]) return q.o[v].t;
+    if (Object.prototype.toString.call(v) === '[object Array]') return v.join('、');
+    return String(v);
+  }
+
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
   function str(v) { return typeof v === 'string' ? v : ''; }
   function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
@@ -3945,7 +3955,10 @@ window.UC_SELFTEST = function () {
   function enqueue(p) {
     var k = p.scope + '|' + p.itemId + '|' + p.field;
     /* 同一格連打只留最新的 —— 打字時不要每按一鍵排一筆。 */
-    if (pending[k]) { pending[k].value = p.value; pending[k].label = p.label; return; }
+    if (pending[k]) {
+      pending[k].value = p.value; pending[k].label = p.label; pending[k].display = p.display;
+      return;
+    }
     p.key = k;
     p.requestId = k + '#' + Date.now();          /* 重送時同一筆，後端不會多長一列 */
     pending[k] = p;
@@ -3974,7 +3987,7 @@ window.UC_SELFTEST = function () {
     sending = true;
 
     call({ action: 'state.save', scope: p.scope, itemId: p.itemId, field: p.field,
-           label: p.label, value: p.value, requestId: p.requestId })
+           label: p.label, display: p.display || '', value: p.value, requestId: p.requestId })
       .then(function () {
         queue.splice(i, 1); delete pending[p.key];
         sending = false; failed = 0;
@@ -4011,8 +4024,8 @@ window.UC_SELFTEST = function () {
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'state.save', idToken: idToken,
                                  studentId: studentId, scope: p.scope, itemId: p.itemId,
-                                 field: p.field, label: p.label, value: p.value,
-                                 requestId: p.requestId })
+                                 field: p.field, label: p.label, display: p.display || '',
+                                 value: p.value, requestId: p.requestId })
         });
       } catch (e) {}
     });

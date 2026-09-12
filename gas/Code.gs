@@ -359,10 +359,15 @@ function stateSaveAction_(body) {
   try {
     var at = stateSave_(scope, sid, itemId, field,
                         String(body.label || '').slice(0, 60), value,
-                        String(body.requestId || '').slice(0, 60));
+                        String(body.requestId || '').slice(0, 60),
+                        String(body.display == null ? '' : body.display).slice(0, 200));
     SpreadsheetApp.flush();
+    /* ⚠️ now_() 回的是**字串**（Utilities.formatDate），不是 Date。
+       這裡原本寫 at.toISOString()，於是每一次 state.save 都丟 TypeError，
+       被 doPost 的 catch 收成 INTERNAL_ERROR —— 前端看到的是「連不上伺服器」。
+       更糟的是格子其實已經寫進去了，只有回應炸掉，所以會一直重試（踩過）。 */
     return { saved: true, scope: scope, itemId: itemId, field: field,
-             value: value, updatedAt: at.toISOString() };
+             value: value, updatedAt: at };
   } finally {
     lock.releaseLock();
   }
@@ -634,7 +639,8 @@ function setup() {
   /* 資料分頁。藍圖只在空的時候灌一次，之後試算表上的內容才是唯一來源。 */
   blueprintSheet_();
   seedBlueprint_();
-  for (var scope in STATE_SHEETS) stateSheet_(scope);
+  /* 三張骨架分頁本來就存在，只補缺的欄位，既有版面一格不動。 */
+  for (var scope in SKEL) skelSheet_(scope);
 
   /* 容器繫結用簡單 onOpen，不需要安裝觸發條件。 */
 
@@ -870,14 +876,15 @@ function selftest() {
   t('每條 KR 都有內容', bp.every(function (x) { return x.kr !== ''; }));
 
   var scMiss = [];
-  for (var sc in STATE_SHEETS) {
-    var shx = ss && ss.getSheetByName(STATE_SHEETS[sc]);
-    if (!shx) { scMiss.push(STATE_SHEETS[sc] + '（沒有分頁）'); continue; }
-    var cmx = colMap_(shx);
-    STATE_COLS.forEach(function (c) { if (!cmx[c]) scMiss.push(STATE_SHEETS[sc] + '/' + c); });
+  for (var sc in SKEL) {
+    var shx = ss && ss.getSheetByName(SKEL[sc].sheet);
+    if (!shx) { scMiss.push(SKEL[sc].sheet + '（沒有分頁）'); continue; }
+    var cmx = skelMap_(skelSheet_(sc));
+    SKEL[sc].need.forEach(function (c) { if (!cmx[c]) scMiss.push(SKEL[sc].sheet + '/' + c); });
   }
-  t('三張學員分頁齊全' + (scMiss.length ? '（缺 ' + scMiss.join('、') + '）' : ''),
+  t('三張學員分頁欄位齊全' + (scMiss.length ? '（缺 ' + scMiss.join('、') + '）' : ''),
     scMiss.length === 0);
+  t('骨架分頁的表頭讀的是第 5 列', SKEL_HEADER_ROW === 5);
 
   /* value 一律 JSON —— 直接存原值的話 Sheet 會把 "01" 變成 1（踩過）。 */
   t('value 編碼可往返', decodeValue_(encodeValue_('01')) === '01'
@@ -889,6 +896,51 @@ function selftest() {
     REPORT_FIELDS.indexOf('note.values') >= 0 && REPORT_FIELDS.indexOf('adjust.flirt') >= 0
     && REPORT_FIELDS.indexOf('letter') >= 0 && REPORT_FIELDS.indexOf('complete') >= 0
     && REPORT_FIELDS.indexOf('letter; DROP') < 0);
+
+  /* ⚠️ **寫入路徑一定要真的寫一次。**
+     原本 selftest 只驗「沒有 Token 會被擋」，所以 state.save 裡
+     `at.toISOString()`（now_() 其實回字串）這種錯完全測不到 ——
+     上線之後每一次存檔都失敗，前端顯示「連不上伺服器」（踩過）。
+     用一個哨兵 student_id 寫進去、讀回來、再刪掉。 */
+  var SENTINEL = '__selftest__';
+  try {
+    var wsh = skelSheet_('assessment');
+    var before = wsh.getLastRow();
+    var at = stateSave_('assessment', SENTINEL, 'Q-TEST', 'answer', '自我檢查', '01', 'req-1', '零一');
+    t('state.save 寫得進去', !!at);
+    t('updated_at 是可以直接放進 JSON 的值', typeof at === 'string' && at.length > 10);
+    var back = stateLoad_('assessment', SENTINEL);
+    t('寫進去的值讀得回來，而且沒被 Sheet 改型別',
+      !!back['Q-TEST'] && back['Q-TEST'].answer === '01');
+    /* 同一個 request_id 重送不可以多長一列。 */
+    stateSave_('assessment', SENTINEL, 'Q-TEST', 'answer', '自我檢查', '02', 'req-1', '零二');
+    var after = stateLoad_('assessment', SENTINEL);
+    t('重送同一筆是更新不是新增', after['Q-TEST'].answer === '02');
+    t('哨兵只佔一列', wsh.getLastRow() === before + 1);
+
+    /* 整個回應組得出來嗎 —— 這一步才是當初炸掉的地方。 */
+    var packed = null, packErr = '';
+    try {
+      packed = JSON.parse(ok_({ saved: true, updatedAt: at }).getContent());
+    } catch (e) { packErr = String(e); }
+    t('存檔回應組得出 JSON' + (packErr ? '（' + packErr + '）' : ''),
+      !!packed && packed.ok === true);
+
+    /* 收尾：把哨兵列刪掉，不要留在正式表裡。 */
+    var wmap = skelMap_(wsh);
+    var wlast = wsh.getLastRow();
+    var wrows = wsh.getRange(SKEL_HEADER_ROW + 1, 1, wlast - SKEL_HEADER_ROW,
+                             wsh.getLastColumn()).getValues();
+    for (var w = wrows.length - 1; w >= 0; w--) {
+      if (String(rowObj_(wrows[w], wmap).student_id) === SENTINEL) {
+        wsh.deleteRow(SKEL_HEADER_ROW + 1 + w);
+      }
+    }
+    var left = stateLoad_('assessment', SENTINEL);
+    t('哨兵資料已經清乾淨', Object.keys(left).length === 0);
+  } catch (e) {
+    t('寫入路徑自我檢查沒有丟例外（' + String(e) + '）', false);
+  }
 
   var r7 = JSON.parse(doGet().getContent());
   t('doGet 健康檢查可用', r7.ok === true && r7.data.stage === 3);
