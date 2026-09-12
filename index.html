@@ -7698,6 +7698,17 @@ window.UC_SELFTEST = function () {
     d.sendMessagesEnabled = USE_SEND_MESSAGES;
     d.willUse = window.UC_SHARE ? window.UC_SHARE.how() : '(未初始化)';
     d.lastShareError = lastError || '(無)';
+    /* ⚠️ 本機解碼**只拿來顯示剩幾秒**，不能拿來當登入證明 ——
+       前端解出來的東西誰都能偽造，真正的驗證在 GAS 那邊向 LINE 做。 */
+    try {
+      var tk = liff.getIDToken();
+      d.idToken = tk ? '有（' + tk.length + ' 字元）' : '沒有';
+      var exp = tk && JSON.parse(atob(tk.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp;
+      if (exp) {
+        var left = Math.round(exp - Date.now() / 1000);
+        d.idTokenExpiresIn = left + ' 秒' + (left <= 0 ? '　⚠️ 已過期' : '');
+      }
+    } catch (e) { d.idToken = '讀不到（' + String(e && e.message || e) + '）'; }
     return d;
   }
 
@@ -7834,6 +7845,7 @@ window.UC_SELFTEST = function () {
       step = 'TOKEN';
       idToken = liff.getIDToken();
       window.UC_STORE.token(idToken);          /* 之後每個請求都用它 */
+      clearRetried();                          /* 這次拿到了，下次過期還能再救一次 */
       if (!idToken) {
         throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
       }
@@ -7846,9 +7858,31 @@ window.UC_SELFTEST = function () {
       askCode();
     })
     .catch(function (err) {
-      /* 連不上就退回 demo，不要讓使用者卡在白畫面。 */
+      /* ⚠️ **ID Token 會過期（約一小時），但 isLoggedIn() 還是 true。**
+         LINE 裡每次開 LIFF 都會發新的，所以手機不會踩到；
+         電腦上是「上次登入留下來的那一張」，隔一陣子再開就一定過期，
+         後端驗不過 → ［EXCHANGE］（2026-09-13 使用者在電腦上回報）。
+
+         這種情況不該叫使用者自己想辦法 —— 重新登入一次就好。
+         用 sessionStorage 記一次，**只重試一次**，不然驗不過會變成無限迴圈。 */
+      if (step === 'EXCHANGE' && err && err.code === 'UNAUTHENTICATED' && !retried()) {
+        markRetried();
+        try { if (liff.isLoggedIn()) liff.logout(); } catch (e) {}
+        try { liff.login({ redirectUri: location.href }); return; } catch (e) {}
+      }
       fatal('現在沒辦法登入', explain(step, err));
     });
+
+  var RETRY_KEY = 'uc_liff_retry';
+  function retried() {
+    try { return sessionStorage.getItem(RETRY_KEY) === '1'; } catch (e) { return false; }
+  }
+  function markRetried() {
+    try { sessionStorage.setItem(RETRY_KEY, '1'); } catch (e) {}
+  }
+  function clearRetried() {
+    try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
+  }
 
   /* 把錯誤翻成「卡在哪一關、下一步做什麼」。
      ⚠️ 不要把 Token 原文或伺服器細節印出來。 */
@@ -7860,7 +7894,8 @@ window.UC_SELFTEST = function () {
           + 'Endpoint URL 還指著別的網址 —— 要跟現在這一頁同一個路徑底下。',
       LOGIN: '導去 LINE 登入的時候出錯。',
       TOKEN: '拿不到 LINE 的登入憑證。',
-      EXCHANGE: '後端拒絕了這次登入。'
+      EXCHANGE: '後端拒絕了這次登入。如果寫「ID Token 未通過驗證」，'
+              + '多半是憑證過期了 —— 重新整理一次通常就好。'
     }[step] || '';
     return '［' + step + '］' + where + (raw ? '（' + raw + '）' : '');
   }
