@@ -4274,13 +4274,21 @@ window.UC_SELFTEST = function () {
     idToken = opts.idToken || '';
     studentId = opts.studentId || '';
     snap = null;
-    return load_();
+    /* 已經有整包了就不要再打一次 —— 那是這次最佳化的重點。 */
+    return opts.payload ? hydrate(opts.payload) : load_();
   }
 
   var demoId = '';
 
   function load_() {
-    return call({ action: 'student.load' }).then(function (data) {
+    return call({ action: 'student.load' }).then(hydrate);
+  }
+
+  /* ⚠️ 把「拿資料」與「吃資料」分開。
+     auth.exchange 現在會順手把整包帶回來（省掉一次 GAS 往返，實測每次 1.5～2.5 秒），
+     那條路已經有資料了，不該再打一次網路。 */
+  function hydrate(data) {
+    return Promise.resolve().then(function () {
       studentId = data.studentId || studentId;
       if (data.demoStudentId) demoId = data.demoStudentId;
       var S = {
@@ -7854,7 +7862,7 @@ window.UC_SELFTEST = function () {
     })
     .then(function (data) {
       if (!data) return;
-      if (data.bound) return enter(data.studentId, data.accessScope);
+      if (data.bound) return enter(data.studentId, data.accessScope, data.payload);
       askCode();
     })
     .catch(function (err) {
@@ -7926,7 +7934,7 @@ window.UC_SELFTEST = function () {
       });
   }
 
-  function enter(studentId, scope) {
+  function enter(studentId, scope, payload) {
     ui('<p class="ey">Loading</p><h2>正在載入你的資料…</h2>');
     /* ⚠️ **身分要在 connect() 之前設。** connect 載完會立刻重畫，
        而「教練先看清單、學員直接進自己的頁」是靠 ACTOR_ROLE 判斷的 ——
@@ -7936,7 +7944,11 @@ window.UC_SELFTEST = function () {
     if (window.UC_APP && window.UC_APP.setRole) {
       window.UC_APP.setRole(scope === 'manage' ? 'coach' : 'student');
     }
-    return window.UC_STORE.connect({ api: GAS_API, idToken: idToken, studentId: studentId })
+    /* payload 是 auth.exchange 順手帶回來的整包 —— 有的話就不用再打一次
+       student.load（每次 GAS 往返實測 1.5～2.5 秒）。
+       ⚠️ 後端組 payload 失敗時不會帶這個欄位，connect 會自動退回去自己打。 */
+    return window.UC_STORE.connect({ api: GAS_API, idToken: idToken,
+                                     studentId: studentId, payload: payload })
       .then(function () { done(); })
       .catch(function (e) { fatal('載入資料失敗', (e && e.message) || ''); });
   }

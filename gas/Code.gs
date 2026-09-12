@@ -104,13 +104,18 @@ var KNOWN_ERRORS = ['UNAUTHENTICATED', 'UNBOUND_ACCOUNT', 'FORBIDDEN_STUDENT',
 /* ── 對外入口 ──────────────────────────────────────── */
 
 function doPost(e) {
+  /* ⚠️ **每個請求都記耗時。** 效能問題在 GAS 上特別難查：
+     使用者只知道「很慢」，而平台固定成本（1.5～2.5 秒）跟我們的程式碼
+     混在同一個數字裡。有了這一行，執行紀錄就能直接看出
+     「腳本裡花了幾毫秒」，跟瀏覽器量到的總時間相減就是平台與網路的部分。 */
+  var t0 = Date.now();
   try {
     var body = parseBody_(e);
     var action = String(body.action || '');
 
-    if (action === 'auth.exchange')  return ok_(authExchange_(body));
-    if (action === 'auth.bind')      return ok_(authBind_(body));
-    if (action === 'student.load')   return ok_(studentLoad_(body));
+    if (action === 'auth.exchange')  return done_(t0, action, ok_(authExchange_(body)));
+    if (action === 'auth.bind')      return done_(t0, action, ok_(authBind_(body)));
+    if (action === 'student.load')   return done_(t0, action, ok_(studentLoad_(body)));
     /* ⚠️ 藍圖雖然是全體共用、沒有個資，仍然**要先驗身分** ——
        不驗的話任何人都能用一個亂打的 Token 叫 GAS 去動你的試算表
        （blueprintSheet_() 會建分頁）。踩過：上線第一次探測就中。 */
@@ -118,8 +123,8 @@ function doPost(e) {
       requireBinding_(body);
       return ok_({ blueprint: blueprintLoad_() });
     }
-    if (action === 'state.save')     return ok_(stateSaveAction_(body));
-    if (action === 'student.list')   return ok_(studentListAction_(body));
+    if (action === 'state.save')     return done_(t0, action, ok_(stateSaveAction_(body)));
+    if (action === 'student.list')   return done_(t0, action, ok_(studentListAction_(body)));
 
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
   } catch (err) {
@@ -195,7 +200,8 @@ function authExchange_(body) {
   }
 
   touchLastLogin_(b.row);
-  return {
+
+  var out = {
     verified: true,
     subMasked: maskSub_(v.sub),
     expiresInSec: expIn_(v),
@@ -204,6 +210,23 @@ function authExchange_(body) {
     accessScope: b.access_scope,
     linkedAt: String(b.linked_at || '')
   };
+
+  /* ⚠️ **順手把 student.load 的整包一起帶回去。**
+     登入本來要兩支連續請求（auth.exchange 再 student.load），
+     而 GAS 每支請求的固定成本就是 1.5～2.5 秒（實測），
+     所以「有兩支」這件事本身就是 3～5 秒，還沒開始做事。
+
+     這裡手上已經有驗過的綁定 b，組 payload 只多幾次讀取、不多一次往返。
+     前端拿到 payload 就直接用，跳過第二支。
+
+     ⚠️ 失敗**不要讓整個登入跟著失敗** —— 拿不到就退回舊流程（前端自己再打一次），
+     登入能不能成功不該取決於這個最佳化。 */
+  try {
+    out.payload = studentPayload_(b, String(b.student_id || ''));
+  } catch (e) {
+    console.warn('auth.exchange 順帶載入失敗，前端會自己再打一次：' + e);
+  }
+  return out;
 }
 
 /* ── auth.bind：一次性啟用碼 ───────────────────────── */
@@ -338,8 +361,14 @@ function targetStudent_(b, body) {
 function studentLoad_(body) {
   var b = requireBinding_(body);
   var sid = targetStudent_(b, body);
-  touchLastLogin_(b.row);
+  /* ⚠️ **不要在這裡 touchLastLogin_。** auth.exchange 已經記過了（同一次登入），
+     而這一行會再開一次 bindingSheet_ → 又一輪寫入。
+     而且教練用 switchStudent 切換學員也走這條路，那更不該把「最後登入時間」往後推。 */
+  return studentPayload_(b, sid);
+}
 
+/** 組一位學員的整包資料。auth.exchange 與 student.load 共用同一份實作。 */
+function studentPayload_(b, sid) {
   var answers = {}, raw = stateLoad_('assessment', sid);
   for (var q in raw) answers[q] = raw[q].answer;
 
@@ -565,7 +594,17 @@ function bindingSheet_() {
     sh.getRange(hrow, have.length + 1, 1, missing.length).setValues([missing]);
     console.log('「' + BINDING_SHEET + '」補上欄位：' + missing.join('、'));
   }
-  decorateBinding_(sh);            /* 說明與註解每次都補齊，手動刪掉也會長回來 */
+  /* ⚠️ **這裡不可以呼叫 decorateBinding_。**
+     它做 38 次格式寫入（表頭底色、15 個欄位註解、鮭粉標記），
+     而 bindingSheet_() 在一次 student.load 裡會被呼叫兩次
+     → 光「把表弄好看」就是 76 次寫入，每個請求都做一遍。
+
+     逐行數過：student.load 約 147 次 RPC，其中 77 次是寫入，
+     而這個請求在語意上是**純讀取**。這是登入 10 秒裡最大的一塊。
+     （2026-09-13 加的，當天就量到，直接移掉。）
+
+     排版現在只在三個地方做：新建分頁、遷移版面、以及選單上的
+     「修復分頁排版」。註解與底色不會自己消失，沒有理由每次重畫。 */
   return sh;
 }
 
@@ -659,10 +698,43 @@ function touchLastLogin_(line) {
 
 /* ── LINE ID Token 驗證 ────────────────────────────── */
 
+/* ⚠️ **每一次需要認證的動作都會打一次 LINE**（登入、讀資料、每一筆存檔）。
+   學員填完 53 題會產生 53 筆 patch → 53 次外部 HTTP，每次 0.15～0.5 秒。
+   所以驗過的結果要快取。
+
+   安全上為什麼可以：快取的有效期**取 Token 自己的 exp**（最多 6 小時，
+   那是 CacheService 的上限）。也就是說，快取期間內這個 Token 本來就還有效，
+   拿它換到的身分跟重新問一次 LINE 完全一樣。過了 exp 就一定會重問。
+
+   ⚠️ **絕對不要拿原始 Token 當快取的 key。** 那等於把憑證存進 Google 的
+   共用快取。用 SHA-256 的十六進位摘要 —— 同一個 Token 對到同一個 key，
+   但 key 本身洩漏也換不回 Token。 */
 function verifyToken_(idToken) {
   var t = String(idToken || '');
   if (!t) throw new AppError('UNAUTHENTICATED', '沒有帶 idToken');
-  return verifyLineIdToken_(t, channelId_());
+
+  var cache = null, key = '';
+  try {
+    cache = CacheService.getScriptCache();
+    key = 'v:' + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t)
+      .map(function (b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('');
+    var hit = cache.get(key);
+    if (hit) {
+      var d = JSON.parse(hit);
+      /* 快取裡的也要再檢一次 exp —— TTL 與 exp 不一定同時到期。 */
+      if (d && d.sub && (!d.exp || d.exp > Math.floor(Date.now() / 1000))) return d;
+    }
+  } catch (e) { cache = null; }        /* 快取壞掉不該擋住登入 */
+
+  var data = verifyLineIdToken_(t, channelId_());
+
+  try {
+    if (cache && data.exp) {
+      var ttl = Math.min(data.exp - Math.floor(Date.now() / 1000), 21600);
+      if (ttl > 30) cache.put(key, JSON.stringify(data), ttl);
+    }
+  } catch (e) {}
+  return data;
 }
 
 /**
@@ -774,6 +846,12 @@ function maskSub_(sub) {
 
 /* 統一回應格式（BACKEND-WORKFLOW.md §5）。 */
 
+/* 記一筆耗時再把回應原樣交出去。 */
+function done_(t0, action, res) {
+  console.log('⏱ ' + action + ' 腳本內耗時 ' + (Date.now() - t0) + ' ms');
+  return res;
+}
+
 function ok_(data) {
   return out_({ ok: true, data: data, error: null, server_time: now_() });
 }
@@ -817,6 +895,7 @@ function setup() {
   }
 
   bindingSheet_();
+  decorateBinding_(bindingSheet_());   /* 熱路徑不做，setup 做一次 */
   rehashPlainCodes_();
 
   /* 資料分頁。藍圖只在空的時候灌一次，之後試算表上的內容才是唯一來源。 */
@@ -919,6 +998,7 @@ function onOpen() {
     .addItem('發新的啟用碼…', 'menuNewCode')
     .addItem('發教練用的共用授權碼…', 'menuCoachCode')
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
+    .addItem('修復「帳號綁定」的排版', 'menuDecorate')
     .addItem('查這份表的狀態', 'menuStatus')
     .addSeparator()
     .addItem('改善「總覽」的公式…', 'menuUpgradeOverview')
@@ -989,6 +1069,13 @@ function menuMakeCoach() {
   ui.alert('已升級：' + id + ' → 教練（manage）\n\n'
     + '請那個 LINE 帳號重新開一次網站，就會看到「學員」分頁與所有學員清單。\n'
     + '要降回學員的話，把那一列的 access_scope 改回 self。');
+}
+
+/* 排版不再每次請求自動補（那是登入慢的主因）。手動刪掉了就按這個。 */
+function menuDecorate() {
+  decorateBinding_(bindingSheet_());
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert('「' + BINDING_SHEET + '」的標題、說明、欄位註解與底色都補回來了。');
 }
 
 function menuStatus() {
@@ -1121,6 +1208,19 @@ function runSelftest_() {
   }));
   t('綁定表的表頭有中文註解',
     !!bsh.getRange(BINDING_HEADER_ROW, bindingMap_(bsh).access_scope || 1).getNote());
+
+  /* ⚠️ 效能回歸的護欄：排版**不可以**再被放回熱路徑。
+     bindingSheet_() 一次 student.load 會被呼叫兩次，每次 38 個格式寫入 ——
+     那是登入 10 秒裡最大的一塊（2026-09-13 量到並移除）。 */
+  var hot = String(bindingSheet_.toString());
+  t('排版沒有被放回 bindingSheet_ 的熱路徑', hot.indexOf('decorateBinding_') < 0);
+  t('student.load 不再寫 last_login_at',
+    String(studentLoad_.toString()).indexOf('touchLastLogin_') < 0);
+  t('auth.exchange 會順手帶回整包資料（省一次往返）',
+    String(authExchange_.toString()).indexOf('studentPayload_') >= 0);
+  t('LINE 驗證有走快取', String(verifyToken_.toString()).indexOf('CacheService') >= 0);
+  t('快取的 key 不是 Token 原文',
+    String(verifyToken_.toString()).indexOf('computeDigest') >= 0);
 
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];
