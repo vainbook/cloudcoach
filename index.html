@@ -2166,6 +2166,21 @@ html.task-open, html.task-open body { overflow: hidden; }
 .rhact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 @media (max-width: 480px) { .rhact .btn { flex: 1 1 100%; } }
 
+/* ═══ 鎖住的欄位要看得出來被鎖住 ═══════════════════════
+   applyFieldAccess 會把不該由你填的欄位設成 disabled／readonly，
+   但 2026-09-13 之前 `.field-locked` **一條樣式都沒有** ——
+   於是被鎖的欄位長得跟能用的一模一樣，點下去沒反應就像壞掉。
+   使用者升級成教練之後第一個回報的就是這件事。
+
+   ⚠️ 不要用 `display: none` 藏起來 —— 學員應該看得到教練會填什麼，
+   只是不能動。看得到但明顯不能碰，才是對的。 */
+.field-locked { opacity: .55; }
+.field-locked, .field-locked * { cursor: not-allowed; }
+.field-locked :is(input, textarea, select, .opt, .chk):disabled,
+.field-locked :is(input, textarea)[readonly] { pointer-events: none; }
+/* 深色底上降透明度會糊掉，改用邊框說明它是靜止的 */
+.field-locked :is(input, select, textarea) { border-style: dashed; }
+
 </style>
 </head>
 <body>
@@ -4515,8 +4530,20 @@ window.UC_SELFTEST = function () {
   var fieldTimer = null;
 
   function writableBy(owner) {
-    if (!ACTOR_ROLE) return true; // 本機 demo 尚未登入時不鎖欄位
-    return owner === 'shared' || owner === ACTOR_ROLE;
+    if (!ACTOR_ROLE) return true;          /* 本機 demo 尚未登入時不鎖欄位 */
+    if (owner === 'shared') return true;
+    /* ⚠️ **教練改得動學員的欄位。**
+       2026-09-13 使用者升級成教練之後回報「評測的選項點了沒反應」——
+       原因就是這裡：評測題掛的是 owner='student'，教練被擋掉，
+       而畫面上**完全沒有任何提示**，看起來就像壞掉。
+
+       教練本來就會在訪談時幫學員補答案、修錯字，擋掉沒有道理；
+       而且前端從一開始就不分教練端與學員端（AGENTS.md）。
+       真正的邊界在後端：GAS 的 targetStudent_() 決定這個帳號**動得了誰**，
+       那個擋不掉才是安全問題，前端這一層只是介面。
+       反過來不成立 —— 學員仍然改不了 owner='coach' 的欄位（分數、評語、信）。 */
+    if (ACTOR_ROLE === 'coach') return owner === 'coach' || owner === 'student';
+    return owner === ACTOR_ROLE;
   }
 
   function fieldControls(field) {
