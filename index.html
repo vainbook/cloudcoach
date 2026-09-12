@@ -464,7 +464,10 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 .secfoot .btn.pri { color: var(--navy); border-color: var(--salmon); }
 
 @media (max-width: 560px) {
-  /* LIFF 在 iOS 仍使用 WebKit；16px 可避免點進欄位時自動放大頁面。 */
+  /* ⚠️ 這一條**擋不住所有欄位** —— 權重只有 0,0,1／0,1,1，
+     而 .qfield、.crnote textarea、.gfr textarea 那些都在後面、權重更高，
+     所以真正用來填答的欄位還是 12～15px，點下去 iOS 照樣放大（踩過）。
+     真正生效的那條在檔案最後面的「手機輸入」區塊。 */
   input[type=text], input[type=number], input[type=password], select, textarea { font-size: 16px; }
   .rv { transition-duration: .35s; }
   #assessBody { margin: 16px 10px 40px; padding: 0 18px 20px; }
@@ -2113,6 +2116,55 @@ html.task-open, html.task-open body { overflow: hidden; }
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ═══ 手機輸入：不要放大、不要跳 ═══════════════════════
+   使用者 2026-09-13：「幾乎所有要填寫的地方，我點擊時視窗都會彈跳、放大或是晃動。」
+
+   ── 為什麼會放大 ──
+   iOS Safari（LIFF 裡也是 WebKit）只要欄位的 font-size **小於 16px**，
+   點進去就會自動把整頁放大，然後你得手動縮回來。
+   `.qfield` 是 13px、`.crnote textarea` 12px、`.gfr textarea` 15px，全都中招。
+   前面那條 `@media (max-width:560px)` 擋不住，因為那些選擇器權重比它高。
+
+   ── 為什麼放在檔案最後 ──
+   權重打平時後面的贏。這裡用 `:is()` 把所有會被輸入的元素一次蓋掉，
+   而且**不寫死選擇器清單**，之後新增欄位也自動涵蓋。
+
+   ⚠️ 不要改用 `maximum-scale=1` 那招 —— 那會連使用者自己的雙指縮放一起關掉。 */
+@media (pointer: coarse) {
+  input, select, textarea,
+  :is(input, select, textarea).qfield,
+  .crnote textarea, .crletter textarea, .gfr input, .gfr select, .gfr textarea {
+    font-size: 16px !important;
+    line-height: 1.6;
+  }
+  /* 鍵盤彈出來時瀏覽器會自己把欄位捲進畫面 —— 留一點邊，
+     不然欄位會剛好貼在鍵盤上緣，看不到自己在打什麼。 */
+  input, select, textarea { scroll-margin-block: 96px 140px; }
+  /* 自動長高的欄位：把過渡關掉。一邊打字一邊做高度動畫就是「晃動」的來源。 */
+  .qfield, .crnote textarea, .crletter textarea { transition: none; }
+  /* 焦點時的底色換成不影響版面的方式（原本就是 background，這裡只是把時間縮短）。 */
+  .qrow.free { transition-duration: .08s; }
+}
+
+/* 成長紀錄的「狀況」：三顆按鈕，不用下拉。
+   手機上點一下就選好，比「開下拉→捲→選→關」快得多 ——
+   而這張表使用者每週都要填。 */
+.gflv { display: flex; gap: 6px; flex: 1; }
+.gflvb {
+  flex: 1; padding: 11px 0; cursor: pointer;
+  color: var(--beige-70); background: transparent;
+  border: 1px solid var(--beige-18); border-radius: 2px;
+  font-family: var(--sans); font-size: 15px;
+  transition: border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
+}
+.gflvb:hover { border-color: var(--salmon); }
+.gflvb.on { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.gflvb:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+
+/* 報告頁首的按鈕列（編輯評測 ＋ 傳到 LINE）。手機上並排放不下就換行。 */
+.rhact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+@media (max-width: 480px) { .rhact .btn { flex: 1 1 100%; } }
 
 </style>
 </head>
@@ -5512,8 +5564,10 @@ window.UC_SELFTEST = function () {
       + '<p class="ey">Assessment Report ・ 教練評測完成</p>'
       + '<h1>' + esc(S.name || '學員') + '　情感能力評測</h1>'
       + '<div class="divider"><i></i><s></s></div>'
+      + '<div class="rhact">'
       + (ACTOR_ROLE === 'student' ? '' : '<button type="button" class="btn" id="editReport">編輯評測</button>')
-      + '</header>');
+      + '<button type="button" class="btn gh" id="shareReport">' + esc(shareLabel()) + '</button>'
+      + '</div></header>');
 
     h += wrap(head('01', 'Ability Map', '情感能力')
       + '<div class="chart" id="chart"></div>'
@@ -5533,6 +5587,7 @@ window.UC_SELFTEST = function () {
     drawRadar(el('chart'), vals, { comment: true, comments: cr.notes, lead: low });
     var edit = el('editReport');
     if (edit) edit.addEventListener('click', function () { REPORT_EDIT = true; renderReport(); });
+    bindShare(el('shareReport'), function () { return reportAsText(cr, r); });
     reveal(body);
   }
 
@@ -5609,6 +5664,41 @@ window.UC_SELFTEST = function () {
       });
     });
     reveal(body);
+  }
+
+  /* ── 傳到 LINE ─────────────────────────────────────
+     UC_SHARE 在 boot.js，三段降級（選對象 → 送進當前聊天室 → 複製）。
+     這裡只負責「按鈕長什麼樣」與「要送什麼字」。
+     ⚠️ 內容**在按下去的當下才組**，不要在 render 時先組好 ——
+     教練可能剛改完評語，先組好的會是舊的。 */
+
+  function shareLabel() {
+    return (window.UC_SHARE && window.UC_SHARE.canSend()) ? '傳到 LINE' : '複製內容';
+  }
+
+  function bindShare(btn, build) {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (!window.UC_SHARE) { toast('這個環境沒辦法分享'); return; }
+      btn.disabled = true;
+      window.UC_SHARE.text(build()).then(function (how) {
+        btn.disabled = false;
+        toast({ share: '已經送出去了', send: '已經送進聊天室',
+                copy: '已複製，貼到聊天室就好', cancel: '取消了',
+                fail: '這個環境沒辦法分享' }[how] || '完成');
+      });
+    });
+  }
+
+  /* 報告的純文字版。LINE 訊息沒有排版，所以用空行與破折號分段。 */
+  function reportAsText(cr, r) {
+    var D = window.UC_DIMENSIONS.dims, CO = window.UC_COACH;
+    var lines = ['【' + (S.name || '學員') + '　情感能力評測】', ''];
+    D.forEach(function (d) {
+      lines.push('・' + d.label + '　' + reportStar(d.k, r, cr) + '／5');
+    });
+    lines.push('', '—— 教練的信 ——', '', cr.letter || '', '', CO.title + '　' + CO.name);
+    return lines.join('\n');
   }
 
   /* ── 課程藍圖 ─────────────────────────────────────────
@@ -6955,18 +7045,32 @@ window.UC_SELFTEST = function () {
       + '第 ' + e.w + ' 週' + (e.d ? '　' + gDateStr(e) : '')
       + '　・　' + (e.by === 'coach' ? '教練記錄' : '學員記錄')
       + '　・　狀況 <b class="lv' + (e.lv || 2) + '">' + lvOf(e).t + '</b></p>'
-      + '<p class="evt">' + esc(e.t) + '</p>'
+      /* ⚠️ 新版表單只有「紀錄」一個文字欄（存在 outcome），沒有標題。
+         舊資料還有 t，所以兩種都要畫得出來 —— 有 t 就當小標，沒有就直接是內文。 */
+      + (e.t ? '<p class="evt">' + esc(e.t) + '</p>' : '')
       + (e.outcome ? '<h3 class="evo">' + esc(e.outcome) + '</h3>' : '')
       + (e.note ? '<p class="evn">' + esc(e.note) + '</p>' : '')
       + '</div>';
   }
 
   /* ── 雙向紀錄表單 ─────────────────────────────────── */
+  /* 三種類型只差這一句提示 —— 欄位本身完全一樣，不要為了差異而多開欄位。 */
   var OUTPH = {
-    call:   '這次通話確認了什麼調整？（一句可執行的）',
-    social: '認識了誰、有什麼下一步？',
-    date:   '進展到哪一步？'
+    call:   '這次通話確認了什麼調整？一句就好。',
+    social: '去了哪裡、認識了誰？一句就好。',
+    date:   '跟誰、做了什麼、進展到哪？一句就好。'
   };
+
+  /* 預設今天。⚠️ 要夾在課程的 12 週範圍內 —— 超出去 gDay() 會回負數，
+     存檔會被自己的檢查擋掉，而使用者只會看到「日期要落在這 12 週裡」很困惑。 */
+  function todayIso() {
+    var t = new Date();
+    var iso = t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2)
+            + '-' + ('0' + t.getDate()).slice(-2);
+    var day = gDay(iso);
+    if (day >= 0 && day < GDAYS) return iso;
+    return gIso(Math.min(GDAYS - 1, Math.max(0, (GW - 1) * 7 + 3)));
+  }
 
   var GKHINT = {
     call:   '跟教練通話之後記一筆',
@@ -6989,34 +7093,44 @@ window.UC_SELFTEST = function () {
         : '<div class="gfr"><label for="fBy">記錄者</label><select id="fBy" data-field-id="growth.event.author" data-field-owner="state" data-field-label="記錄者">'
           + '<option value="coach">教練</option><option value="student">學員</option>'
           + '</select><s class="gfh">正式登入後會自動使用目前身分；範例模式可切換</s></div>')
+      /* ⚠️ **只有三格。** 使用者 2026-09-13：「這個填表功能應該是每週都會用到的，
+         所以要確保他很容易填寫。只需要日期、狀況、紀錄。」
+         類型不問（按哪顆按鈕就是哪一種）、記錄者不問（由身分決定）、
+         標題與補充都拿掉 —— 每週要填的東西多一格就少一分會填。 */
       + '<div class="gfr"><label for="fDate">日期</label><input type="date" id="fDate" data-field-id="growth.event.date" data-field-owner="shared" data-field-label="紀錄日期"'
-      + ' min="' + G0 + '" max="' + G1 + '" value="' + gIso((GW - 1) * 7 + 3) + '">'
-      + '<s class="gfh">在 12 週的範圍內選一天，週次會自己算</s></div>'
-      + '<div class="gfr"><label for="fT">標題</label><input type="text" id="fT" data-field-id="growth.event.title" data-field-owner="shared" data-field-label="紀錄標題" placeholder="例：第一次一個人去陌生活動"></div>'
-      + '<div class="gfr"><label for="fLv">狀況</label><select id="fLv" data-field-id="growth.event.level" data-field-owner="shared" data-field-label="紀錄狀況">'
-      + '<option value="1">差</option><option value="2" selected>好</option><option value="3">優</option>'
-      + '</select><s class="gfh">決定這一筆在軌上是幾段</s></div>'
-      + '<div class="gfr"><label for="fO">成果</label><textarea id="fO" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄成果" placeholder="' + esc(OUTPH[lane.k]) + '"></textarea></div>'
-      + '<div class="gfr"><label for="fN">補充</label><textarea id="fN" data-field-id="growth.event.note" data-field-owner="shared" data-field-label="紀錄補充" placeholder="當下的感覺、發生了什麼（可留空）"></textarea></div>';
+      + ' min="' + G0 + '" max="' + G1 + '" value="' + esc(todayIso()) + '">'
+      + '<s class="gfh">預設今天</s></div>'
+      + '<div class="gfr"><label>狀況</label><div class="gflv" id="fLvBox">'
+      + [1, 2, 3].map(function (n) {
+          return '<button type="button" class="gflvb' + (n === 2 ? ' on' : '') + '"'
+            + ' data-lv="' + n + '">' + esc(GLV[n].t) + '</button>';
+        }).join('')
+      + '</div><input type="hidden" id="fLv" value="2"></div>'
+      + '<div class="gfr"><label for="fO">紀錄</label><textarea id="fO" rows="4" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄內容" placeholder="' + esc(OUTPH[lane.k]) + '"></textarea></div>';
 
-    h += '<div class="gfb"><button class="btn pri" id="fSave">加到時間帶</button>'
+    h += '<div class="gfb"><button class="btn pri" id="fSave">記下來</button>'
       + '<button class="btn gh" id="fCancel">取消</button></div></div>';
     GEL.form.innerHTML = h;
 
     if (!ACTOR_ROLE) el('fBy').value = lane.who;
-    el('fT').focus();
+    /* 狀況用三顆按鈕不用下拉 —— 手機上點一下比「開下拉、捲、選、關」快得多。 */
+    el('fLvBox').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-lv]'); if (!b) return;
+      el('fLv').value = b.dataset.lv;
+      [].forEach.call(el('fLvBox').children, function (x) { x.classList.toggle('on', x === b); });
+    });
+    el('fO').focus();
     el('fCancel').addEventListener('click', function () { GFORM = null; renderForm(); });
     el('fSave').addEventListener('click', function () {
-      var t = el('fT').value.trim();
-      if (!t) { toast('先寫一行標題'); return; }
+      var body = el('fO').value.trim();
+      if (!body) { toast('寫一句就好，不用長'); el('fO').focus(); return; }
       var iso = el('fDate').value;
       var day = iso ? gDay(iso) : -1;
       if (day < 0 || day >= GDAYS) { toast('日期要落在這 12 週裡'); return; }
       var e = {
         id: 'U' + Date.now(), w: gWeekOf(day), d: iso, by: el('fBy').value,
-        kind: el('fKind').value, t: t, lv: +el('fLv').value,
-        outcome: el('fO').value.trim() || undefined,
-        note: el('fN').value.trim() || undefined
+        kind: el('fKind').value, lv: +el('fLv').value,
+        outcome: body
       };
       S.log = (S.log || []).concat([e]); save();
       GFORM = null; GSEL = e.id;
@@ -7375,6 +7489,70 @@ window.UC_SELFTEST = function () {
      liff-test.html 從頭到尾用的都是對的那個，抄它就好。 */
   var SDK = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
 
+  /* ═══ 傳文字到 LINE 對話 ═══════════════════════════════
+     使用者 2026-09-13：「可以讓他按一個鈕，就發送文字到 line 對話中？」
+
+     LIFF 有兩條路，能不能用**取決於 LINE Developers 的設定**，所以三段降級：
+
+       1. shareTargetPicker  跳出選擇對象的畫面，使用者自己挑要傳給誰。
+                             最通用，但要在 LIFF 設定裡把這個功能打開。
+       2. sendMessages       直接送進「開啟這個 LIFF 的那個聊天室」。
+                             只有從官方帳號的聊天室點進來才有 context，
+                             而且要有 chat_message.write 權限。
+       3. 複製到剪貼簿        什麼都不能用時（桌機瀏覽器、demo）至少讓他貼得出去。
+
+     ⚠️ **不要預設第 1、2 條一定能用。** isApiAvailable 會說實話，照著問就好。
+     ⚠️ 回傳的 Promise 永遠 resolve，給的是 'share' / 'send' / 'copy' / 'fail'，
+        呼叫端據此決定要說什麼 —— 不要讓一顆分享鈕丟出未捕捉的例外。 */
+  function shareText(text) {
+    text = String(text == null ? '' : text).trim();
+    if (!text) return Promise.resolve('fail');
+
+    var msg = [{ type: 'text', text: text.slice(0, 4900) }];   /* LINE 單則上限 5000 */
+
+    try {
+      if (window.liff && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
+        return liff.shareTargetPicker(msg)
+          .then(function (res) { return res ? 'share' : 'cancel'; })
+          .catch(function () { return copyText(text); });
+      }
+      if (window.liff && liff.isApiAvailable && liff.isApiAvailable('sendMessages')) {
+        return liff.sendMessages(msg)
+          .then(function () { return 'send'; })
+          .catch(function () { return copyText(text); });
+      }
+    } catch (e) {}
+    return copyText(text);
+  }
+
+  function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text)
+          .then(function () { return 'copy'; })
+          .catch(function () { return 'fail'; });
+      }
+    } catch (e) {}
+    return Promise.resolve('fail');
+  }
+
+  /* 對外。⚠️ 即使沒有 LINE 也要掛上去 —— 呼叫端只要 UC_SHARE 在就能用，
+     不必自己判斷現在是不是 LIFF 模式（降級在這裡面處理掉了）。 */
+  window.UC_SHARE = {
+    text: shareText,
+    /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
+    canSend: function () {
+      try {
+        return !!(window.liff && liff.isApiAvailable
+          && (liff.isApiAvailable('shareTargetPicker') || liff.isApiAvailable('sendMessages')));
+      } catch (e) { return false; }
+    }
+  };
+
+  /* ⚠️ UC_SHARE 要在下面那幾個 early return **之前**掛好。
+     demo 與 #selftest 不走 LINE 登入，但分享按鈕仍然存在（會降級成複製）——
+     掛在後面的話那兩種情況下 UC_SHARE 是 undefined，按鈕直接爆掉。 */
+
   var q = location.search;
   if (/[?&]demo=1/.test(q)) return;             /* 明講要 demo 就不要碰 LINE */
   /* ⚠️ 自我檢查與文字稽核**不可以觸發登入**。
@@ -7536,9 +7714,7 @@ window.UC_SELFTEST = function () {
       .then(function () { done(); })
       .catch(function (e) { fatal('載入資料失敗', (e && e.message) || ''); });
   }
-
 })();
-
 </script>
 </body>
 </html>
