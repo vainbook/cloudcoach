@@ -43,10 +43,24 @@ var DEFAULT_CHANNEL_ID = '2011543667';
 var EXPECTED_SHEET_NAME = '高級雲端教練後台';
 var BINDING_SHEET = '帳號綁定';
 
-/* 帳號綁定的欄位（BACKEND-WORKFLOW.md §3）。順序就是試算表的欄序，不要改。 */
-var BINDING_COLS = ['binding_id', 'line_user_id', 'student_id', 'access_scope',
-                    'status', 'activation_code_hash', 'activation_expires_at',
-                    'activation_used_at', 'linked_at', 'last_login_at'];
+/* 帳號綁定的欄位。前十個是 BACKEND-WORKFLOW.md §3 定的，順序不要改。
+   後三個是教練實際用得到的（§3 沒列，2026-09-12 加）：
+
+   student_name           學員姓名。手動填，或綁定時由前端帶上來。
+   activation_code_plain  ⚠️ **明碼**，只存在「發出」到「第一次使用」之間，
+                          用掉的瞬間由 authBind_ 清空。
+   note                   備註，純給人看。
+
+   ── 為什麼敢存明碼 ──
+   原本只在執行紀錄印一次，教練沒抄到就得重發，實務上很痛。
+   這份表是私人的，看得到它的人就是教練本人；而且碼一旦用掉就自動消失，
+   殘留窗口只有「發出後、學員還沒綁」那段。
+   ⚠️ 但**驗證永遠比對 activation_code_hash，不是比對明碼** ——
+   明碼欄純粹是給人看的便條，被手動改掉也不會影響驗證。 */
+var BINDING_COLS = ['binding_id', 'line_user_id', 'student_id', 'student_name',
+                    'access_scope', 'status', 'activation_code_hash',
+                    'activation_code_plain', 'activation_expires_at',
+                    'activation_used_at', 'linked_at', 'last_login_at', 'note'];
 
 /* 允許回給前端的錯誤分類（BACKEND-WORKFLOW.md §5）。
    不在這張表裡的一律變成 INTERNAL_ERROR —— 白名單，不是黑名單。 */
@@ -155,12 +169,13 @@ function authBind_(body) {
     }
 
     var sh = bindingSheet_();
+    var map = colMap_(sh);
     var rows = sh.getDataRange().getValues();
     var hash = hashCode_(code);
     var now = new Date();
 
     for (var i = 1; i < rows.length; i++) {
-      var r = rowObj_(rows[i]);
+      var r = rowObj_(rows[i], map);
       if (String(r.activation_code_hash) !== hash) continue;
 
       /* 找到碼了。三道檢查，**順序不能反** ——
@@ -177,7 +192,7 @@ function authBind_(body) {
 
       /* ⚠️ 一個 LINE 帳號只能有一筆 self。
          教練要管多位學員是 manage，那可以有多筆（§3）。 */
-      if (r.access_scope === 'self' && hasSelfBinding_(rows, v.sub)) {
+      if (r.access_scope === 'self' && hasSelfBinding_(rows, map, v.sub)) {
         throw new AppError('CONFLICT', '這個 LINE 帳號已經綁定其他學員');
       }
 
@@ -187,6 +202,13 @@ function authBind_(body) {
       setCell_(sh, line, 'linked_at', now);
       setCell_(sh, line, 'last_login_at', now);
       setCell_(sh, line, 'status', 'active');
+      /* ⚠️ 明碼用掉就清掉。殘留窗口只該存在於「發出 → 第一次使用」之間。 */
+      setCell_(sh, line, 'activation_code_plain', '');
+      /* 前端若帶了顯示名稱就順手記下來，表裡只有 student_id 對教練不好認人。
+         沒帶也無所謂 —— 教練可以自己在表裡填。 */
+      if (body.displayName && !r.student_name) {
+        setCell_(sh, line, 'student_name', String(body.displayName).slice(0, 40));
+      }
       SpreadsheetApp.flush();
 
       console.log('綁定成功 student=' + r.student_id + ' sub=' + maskSub_(v.sub));
@@ -229,7 +251,7 @@ function sheet_() {
   return ss;
 }
 
-/** 取得「帳號綁定」分頁；不存在就照 §3 的欄位建一個。 */
+/** 取得「帳號綁定」分頁；不存在就建，欄位不齊就補齊。 */
 function bindingSheet_() {
   var ss = sheet_();
   var sh = ss.getSheetByName(BINDING_SHEET);
@@ -237,25 +259,50 @@ function bindingSheet_() {
     sh = ss.insertSheet(BINDING_SHEET);
     sh.getRange(1, 1, 1, BINDING_COLS.length).setValues([BINDING_COLS]);
     sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 130);
     console.log('已建立「' + BINDING_SHEET + '」分頁');
+    return sh;
+  }
+
+  /* ⚠️ 既有的表要能就地升級。第一版只有 10 欄，後來加了姓名、明碼、備註。
+     不做這段的話，rowObj_ 會把欄位對到錯的格子 —— 那是無聲的資料錯亂。
+     只補在**最後面**，不重排既有欄位。 */
+  var have = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0]
+    .map(function (x) { return String(x || ''); });
+  var missing = BINDING_COLS.filter(function (c) { return have.indexOf(c) < 0; });
+  if (missing.length) {
+    sh.getRange(1, have.length + 1, 1, missing.length).setValues([missing]);
+    console.log('「' + BINDING_SHEET + '」補上欄位：' + missing.join('、'));
   }
   return sh;
 }
 
-function rowObj_(arr) {
+/** 讀表頭，回「欄名 → 欄號(1-based)」。**不要假設欄序跟 BINDING_COLS 一樣** ——
+    舊表升級後新欄在最後面，寫死順序會對錯格子。 */
+function colMap_(sh) {
+  var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var m = {};
+  for (var i = 0; i < head.length; i++) m[String(head[i])] = i + 1;
+  return m;
+}
+
+function rowObj_(arr, map) {
   var o = {};
-  for (var i = 0; i < BINDING_COLS.length; i++) o[BINDING_COLS[i]] = arr[i];
+  for (var k in map) o[k] = arr[map[k] - 1];
   return o;
 }
 
 function setCell_(sh, line, col, value) {
-  sh.getRange(line, BINDING_COLS.indexOf(col) + 1).setValue(value);
+  var c = colMap_(sh)[col];
+  if (!c) throw new AppError('INTERNAL_ERROR', '「帳號綁定」缺欄位 ' + col);
+  sh.getRange(line, c).setValue(value);
 }
 
 function findBindingByLine_(sub) {
-  var rows = bindingSheet_().getDataRange().getValues();
+  var sh = bindingSheet_(), map = colMap_(sh);
+  var rows = sh.getDataRange().getValues();
   for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i]);
+    var r = rowObj_(rows[i], map);
     if (String(r.line_user_id) === String(sub) && r.student_id) {
       r.row = i + 1;
       return r;
@@ -264,9 +311,9 @@ function findBindingByLine_(sub) {
   return null;
 }
 
-function hasSelfBinding_(rows, sub) {
+function hasSelfBinding_(rows, map, sub) {
   for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i]);
+    var r = rowObj_(rows[i], map);
     if (String(r.line_user_id) === String(sub) && r.access_scope === 'self'
         && r.activation_used_at) return true;
   }
@@ -438,7 +485,19 @@ function setup() {
   }
 
   bindingSheet_();
-  var code = newActivationCode('STU-TEST-001', 14);
+
+  /* 裝「開啟試算表時加選單」的可安裝觸發條件。重複跑 setup 不要裝第二個。 */
+  var has = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === 'onOpenInstalled';
+  });
+  if (!has) {
+    ScriptApp.newTrigger('onOpenInstalled').forSpreadsheet(ss).onOpen().create();
+    console.log('已安裝試算表選單的觸發條件');
+  } else {
+    console.log('選單觸發條件已存在');
+  }
+
+  var code = newActivationCode('STU-TEST-001', '測試學員', 14);
   console.log('setup 完成。分頁：' + ss.getSheets().map(function (s) {
     return s.getName();
   }).join('、'));
@@ -446,13 +505,16 @@ function setup() {
 }
 
 /**
- * 發一組一次性啟用碼給某位學員。回傳明碼（只有這一次看得到）。
+ * 發一組一次性啟用碼給某位學員，寫進「帳號綁定」分頁。
+ * 明碼會同時寫進表裡（用掉自動清空），所以不必急著抄執行紀錄。
  * @param {string} studentId  學員 ID，例如 STU-TEST-001
+ * @param {string} name       學員姓名（可省略，之後可在表裡手填）
  * @param {number} days       幾天後過期，預設 14
  */
-function newActivationCode(studentId, days) {
+function newActivationCode(studentId, name, days) {
   if (!studentId) throw new Error('要給 studentId');
   var sh = bindingSheet_();
+  var map = colMap_(sh);
 
   /* 避開容易看錯的字元：0/O、1/I/L。教練要用口頭或訊息把碼給學員。 */
   var ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -462,19 +524,71 @@ function newActivationCode(studentId, days) {
   var exp = new Date();
   exp.setDate(exp.getDate() + (days || 14));
 
+  /* ⚠️ 照**表頭**排，不要照 BINDING_COLS 排 —— 舊表升級後新欄在最後面。 */
+  var width = sh.getLastColumn();
   var row = [];
-  for (var j = 0; j < BINDING_COLS.length; j++) row[j] = '';
-  row[BINDING_COLS.indexOf('binding_id')] = 'BND-' + Utilities.getUuid().slice(0, 8).toUpperCase();
-  row[BINDING_COLS.indexOf('student_id')] = studentId;
-  row[BINDING_COLS.indexOf('access_scope')] = 'self';
-  row[BINDING_COLS.indexOf('status')] = 'active';
-  row[BINDING_COLS.indexOf('activation_code_hash')] = hashCode_(code);
-  row[BINDING_COLS.indexOf('activation_expires_at')] = exp;
+  for (var j = 0; j < width; j++) row[j] = '';
+  function put(col, val) { if (map[col]) row[map[col] - 1] = val; }
+  put('binding_id', 'BND-' + Utilities.getUuid().slice(0, 8).toUpperCase());
+  put('student_id', studentId);
+  put('student_name', name || '');
+  put('access_scope', 'self');
+  put('status', 'active');
+  put('activation_code_hash', hashCode_(code));
+  put('activation_code_plain', code);
+  put('activation_expires_at', exp);
 
   sh.appendRow(row);
-  console.log('啟用碼（只顯示這一次）　' + studentId + ' → ' + code
-    + '　有效至 ' + Utilities.formatDate(exp, 'Asia/Taipei', 'yyyy-MM-dd'));
+  console.log('啟用碼　' + studentId + (name ? '（' + name + '）' : '') + ' → ' + code
+    + '　有效至 ' + Utilities.formatDate(exp, 'Asia/Taipei', 'yyyy-MM-dd')
+    + '　（也已寫進「帳號綁定」分頁）');
   return code;
+}
+
+/* ── 試算表上的選單 ────────────────────────────────
+   讓教練不用進 Apps Script 編輯器就能發碼。
+   ⚠️ 獨立式腳本不能用簡單的 onOpen 加選單，要**可安裝的觸發條件**
+   （setup() 會裝）。少了這段，選單不會出現。 */
+
+function onOpenInstalled() {
+  SpreadsheetApp.getUi()
+    .createMenu('UC 雲端教練')
+    .addItem('發新的啟用碼…', 'menuNewCode')
+    .addItem('查這份表的狀態', 'menuStatus')
+    .addToUi();
+}
+
+function menuNewCode() {
+  var ui = SpreadsheetApp.getUi();
+  var a = ui.prompt('發新的啟用碼', '學員 ID（例如 STU-001）', ui.ButtonSet.OK_CANCEL);
+  if (a.getSelectedButton() !== ui.Button.OK) return;
+  var id = a.getResponseText().trim();
+  if (!id) { ui.alert('沒有輸入學員 ID'); return; }
+
+  var b = ui.prompt('發新的啟用碼', '學員姓名（可留空，之後在表裡填也行）', ui.ButtonSet.OK_CANCEL);
+  if (b.getSelectedButton() !== ui.Button.OK) return;
+
+  var code = newActivationCode(id, b.getResponseText().trim());
+  ui.alert('啟用碼：' + code
+    + '\n\n已經寫進「' + BINDING_SHEET + '」分頁，學員用掉之後那一格會自動清空。'
+    + '\n14 天後過期。');
+}
+
+function menuStatus() {
+  var sh = bindingSheet_(), map = colMap_(sh);
+  var rows = sh.getDataRange().getValues();
+  var issued = 0, used = 0, pending = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var r = rowObj_(rows[i], map);
+    if (!r.activation_code_hash) continue;
+    issued++;
+    if (r.activation_used_at) used++; else pending++;
+  }
+  SpreadsheetApp.getUi().alert(
+    '試算表：' + sheet_().getName()
+    + '\n已發出的啟用碼：' + issued
+    + '\n　已綁定：' + used
+    + '\n　還沒用：' + pending);
 }
 
 /* ── 本機自我檢查 ──────────────────────────────────
@@ -483,6 +597,7 @@ function newActivationCode(studentId, days) {
 
 function selftest() {
   var log = [], ok = true;
+  _ss = null;                    /* 清掉快取，確保這次是真的重開一次 */
   function t(name, cond) { log.push((cond ? '  ok   ' : '  FAIL ') + name); if (!cond) ok = false; }
   function post(o) {
     return JSON.parse(doPost({ postData: { contents:
@@ -500,6 +615,28 @@ function selftest() {
   t('試算表名稱正是「' + EXPECTED_SHEET_NAME + '」',
     !!ss && ss.getName() === EXPECTED_SHEET_NAME);
   t('有「' + BINDING_SHEET + '」分頁', !!(ss && ss.getSheetByName(BINDING_SHEET)));
+
+  /* 欄位齊不齊很重要 —— 缺一欄的話 rowObj_ 會把值對到別的欄位，
+     那是無聲的資料錯亂，不會報錯。 */
+  var miss = [];
+  if (ss && ss.getSheetByName(BINDING_SHEET)) {
+    var cm = colMap_(bindingSheet_());
+    miss = BINDING_COLS.filter(function (c) { return !cm[c]; });
+  }
+  t('「' + BINDING_SHEET + '」欄位齊全' + (miss.length ? '（缺 ' + miss.join('、') + '）' : ''),
+    miss.length === 0);
+
+  /* 已經用掉的碼不該還留著明碼。 */
+  var leaked = [];
+  try {
+    var sh2 = bindingSheet_(), m2 = colMap_(sh2), rs = sh2.getDataRange().getValues();
+    for (var i = 1; i < rs.length; i++) {
+      var rr = rowObj_(rs[i], m2);
+      if (rr.activation_used_at && rr.activation_code_plain) leaked.push(rr.student_id);
+    }
+  } catch (e) {}
+  t('已使用的啟用碼沒有殘留明碼' + (leaked.length ? '（' + leaked.join('、') + '）' : ''),
+    leaked.length === 0);
 
   var r0 = post('');
   t('空 body → INVALID_INPUT', !r0.ok && r0.error.code === 'INVALID_INPUT');

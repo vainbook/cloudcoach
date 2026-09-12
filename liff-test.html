@@ -216,6 +216,12 @@
       set('l-token', mask(token));
       window.__t = token;                       /* 只放在閉包外供按鈕用，不印出 */
 
+      /* 顯示名稱只當便條用（寫進表裡讓教練認人），不參與任何授權判斷。 */
+      if (liff.getProfile) {
+        liff.getProfile().then(function (p) { window.__name = p && p.displayName || ''; })
+                         .catch(function () {});
+      }
+
       /* ⚠️ 這裡解 JWT **純粹是為了除錯顯示**，沒有驗簽章。
          少了它，「Token 過期」跟「Channel 設錯」在畫面上一模一樣，
          每次都要去翻 Apps Script 的執行紀錄才知道發生什麼事。
@@ -325,7 +331,11 @@
       o.textContent = '啟用碼是 8 個字，現在是 ' + code.length + ' 個。';
       return;
     }
+    /* 順手把 LINE 顯示名稱帶上去，讓教練在表裡認得出人。
+       ⚠️ 這**只是便條，不是身分**。身分一律以 GAS 驗過的 sub 為準 ——
+       前端送來的名字任何人都能改。 */
     callGas({ action: 'auth.bind', idToken: window.__t, activationCode: code,
+              displayName: window.__name || '',
               requestId: 'liff-bind-' + Date.now() },
       $('b-out'), $('btn-bind'), function (j) {
         if (j && j.ok && j.data && j.data.bound) {
