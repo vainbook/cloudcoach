@@ -585,7 +585,10 @@ function migrateBindingLayout_(sh) {
   return true;
 }
 
+var _bsh = null;
+
 function bindingSheet_() {
+  if (_bsh) return _bsh;
   var ss = sheet_();
   var sh = ss.getSheetByName(BINDING_SHEET);
   if (!sh) {
@@ -593,6 +596,7 @@ function bindingSheet_() {
     sh.getRange(BINDING_HEADER_ROW, 1, 1, BINDING_COLS.length).setValues([BINDING_COLS]);
     decorateBinding_(sh);
     console.log('已建立「' + BINDING_SHEET + '」分頁');
+    _bsh = sh;
     return sh;
   }
   migrateBindingLayout_(sh);
@@ -619,6 +623,7 @@ function bindingSheet_() {
 
      排版現在只在三個地方做：新建分頁、遷移版面、以及選單上的
      「修復分頁排版」。註解與底色不會自己消失，沒有理由每次重畫。 */
+  _bsh = sh;
   return sh;
 }
 
@@ -653,15 +658,49 @@ function bindingMap_(sh) { return mapAt_(sh, bindingHeadRow_(sh)); }
  * 表頭一移位那些迴圈就會把標題列當成資料（無聲）。
  * 回傳 { map, rows, first }：rows[0] 在試算表上的列號就是 first。
  */
+/* ⚠️ **這張表只有兩列，卻花了 876 毫秒**（2026-09-13 實測）。
+   原因是七次呼叫才讀到資料：問分頁 → 讀 A1 判斷表頭在第幾列 → 讀表頭
+   → 再讀一次表頭檢查缺欄 → 問最後一列 → 問最後一欄 → 才真的讀。
+
+   一次 getDataRange() 就全拿到了：A1、表頭、資料都在同一包裡。
+   跟 skelRead_ 同一招，只是當初漏掉了這張表（它不在 SKEL 裡）。
+
+   ⚠️ 讀路徑不補缺欄、不遷移版面 —— 那是寫路徑的事（bindingSheet_）。
+   萬一表頭找不到（還沒遷移過的舊表），退回去走完整的 bindingSheet_。 */
+var _bread = null;
+
 function bindingBody_(sh) {
+  if (!sh && _bread) return _bread;
+
+  if (!sh) {
+    var s0 = sheetByName_(BINDING_SHEET);
+    if (s0) {
+      var all = s0.getDataRange().getValues();       /* ← 這一整段就這一次呼叫 */
+      /* 表頭在第 1 列（舊版）還是第 5 列（現行）？直接從已經拿到的資料判斷。 */
+      var hr = (all.length && String(all[0][0]) === BINDING_COLS[0]) ? 1
+             : (all.length >= BINDING_HEADER_ROW
+                && String(all[BINDING_HEADER_ROW - 1][0]) === BINDING_COLS[0])
+               ? BINDING_HEADER_ROW : 0;
+      if (hr) {
+        var head = all[hr - 1], map = {};
+        for (var i = 0; i < head.length; i++) {
+          var k = String(head[i] || '');
+          if (k && !map[k]) map[k] = i + 1;
+        }
+        _bread = { map: map, rows: all.slice(hr), first: hr + 1 };
+        return _bread;
+      }
+    }
+  }
+
   sh = sh || bindingSheet_();
-  var head = bindingHeadRow_(sh);
-  var map = mapAt_(sh, head);
+  var hrow = bindingHeadRow_(sh);
+  var map2 = mapAt_(sh, hrow);
   var last = sh.getLastRow();
-  var rows = last > head
-    ? sh.getRange(head + 1, 1, last - head, Math.max(sh.getLastColumn(), 1)).getValues()
+  var rows = last > hrow
+    ? sh.getRange(hrow + 1, 1, last - hrow, Math.max(sh.getLastColumn(), 1)).getValues()
     : [];
-  return { map: map, rows: rows, first: head + 1 };
+  return { map: map2, rows: rows, first: hrow + 1 };
 }
 
 function colMap_(sh) {
@@ -678,6 +717,11 @@ function rowObj_(arr, map) {
 }
 
 function setCell_(sh, line, col, value) {
+  /* ⚠️ 寫過之後那份「一次讀完」的快取就過期了，丟掉重讀。
+     不丟的話同一個請求裡後面的讀取會拿到舊值（無聲的錯誤）。
+     **不要用 sh.getName() 去判斷是不是綁定表** —— 那本身就是一次呼叫，
+     為了省錢又花一筆。無條件清掉：清錯最多多讀一次，判斷錯是資料錯。 */
+  _bread = null;
   /* 綁定表的表頭不在第 1 列，所以不能用 colMap_。 */
   var c = (sh.getName() === BINDING_SHEET ? bindingMap_(sh) : colMap_(sh))[col];
   if (!c) throw new AppError('INTERNAL_ERROR', '「帳號綁定」缺欄位 ' + col);
@@ -1291,6 +1335,24 @@ function runSelftest_() {
     var m2 = skelMap_(skelSheet_('assessment'));
     return SKEL.assessment.need.every(function (c) { return sr.map[c] === m2[c]; });
   })());
+
+  /* 綁定表也改成一次讀完（原本七次呼叫讀兩列，實測 876ms）。
+     ⚠️ 這條路繞過 bindingSheet_，所以要驗它跟完整路徑讀到的是同一份。 */
+  _bread = null;
+  var fast = bindingBody_();
+  _bread = null;
+  var slow = bindingBody_(bindingSheet_());
+  t('綁定表的快路徑與完整路徑列數相同',
+    fast.rows.length === slow.rows.length);
+  t('綁定表的快路徑與完整路徑欄位對應相同',
+    BINDING_COLS.every(function (c) { return fast.map[c] === slow.map[c]; }));
+  t('綁定表的快路徑起始列號正確', fast.first === slow.first);
+  t('綁定表的快路徑讀到同一筆資料', (function () {
+    if (!fast.rows.length) return true;
+    return String(rowObj_(fast.rows[0], fast.map).binding_id)
+        === String(rowObj_(slow.rows[0], slow.map).binding_id);
+  })());
+  _bread = null;
 
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];
