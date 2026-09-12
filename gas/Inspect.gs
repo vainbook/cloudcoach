@@ -39,3 +39,27 @@ function colLetter_(n) {
   while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = (n - m - 1) / 26; }
   return s;
 }
+
+/* 「總覽」到底是公式還是靜態值？（TODO 7-2 要先知道這件事）
+   ⚠️ 唯讀。如果是公式，動「學員／帳號綁定」會把它算壞，整合前必須先搞清楚。 */
+function inspectFormulas() {
+  var ss = sheet_();
+  var out = [];
+  ['總覽', '學員', '欄位定義'].forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) { out.push('── ' + name + '：沒有這張分頁'); return; }
+    var r = sh.getLastRow(), c = sh.getLastColumn();
+    var f = sh.getRange(1, 1, r, c).getFormulas();
+    var hits = [];
+    for (var i = 0; i < f.length; i++) {
+      for (var j = 0; j < f[i].length; j++) {
+        if (f[i][j]) hits.push(colLetter_(j + 1) + (i + 1) + '  ' + f[i][j].slice(0, 90));
+      }
+    }
+    out.push('── ' + name + '　' + r + '×' + c + '　公式 ' + hits.length + ' 格');
+    hits.slice(0, 20).forEach(function (h) { out.push('    ' + h); });
+    if (hits.length > 20) out.push('    …還有 ' + (hits.length - 20) + ' 格');
+  });
+  console.log(out.join('\n'));
+  return out.join('\n');
+}

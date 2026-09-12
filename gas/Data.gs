@@ -242,6 +242,7 @@ function stateLoad_(scope, studentId) {
     var fid = String(r.field_id || '');
     if (!fid) continue;
     var val = decodeValue_(r['儲存值']);
+    /* 讀的時候把前綴剝掉，裸 id 與前綴版都會落到同一個 key。 */
     if (scope === 'assessment') {
       out[fid.replace(/^assessment\./, '')] = { answer: val };
     } else {
@@ -329,10 +330,22 @@ function fmtDate_(v) {
 function entrySave_(scope, studentId, itemId, field, label, value, requestId, display) {
   var def = SKEL[scope];
   var sh = skelSheet_(scope), map = skelMap_(sh);
+  /* ⚠️ **同一個欄位有兩種寫法。** 骨架裡示範學員的列寫的是裸 id（`B01`），
+     而「欄位定義」登記的是加了模組前綴的（`assessment.B01`）。
+     找列的時候兩種都要認 —— 只認一種的話，一開示範學員去填，
+     會在既有那一列旁邊長出重複的第二列（而且兩列都有值，看不出誰是真的）。
+     新列一律寫前綴版；既有列不改它的 field_id。 */
   var fid = scope === 'assessment' ? 'assessment.' + itemId : 'report.' + field;
+  var bare = scope === 'assessment' ? String(itemId) : String(field);
+  var hit = null;
   var line = findRow_(sh, map, function (r) {
-    return String(r.student_id) === String(studentId) && String(r.field_id) === fid;
+    if (String(r.student_id) !== String(studentId)) return false;
+    var got = String(r.field_id || '');
+    if (got !== fid && got !== bare) return false;
+    hit = got;
+    return true;
   });
+  if (line && hit) fid = hit;          /* 既有列保留它原本的寫法 */
   var now = now_();
   var text = display != null && display !== '' ? String(display) : plain_(value);
 

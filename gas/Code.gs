@@ -54,6 +54,12 @@ var DEFAULT_CHANNEL_ID = '2011543667';
 var EXPECTED_SHEET_NAME = '高級雲端教練後台';
 var BINDING_SHEET = '帳號綁定';
 
+/* 所有教練共用的範例學員。使用者 2026-09-12：
+   「設定一個按鈕只有在教練帳號有，點了就能開啟同一個範例學員帳號。」
+   它就是「學員」分頁裡那位示範學員，不是特例帳號 —— 教練本來就能開任何學員，
+   這顆按鈕只是省得從清單裡找。 */
+var DEMO_STUDENT_ID = 'STU-DEMO-001';
+
 /* 帳號綁定的欄位。前十個是 BACKEND-WORKFLOW.md §3 定的，順序不要改。
    後三個是教練實際用得到的（§3 沒列，2026-09-12 加）：
 
@@ -328,6 +334,9 @@ function studentLoad_(body) {
 
   return {
     studentId: sid,
+    /* 所有教練共用的範例學員。前端據此顯示「開啟範例學員」那顆按鈕。
+       ⚠️ 回傳 id 不等於給權限 —— 真正能不能開，還是 targetStudent_() 說了算。 */
+    demoStudentId: b.access_scope === 'manage' ? DEMO_STUDENT_ID : '',
     studentName: String(b.student_name || ''),
     lineDisplayName: String(b.line_display_name || ''),
     accessScope: b.access_scope || 'self',
@@ -784,6 +793,7 @@ function onOpen() {
     .createMenu('UC 雲端教練')
     .addItem('發新的啟用碼…', 'menuNewCode')
     .addItem('發教練用的共用授權碼…', 'menuCoachCode')
+    .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('查這份表的狀態', 'menuStatus')
     .addToUi();
 }
@@ -816,6 +826,43 @@ function menuCoachCode() {
   ui.alert('教練授權碼：' + code
     + '\n\n可重複使用，十年後過期。\n'
     + '要作廢的話，去「' + BINDING_SHEET + '」把那一列的 status 改成 disabled。');
+}
+
+/* 把既有的綁定升級成教練。
+   使用者 2026-09-12：「我現在用的這個帳號可以轉換成教練認證帳號」——
+   已經綁好的帳號不需要重發碼、重綁一次，把 access_scope 改掉就好。
+
+   ⚠️ 只改 access_scope 這一格，line_user_id 與 student_id 一律不動 ——
+   動了等於把這個人換成另一個人。 */
+function menuMakeCoach() {
+  var ui = SpreadsheetApp.getUi();
+  var sh = bindingSheet_(), map = colMap_(sh);
+  var rows = sh.getDataRange().getValues();
+
+  /* 先把現有的綁定列出來，讓你照著抄，不要用猜的。 */
+  var list = [], lineOf = {};
+  for (var i = 1; i < rows.length; i++) {
+    var r = rowObj_(rows[i], map);
+    if (!r.line_user_id) continue;                 /* 還沒有人綁的樣板列跳過 */
+    var who = String(r.student_id || '（沒有學員 id）');
+    list.push(who + '　' + (r.line_display_name || '') + '　目前：' + (r.access_scope || 'self'));
+    lineOf[who] = i + 1;
+  }
+  if (!list.length) { ui.alert('「' + BINDING_SHEET + '」裡還沒有任何已綁定的帳號。'); return; }
+
+  var a = ui.prompt('把某個帳號升級成教練',
+    '已綁定的帳號：\n' + list.join('\n')
+    + '\n\n輸入要升級的 student_id：', ui.ButtonSet.OK_CANCEL);
+  if (a.getSelectedButton() !== ui.Button.OK) return;
+  var id = a.getResponseText().trim();
+  var line = lineOf[id];
+  if (!line) { ui.alert('找不到 student_id「' + id + '」的綁定。'); return; }
+
+  setCell_(sh, line, 'access_scope', 'manage');
+  SpreadsheetApp.flush();
+  ui.alert('已升級：' + id + ' → 教練（manage）\n\n'
+    + '請那個 LINE 帳號重新開一次網站，就會看到「學員」分頁與所有學員清單。\n'
+    + '要降回學員的話，把那一列的 access_scope 改回 self。');
 }
 
 function menuStatus() {

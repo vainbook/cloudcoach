@@ -2067,6 +2067,21 @@ html.task-open, html.task-open body { overflow: hidden; }
   .gkind s { text-align: left; }
 }
 
+/* 範例學員：跟真學員視覺上要分得開 —— 虛線邊框＋沒有進度條。
+   點錯人是這一頁最貴的錯誤。 */
+.stdemo {
+  display: grid; gap: 4px; width: 100%; margin-top: 14px; padding: 16px 18px;
+  text-align: left; cursor: pointer;
+  color: var(--beige-70); background: none;
+  border: 1px dashed var(--beige-18); border-radius: 0;
+  font-family: var(--serif); font-size: 15px;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.stdemo:hover { border-color: var(--salmon); color: var(--beige); }
+.stdemo.is-cur { border-style: solid; border-left: 3px solid var(--salmon); color: var(--beige); }
+.stdemo s { font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
+  text-decoration: none; opacity: .5; }
+
 </style>
 </head>
 <body>
@@ -4156,9 +4171,12 @@ window.UC_SELFTEST = function () {
     return load_();
   }
 
+  var demoId = '';
+
   function load_() {
     return call({ action: 'student.load' }).then(function (data) {
       studentId = data.studentId || studentId;
+      if (data.demoStudentId) demoId = data.demoStudentId;
       var S = {
         name: data.studentName || data.lineDisplayName || '',
         answers: data.answers || {},
@@ -4288,6 +4306,7 @@ window.UC_SELFTEST = function () {
     connect: connect,
     call: call,
     studentId: function () { return studentId; },
+    demoStudentId: function () { return demoId; },
     attach: function (app) { APP = app; }
   };
 
@@ -5513,10 +5532,20 @@ window.UC_SELFTEST = function () {
         + '</button>';
     }).join('');
 
+    /* 範例學員：所有教練共用同一位，拿來練手或給人看都不會動到真學員。
+       id 由後端給（只有 manage 拿得到），前端不寫死。 */
+    var demo = window.UC_STORE.demoStudentId();
+    var demoBtn = demo
+      ? '<button type="button" class="stdemo' + (demo === cur ? ' is-cur' : '') + '"'
+        + ' data-student="' + esc(demo) + '">開啟範例學員'
+        + '<s>' + esc(demo) + '　所有教練共用，可以隨便改</s></button>'
+      : '';
+
     body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + STUDENTS.length + ' 位</p>'
       + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
       + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
-      + wrap('<div class="stlist">' + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
+      + wrap('<div class="stlist">' + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>'
+             + demoBtn, 'rv');
 
     [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
       b.addEventListener('click', function () {
@@ -5524,6 +5553,7 @@ window.UC_SELFTEST = function () {
         b.classList.add('is-busy');
         window.UC_STORE.switchStudent(id).then(function () {
           STUDENTS = null;                  /* 進度會變，下次重讀 */
+          toast('目前看的是 ' + id);
           nav('#/assess');
         }).catch(function (e) {
           b.classList.remove('is-busy');
