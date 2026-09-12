@@ -200,7 +200,9 @@ function authExchange_(body) {
     throw new AppError('FORBIDDEN_STUDENT', '這個帳號已被停用');
   }
 
+  lap_('查綁定');
   touchLastLogin_(b.row);
+  lap_('記登入時間');
 
   var out = {
     verified: true,
@@ -1040,6 +1042,7 @@ function onOpen() {
     .addItem('發教練用的共用授權碼…', 'menuCoachCode')
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('修復「帳號綁定」的排版', 'menuDecorate')
+    .addItem('清掉藍圖快取（改完藍圖想立刻生效）', 'menuClearBlueprintCache')
     .addItem('查這份表的狀態', 'menuStatus')
     .addSeparator()
     .addItem('改善「總覽」的公式…', 'menuUpgradeOverview')
@@ -1117,6 +1120,13 @@ function menuDecorate() {
   decorateBinding_(bindingSheet_());
   SpreadsheetApp.flush();
   SpreadsheetApp.getUi().alert('「' + BINDING_SHEET + '」的標題、說明、欄位註解與底色都補回來了。');
+}
+
+/* 藍圖有 15 分鐘的快取（那一段實測 497ms，是登入時間裡很大一塊）。
+   改完藍圖不想等就按這個。 */
+function menuClearBlueprintCache() {
+  try { CacheService.getScriptCache().remove('bp'); } catch (e) {}
+  SpreadsheetApp.getUi().alert('藍圖快取已清除，下一次載入會重新讀試算表。');
 }
 
 function menuStatus() {
@@ -1262,6 +1272,25 @@ function runSelftest_() {
   t('LINE 驗證有走快取', String(verifyToken_.toString()).indexOf('CacheService') >= 0);
   t('快取的 key 不是 Token 原文',
     String(verifyToken_.toString()).indexOf('computeDigest') >= 0);
+  t('讀路徑用 skelRead_（一次 getDataRange，不是六次呼叫）',
+    String(stateLoad_.toString()).indexOf('skelRead_') >= 0
+    && String(growthLoad_.toString()).indexOf('skelRead_') >= 0);
+  t('藍圖有走快取', String(blueprintLoad_.toString()).indexOf('CacheService') >= 0);
+
+  /* 讀路徑重構最容易壞的地方：表頭列對錯、body 多切或少切一列。
+     直接驗一次真實讀取的形狀。 */
+  var sr = null;
+  try { sr = skelRead_('assessment'); } catch (e) {}
+  t('skelRead_ 取得表頭與資料', !!(sr && sr.map && sr.map.student_id && sr.body));
+  t('skelRead_ 的 body 不含表頭列',
+    !!sr && sr.body.every(function (row) {
+      return String(row[(sr.map.student_id || 1) - 1]) !== 'student_id';
+    }));
+  t('skelRead_ 與 skelSheet_ 讀到同一組欄位', (function () {
+    if (!sr) return false;
+    var m2 = skelMap_(skelSheet_('assessment'));
+    return SKEL.assessment.need.every(function (c) { return sr.map[c] === m2[c]; });
+  })());
 
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];

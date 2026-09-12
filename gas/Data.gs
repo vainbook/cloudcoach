@@ -111,7 +111,7 @@ function blueprintSheet_() { return ensureSheet_(BLUEPRINT_SHEET, BLUEPRINT_COLS
 function skelSheet_(scope) {
   var def = SKEL[scope];
   if (!def) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
-  var sh = sheet_().getSheetByName(def.sheet);
+  var sh = sheetByName_(def.sheet);
   if (!sh) throw new AppError('INTERNAL_ERROR', '找不到「' + def.sheet + '」分頁');
 
   var width = Math.max(sh.getLastColumn(), 1);
@@ -125,6 +125,57 @@ function skelSheet_(scope) {
     console.log('「' + def.sheet + '」補上欄位：' + missing.join('、'));
   }
   return sh;
+}
+
+/* ═══ 一次請求內的讀取快取 ═══════════════════════════
+   實測校準（2026-09-13，真實登入）：**每一次試算表呼叫約 110 毫秒**。
+   讀藍圖那一段 497ms 只做 4 次呼叫，換算出來就是這個數字 ——
+   比原本推估的 10~50ms 高一倍以上。
+
+   所以要砍的是**呼叫次數**，不是資料量（整包回應才 7 KB）。
+
+   原本每個 scope 要六次呼叫，其中只有一次在讀資料：
+     getSheetByName → 讀表頭(skelSheet_) → 又讀一次表頭(skelMap_)
+     → getLastRow → getLastColumn → 才真的 getRange().getValues()
+
+   getDataRange() 一次就全拿到（表頭和資料都在裡面），配合分頁清單快取，
+   一個 scope 從 6 次降到 1 次。 */
+
+var _sheets = null;
+
+/** 分頁清單只問一次。原本每個 scope 各問一次 getSheetByName。 */
+function sheetByName_(name) {
+  if (!_sheets) {
+    _sheets = {};
+    sheet_().getSheets().forEach(function (sh) { _sheets[sh.getName()] = sh; });
+  }
+  return _sheets[name] || null;
+}
+
+var _skel = {};
+
+/**
+ * 讀路徑的唯一入口：一次 getDataRange 拿到表頭與資料。
+ * 回 { sh, map, body, first }。body[0] 在試算表上的列號就是 first。
+ * ⚠️ **只給讀用。** 要寫的話還是走 skelSheet_，那裡會補缺的欄位。
+ */
+function skelRead_(scope) {
+  if (_skel[scope]) return _skel[scope];
+  var def = SKEL[scope];
+  if (!def) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
+  var sh = sheetByName_(def.sheet);
+  if (!sh) throw new AppError('INTERNAL_ERROR', '找不到「' + def.sheet + '」分頁');
+
+  var all = sh.getDataRange().getValues();          /* ← 這一整段就這一次呼叫 */
+  var head = all.length >= SKEL_HEADER_ROW ? all[SKEL_HEADER_ROW - 1] : [];
+  var map = {};
+  for (var i = 0; i < head.length; i++) {
+    var k = String(head[i] || '');
+    if (k && !map[k]) map[k] = i + 1;
+  }
+  var out = { sh: sh, map: map, body: all.slice(SKEL_HEADER_ROW), first: SKEL_HEADER_ROW + 1 };
+  _skel[scope] = out;
+  return out;
 }
 
 function skelMap_(sh) {
@@ -141,7 +192,30 @@ function skelMap_(sh) {
    全體學員共用一份。個別學員看得到哪幾條，是任務狀態的 已隱藏 在管，
    **不複製整份藍圖**（複製的話你改一次要改 N 份）。 */
 
+/* 藍圖是**全體共用、幾乎不變**的資料，卻每次 student.load 都整份重讀。
+   實測那一段 497ms（約 4 次試算表呼叫）。換成快取之後剩下一次快取讀取。
+   ⚠️ TTL 只給 15 分鐘 —— 你在試算表上改藍圖之後，最多等一刻鐘就會生效；
+   不想等就按選單的「清掉藍圖快取」。
+   ⚠️ 快取壞掉或超過 100KB 上限時要能自己退回去重讀，不能讓它擋住登入。 */
 function blueprintLoad_() {
+  var cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    var hit = cache.get('bp');
+    if (hit) return JSON.parse(hit);
+  } catch (e) { cache = null; }
+
+  var out = blueprintLoadRaw_();
+  try {
+    if (cache) {
+      var j = JSON.stringify(out);
+      if (j.length < 95000) cache.put('bp', j, 900);   /* 單值上限 100KB */
+    }
+  } catch (e) {}
+  return out;
+}
+
+function blueprintLoadRaw_() {
   var sh = blueprintSheet_(), map = colMap_(sh);
   var rows = sh.getDataRange().getValues();
   var out = [];
@@ -217,11 +291,9 @@ function isBlank_(v) {
 
 /** 讀某位學員在某個 scope 的所有格子 → { item_id: { field: value } } */
 function stateLoad_(scope, studentId) {
-  var sh = skelSheet_(scope), map = skelMap_(sh);
-  var last = sh.getLastRow();
-  if (last <= SKEL_HEADER_ROW) return {};
-  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
-                         sh.getLastColumn()).getValues();
+  var r0 = skelRead_(scope);
+  var map = r0.map, rows = r0.body;
+  if (!rows.length) return {};
   var out = {};
   for (var i = 0; i < rows.length; i++) {
     var r = rowObj_(rows[i], map);
@@ -298,11 +370,9 @@ function growthSave_(studentId, eventId, ev) {
 }
 
 function growthLoad_(studentId) {
-  var sh = skelSheet_('growth'), map = skelMap_(sh);
-  var last = sh.getLastRow();
-  if (last <= SKEL_HEADER_ROW) return [];
-  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
-                         sh.getLastColumn()).getValues();
+  var r0 = skelRead_('growth');
+  var map = r0.map, rows = r0.body;
+  if (!rows.length) return [];
   var out = [];
   for (var i = 0; i < rows.length; i++) {
     var r = rowObj_(rows[i], map);
@@ -527,13 +597,19 @@ function plain_(v) {
 /* 宣告移到檔頭，因為 syncStudentName_ 也要用。 */
 
 function studentList_() {
-  var ss = sheet_();
-  var sh = ss.getSheetByName(STUDENT_SHEET);
+  /* ⚠️ 這一支是「教練挑學員」那條路 —— 原本要掃三張表、每張六次呼叫。
+     以實測的 110ms/次算，光固定開銷就一秒多。全部改走 skelRead_。 */
+  var sh = sheetByName_(STUDENT_SHEET);
   var rows = [];
-  if (sh && sh.getLastRow() > SKEL_HEADER_ROW) {
-    var map = skelMap_(sh);
-    var vals = sh.getRange(SKEL_HEADER_ROW + 1, 1, sh.getLastRow() - SKEL_HEADER_ROW,
-                           sh.getLastColumn()).getValues();
+  if (sh) {
+    var all = sh.getDataRange().getValues();
+    var head = all.length >= SKEL_HEADER_ROW ? all[SKEL_HEADER_ROW - 1] : [];
+    var map = {};
+    for (var h = 0; h < head.length; h++) {
+      var hk = String(head[h] || '');
+      if (hk && !map[hk]) map[hk] = h + 1;
+    }
+    var vals = all.slice(SKEL_HEADER_ROW);
     for (var i = 0; i < vals.length; i++) {
       var r = rowObj_(vals[i], map);
       var id = String(r.student_id || '').trim();
@@ -563,10 +639,9 @@ function studentList_() {
 
   /* 進度：一次掃完，不要一人一次。 */
   var filled = {}, reportDone = {};
-  var ash = skelSheet_('assessment'), amap = skelMap_(ash);
-  if (ash.getLastRow() > SKEL_HEADER_ROW) {
-    var av = ash.getRange(SKEL_HEADER_ROW + 1, 1, ash.getLastRow() - SKEL_HEADER_ROW,
-                          ash.getLastColumn()).getValues();
+  var ar0 = skelRead_('assessment'), amap = ar0.map;
+  {
+    var av = ar0.body;
     for (var a = 0; a < av.length; a++) {
       var ar = rowObj_(av[a], amap);
       var sid = String(ar.student_id || '');
@@ -576,10 +651,9 @@ function studentList_() {
       }
     }
   }
-  var rsh = skelSheet_('report'), rmap = skelMap_(rsh);
-  if (rsh.getLastRow() > SKEL_HEADER_ROW) {
-    var rv = rsh.getRange(SKEL_HEADER_ROW + 1, 1, rsh.getLastRow() - SKEL_HEADER_ROW,
-                          rsh.getLastColumn()).getValues();
+  var rr0 = skelRead_('report'), rmap = rr0.map;
+  {
+    var rv = rr0.body;
     for (var k = 0; k < rv.length; k++) {
       var rr = rowObj_(rv[k], rmap);
       if (String(rr.field_id) !== 'report.complete') continue;
