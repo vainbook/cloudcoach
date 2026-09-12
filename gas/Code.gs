@@ -114,18 +114,18 @@ function doPost(e) {
     var body = parseBody_(e);
     var action = String(body.action || '');
 
-    if (action === 'auth.exchange')  return done_(t0, action, ok_(authExchange_(body)));
-    if (action === 'auth.bind')      return done_(t0, action, ok_(authBind_(body)));
-    if (action === 'student.load')   return done_(t0, action, ok_(studentLoad_(body)));
+    if (action === 'auth.exchange')  return ok_(perf_(t0, action, authExchange_(body)));
+    if (action === 'auth.bind')      return ok_(perf_(t0, action, authBind_(body)));
+    if (action === 'student.load')   return ok_(perf_(t0, action, studentLoad_(body)));
     /* ⚠️ 藍圖雖然是全體共用、沒有個資，仍然**要先驗身分** ——
        不驗的話任何人都能用一個亂打的 Token 叫 GAS 去動你的試算表
        （blueprintSheet_() 會建分頁）。踩過：上線第一次探測就中。 */
     if (action === 'blueprint.load') {
       requireBinding_(body);
-      return ok_({ blueprint: blueprintLoad_() });
+      return ok_(perf_(t0, action, { blueprint: blueprintLoad_() }));
     }
-    if (action === 'state.save')     return done_(t0, action, ok_(stateSaveAction_(body)));
-    if (action === 'student.list')   return done_(t0, action, ok_(studentListAction_(body)));
+    if (action === 'state.save')     return ok_(perf_(t0, action, stateSaveAction_(body)));
+    if (action === 'student.list')   return ok_(perf_(t0, action, studentListAction_(body)));
 
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
   } catch (err) {
@@ -876,11 +876,21 @@ function lap_(name) {
   _lapT = n;
 }
 
-/* 記一筆耗時再把回應原樣交出去。 */
-function done_(t0, action, res) {
-  console.log('⏱ ' + action + ' 共 ' + (Date.now() - t0) + ' ms'
+/* 記一筆耗時，**同時塞進回應裡**再交出去。
+   ⚠️ 只印在 Apps Script 的執行紀錄是不夠的 —— 那個畫面不一定展得開，
+   而且使用者在手機上根本看不到（2026-09-13 實際踩到）。
+   放進回應，網站就能自己顯示，量測不必依賴另一個工具。
+   內容只有毫秒數與階段名稱，沒有任何資料，可以長期留著。 */
+function perf_(t0, action, data) {
+  var ms = Date.now() - t0;
+  console.log('⏱ ' + action + ' 共 ' + ms + ' ms'
     + (_laps.length ? '　｜　' + _laps.join(' ・ ') + '（單位 ms）' : ''));
-  return res;
+  try {
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      data._perf = { action: action, ms: ms, laps: _laps.slice() };
+    }
+  } catch (e) {}
+  return data;
 }
 
 function ok_(data) {

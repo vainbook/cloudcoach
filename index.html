@@ -2188,6 +2188,14 @@ html.task-open, html.task-open body { overflow: hidden; }
   color: var(--beige-70); word-break: break-all; }
 .diagt td:first-child { width: 42%; color: var(--salmon); }
 
+/* ?perf=1 的耗時面板 */
+.perft { font-size: 11px; }
+.perft th { padding: 5px 6px; color: var(--salmon); text-align: left;
+  border-bottom: 1px solid var(--beige-18); font-weight: 400; }
+.perft td:first-child { width: auto; color: var(--beige-70); }
+.perft td { color: var(--beige); }
+.perflaps { color: var(--beige-40) !important; font-size: 10px; padding-bottom: 10px !important; }
+
 </style>
 </head>
 <body>
@@ -4240,7 +4248,12 @@ window.UC_SELFTEST = function () {
      ⚠️ Content-Type 必須是 text/plain —— 用 application/json 會觸發 preflight，
      而 GAS 設不了回應標頭，OPTIONS 一定失敗。
      ⚠️ redirect 要 follow —— GAS 會 302 到 googleusercontent。 */
+  /* 每次呼叫的耗時紀錄。⚠️ 存在記憶體就好，不要寫進任何儲存空間 ——
+     這是除錯資料，不是使用者資料。 */
+  var perf = [];
+
   function call(payload) {
+    var t0 = Date.now();
     /* ⚠️ **不要覆蓋呼叫端已經給的 Token。**
        第一版寫死 `payload.idToken = idToken`，而 store.js 自己的 idToken
        要到 connect() 才有值 —— 結果 auth.exchange／auth.bind（都在 connect 之前）
@@ -4254,6 +4267,12 @@ window.UC_SELFTEST = function () {
       body: JSON.stringify(payload)
     }).then(function (r) { return r.json(); })
       .then(function (j) {
+        var p = j && j.data && j.data._perf;
+        /* 前端量到的總時間減掉伺服器回報的腳本時間 = 平台啟動 ＋ 302 ＋ 網路。
+           那三樣我們改不動，但要知道它佔多少，才不會去改錯地方。 */
+        perf.push({ action: payload.action, total: Date.now() - t0,
+                    server: p ? p.ms : null, laps: p ? p.laps : [] });
+        if (perf.length > 40) perf.shift();
         if (j && j.ok) return j.data;
         var e = new Error((j && j.error && j.error.message) || '伺服器錯誤');
         e.code = (j && j.error && j.error.code) || 'INTERNAL_ERROR';
@@ -4419,6 +4438,7 @@ window.UC_SELFTEST = function () {
     flush: flush,
     connect: connect,
     call: call,
+    perf: function () { return perf.slice(); },
     studentId: function () { return studentId; },
     demoStudentId: function () { return demoId; },
     attach: function (app) { APP = app; }
@@ -7934,6 +7954,29 @@ window.UC_SELFTEST = function () {
       });
   }
 
+  /* ?perf=1：登入完成後把每一次 GAS 呼叫的耗時攤開來看。
+     ⚠️ 做成畫面上的面板，不要只 console.log —— 手機上看不到 console，
+     而慢的問題偏偏只在手機上明顯（2026-09-13 踩到，靠執行紀錄查不動）。 */
+  function showPerf() {
+    var rows = (window.UC_STORE.perf() || []).map(function (p) {
+      var net = p.server != null ? (p.total - p.server) : null;
+      return '<tr><td>' + esc(p.action) + '</td>'
+        + '<td>' + p.total + ' ms</td>'
+        + '<td>' + (p.server != null ? p.server + ' ms' : '—') + '</td>'
+        + '<td>' + (net != null ? net + ' ms' : '—') + '</td></tr>'
+        + (p.laps && p.laps.length
+          ? '<tr><td colspan="4" class="perflaps">' + esc(p.laps.join('　・　')) + '</td></tr>' : '');
+    }).join('');
+    ui('<p class="ey">Performance</p><h2>這次登入的時間分佈</h2>'
+      + '<table class="diagt perft"><tr><th>動作</th><th>總計</th><th>腳本內</th><th>平台＋網路</th></tr>'
+      + (rows || '<tr><td colspan="4">還沒有呼叫紀錄</td></tr>') + '</table>'
+      + '<p>「腳本內」是 GAS 自己跑的時間，那是我改得動的部分；'
+      + '「平台＋網路」是啟動、302 重導與連線，那是地板。</p>'
+      + '<button type="button" class="btn" id="perfClose">關掉</button>');
+    var c = document.getElementById('perfClose');
+    if (c) c.addEventListener('click', done);
+  }
+
   function enter(studentId, scope, payload) {
     ui('<p class="ey">Loading</p><h2>正在載入你的資料…</h2>');
     /* ⚠️ **身分要在 connect() 之前設。** connect 載完會立刻重畫，
@@ -7949,7 +7992,14 @@ window.UC_SELFTEST = function () {
        ⚠️ 後端組 payload 失敗時不會帶這個欄位，connect 會自動退回去自己打。 */
     return window.UC_STORE.connect({ api: GAS_API, idToken: idToken,
                                      studentId: studentId, payload: payload })
-      .then(function () { done(); })
+      .then(function () {
+        /* ⚠️ 除錯開關**不可以有辦法弄壞登入**。showPerf 若丟例外，
+           done() 不會被呼叫 → 使用者卡在遮罩後面，比慢更糟。 */
+        if (/[?&]perf=1/.test(location.search)) {
+          try { showPerf(); return; } catch (e) { console.warn('perf 面板失敗', e); }
+        }
+        done();
+      })
       .catch(function (e) { fatal('載入資料失敗', (e && e.message) || ''); });
   }
 })();
