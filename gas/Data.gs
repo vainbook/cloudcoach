@@ -141,15 +141,21 @@ function skelSheet_(scope) {
    getDataRange() 一次就全拿到（表頭和資料都在裡面），配合分頁清單快取，
    一個 scope 從 6 次降到 1 次。 */
 
-var _sheets = null;
+var _sheets = {};
 
-/** 分頁清單只問一次。原本每個 scope 各問一次 getSheetByName。 */
+/**
+ * 取分頁，同一個名字只問一次。
+ *
+ * ⚠️ **不要用 sheet_().getSheets() 一次撈全部。** 我試過，那是淨損失：
+ * 它會把全部 11 張分頁的物件都載進來，實測讓第一個呼叫它的人多付約 470ms，
+ * 而我們一次請求其實只用到 5～6 張。成本只是從「讀答案」搬到「查綁定」，
+ * 總和還變多了（2026-09-13 兩次實測對照出來的）。
+ *
+ * 逐個 getSheetByName 反而便宜，而且省下來的是真的省下來。
+ */
 function sheetByName_(name) {
-  if (!_sheets) {
-    _sheets = {};
-    sheet_().getSheets().forEach(function (sh) { _sheets[sh.getName()] = sh; });
-  }
-  return _sheets[name] || null;
+  if (!_sheets[name]) _sheets[name] = sheet_().getSheetByName(name) || null;
+  return _sheets[name];
 }
 
 var _skel = {};

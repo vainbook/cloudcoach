@@ -749,7 +749,20 @@ function hasSelfBinding_(rows, map, sub) {
   return false;
 }
 
+/* ⚠️ 這是**唯一在讀取路徑上的寫入**，實測 219ms（開綁定表 ＋ 讀表頭 ＋ 寫 ＋ flush）。
+   而它記的東西是「這個人今天有沒有來」—— 秒級精度完全不需要。
+   用 CacheService 節流成每人每小時最多寫一次，其餘時候直接跳過。
+   ⚠️ 快取壞掉就照舊寫，不要讓節流變成「永遠不記」。 */
 function touchLastLogin_(line) {
+  try {
+    var c = CacheService.getScriptCache(), k = 'll:' + line;
+    if (c.get(k)) return;              /* 一小時內來過了，不用再記一次 */
+    c.put(k, '1', 3600);
+  } catch (e) {}
+  return touchLastLoginNow_(line);
+}
+
+function touchLastLoginNow_(line) {
   try { setCell_(bindingSheet_(), line, 'last_login_at', new Date()); }
   catch (e) { console.warn('更新 last_login_at 失敗', e); }   /* 不該因此擋住登入 */
 }
@@ -1320,6 +1333,10 @@ function runSelftest_() {
     String(stateLoad_.toString()).indexOf('skelRead_') >= 0
     && String(growthLoad_.toString()).indexOf('skelRead_') >= 0);
   t('藍圖有走快取', String(blueprintLoad_.toString()).indexOf('CacheService') >= 0);
+  /* ⚠️ getSheets() 是淨損失（實測多付約 470ms），不要再放回來。 */
+  t('取分頁不用 getSheets（那會載入全部分頁）',
+    String(sheetByName_.toString()).indexOf('getSheets()') < 0);
+  t('last_login_at 有節流', String(touchLastLogin_.toString()).indexOf('CacheService') >= 0);
 
   /* 讀路徑重構最容易壞的地方：表頭列對錯、body 多切或少切一列。
      直接驗一次真實讀取的形狀。 */
