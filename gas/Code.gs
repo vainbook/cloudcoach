@@ -109,6 +109,7 @@ function doPost(e) {
      混在同一個數字裡。有了這一行，執行紀錄就能直接看出
      「腳本裡花了幾毫秒」，跟瀏覽器量到的總時間相減就是平台與網路的部分。 */
   var t0 = Date.now();
+  lapReset_();
   try {
     var body = parseBody_(e);
     var action = String(body.action || '');
@@ -339,6 +340,7 @@ function authBind_(body) {
 function requireBinding_(body) {
   var v = verifyToken_(body.idToken);
   var b = findBindingByLine_(v.sub);
+  lap_('查綁定');
   if (!b) throw new AppError('UNBOUND_ACCOUNT', '這個 LINE 帳號還沒有綁定學員');
   if (b.status !== 'active') throw new AppError('FORBIDDEN_STUDENT', '這個帳號已被停用');
   return b;
@@ -371,6 +373,16 @@ function studentLoad_(body) {
 function studentPayload_(b, sid) {
   var answers = {}, raw = stateLoad_('assessment', sid);
   for (var q in raw) answers[q] = raw[q].answer;
+  lap_('讀答案');
+
+  var report = (stateLoad_('report', sid).report || {});
+  lap_('讀報告');
+  var tasks = stateLoad_('task', sid);
+  lap_('讀任務');
+  var log = growthLoad_(sid);
+  lap_('讀成長');
+  var blueprint = blueprintLoad_();
+  lap_('讀藍圖');
 
   return {
     studentId: sid,
@@ -381,10 +393,10 @@ function studentPayload_(b, sid) {
     lineDisplayName: String(b.line_display_name || ''),
     accessScope: b.access_scope || 'self',
     answers: answers,
-    report: (stateLoad_('report', sid).report || {}),
-    tasks: stateLoad_('task', sid),
-    log: growthLoad_(sid),
-    blueprint: blueprintLoad_()
+    report: report,
+    tasks: tasks,
+    log: log,
+    blueprint: blueprint
   };
 }
 
@@ -722,11 +734,15 @@ function verifyToken_(idToken) {
     if (hit) {
       var d = JSON.parse(hit);
       /* 快取裡的也要再檢一次 exp —— TTL 與 exp 不一定同時到期。 */
-      if (d && d.sub && (!d.exp || d.exp > Math.floor(Date.now() / 1000))) return d;
+      if (d && d.sub && (!d.exp || d.exp > Math.floor(Date.now() / 1000))) {
+        lap_('驗證(快取命中)');
+        return d;
+      }
     }
   } catch (e) { cache = null; }        /* 快取壞掉不該擋住登入 */
 
   var data = verifyLineIdToken_(t, channelId_());
+  lap_('驗證(打LINE)');
 
   try {
     if (cache && data.exp) {
@@ -846,9 +862,24 @@ function maskSub_(sub) {
 
 /* 統一回應格式（BACKEND-WORKFLOW.md §5）。 */
 
+/* ── 分段計時 ────────────────────────────────────────
+   只記總時間的話，看到「1.8 秒」還是不知道該改哪裡。
+   分段之後一次執行就看得出時間分佈，不必來回猜。
+   Date.now() 本身沒有成本，可以長期留著。 */
+var _laps = [], _lapT = 0;
+
+function lapReset_() { _laps = []; _lapT = Date.now(); }
+
+function lap_(name) {
+  var n = Date.now();
+  _laps.push(name + ' ' + (n - _lapT));
+  _lapT = n;
+}
+
 /* 記一筆耗時再把回應原樣交出去。 */
 function done_(t0, action, res) {
-  console.log('⏱ ' + action + ' 腳本內耗時 ' + (Date.now() - t0) + ' ms');
+  console.log('⏱ ' + action + ' 共 ' + (Date.now() - t0) + ' ms'
+    + (_laps.length ? '　｜　' + _laps.join(' ・ ') + '（單位 ms）' : ''));
   return res;
 }
 
