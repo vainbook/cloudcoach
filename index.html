@@ -2082,6 +2082,11 @@ html.task-open, html.task-open body { overflow: hidden; }
 .stdemo s { font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
   text-decoration: none; opacity: .5; }
 
+/* 從 LINE 進來的時候，首頁那個名字輸入框一秒都不該出現 ——
+   身分由 LINE 決定、稱呼由學員在評測自己填，再打一次名字是白打。
+   boot.js 一載入就把 data-uc-boot 設成 line；退回 demo 時改成 demo。 */
+[data-uc-boot="line"] .hero-form { display: none; }
+
 </style>
 </head>
 <body>
@@ -7293,6 +7298,12 @@ window.UC_SELFTEST = function () {
      結果是打不開自我檢查（踩過）。 */
   if (location.hash === '#selftest' || /[?&]audit=1/.test(q)) return;
 
+  /* ⚠️ **首頁那個名字輸入框在這一刻就要藏起來。**
+     app.js 是同步跑的，它會先把首頁畫出來（含名字欄），boot.js 才開始問 LINE ——
+     中間那一瞬間使用者會看到「請輸入你的名字」，而正式流程根本不需要它。
+     用 html 的屬性控制，CSS 那邊一條規則就藏得掉，不必等 JS。 */
+  document.documentElement.dataset.ucBoot = 'line';
+
   var box = null, idToken = '';
 
   /* 端點先給 —— auth.exchange／auth.bind 在 connect 之前就要打得出去。
@@ -7329,7 +7340,13 @@ window.UC_SELFTEST = function () {
     var b = e.target.closest && e.target.closest('[data-gate]');
     if (!b) return;
     if (b.dataset.gate === 'retry') { location.reload(); return; }
-    if (b.dataset.gate === 'demo') { done(); return; }
+    if (b.dataset.gate === 'demo') {
+      /* 退回 demo：名字欄要放行，那條路本來就需要它。 */
+      document.documentElement.dataset.ucBoot = 'demo';
+      done();
+      if (window.UC_APP && window.UC_APP.render) window.UC_APP.render();
+      return;
+    }
     if (b.dataset.gate === 'bind') bind();
   });
 

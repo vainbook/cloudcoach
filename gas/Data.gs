@@ -25,6 +25,9 @@
 
 var BLUEPRINT_SHEET = '藍圖內容';
 
+/* 人的主檔。姓名以學員在評測 B01 填的為準，這張表跟著更新。 */
+var STUDENT_SHEET = '學員';
+
 /* 日常只要編輯「目標 O、KR、教材、作業」四欄；kr_id 不可修改 —— 它是永久的鍵，
    學員的任務狀態全部掛在它上面，改了等於把既有紀錄全部變成孤兒。 */
 var BLUEPRINT_COLS = ['kr_id', '能力', '目標 O', 'KR', '教材', '作業',
@@ -365,7 +368,57 @@ function entrySave_(scope, studentId, itemId, field, label, value, requestId, di
     set['教練內容'] = text;
   }
   writeRow_(sh, map, line, set);
+
+  /* ⚠️ **姓名以學員在評測 B01 填的為準**（使用者 2026-09-13 定調）。
+     所以一存 B01 就順手同步到「帳號綁定」與「學員」兩張表 ——
+     不然教練在那兩張表只看得到 id 跟 LINE 暱稱，對不上人。
+     反過來不成立：那兩張表被手動改了**不會**回寫評測答案。 */
+  if (scope === 'assessment' && String(itemId) === 'B01') {
+    syncStudentName_(studentId, typeof value === 'string' ? value : '');
+  }
   return now;
+}
+
+/** B01 的稱呼 → 帳號綁定.student_name ＋ 學員.學員名稱。 */
+function syncStudentName_(studentId, name) {
+  name = String(name || '').trim().slice(0, 40);
+  if (!name) return;
+  try {
+    var bsh = bindingSheet_(), bb = bindingBody_(bsh);
+    for (var i = 0; i < bb.rows.length; i++) {
+      var r = rowObj_(bb.rows[i], bb.map);
+      if (String(r.student_id) !== String(studentId)) continue;
+      if (String(r.student_name || '') === name) continue;
+      setCell_(bsh, bb.first + i, 'student_name', name);
+    }
+    upsertStudentRow_(studentId, name);
+  } catch (e) {
+    /* 同步姓名失敗不該擋住存檔 —— 答案本身已經寫進去了。 */
+    console.warn('同步姓名失敗 ' + studentId + '：' + e);
+  }
+}
+
+/** 「學員」分頁缺這個人就補一列，有就只更新名字。 */
+function upsertStudentRow_(studentId, name) {
+  var sh = sheet_().getSheetByName(STUDENT_SHEET);
+  if (!sh) return;
+  var map = skelMap_(sh);
+  if (!map.student_id || !map['學員名稱']) return;
+  var line = findRow_(sh, map, function (r) {
+    return String(r.student_id) === String(studentId);
+  });
+  if (line) {
+    if (String(sh.getRange(line, map['學員名稱']).getValue() || '') !== name) {
+      sh.getRange(line, map['學員名稱']).setValue(name);
+      if (map['最後更新']) sh.getRange(line, map['最後更新']).setValue(now_());
+    }
+    return;
+  }
+  writeRow_(sh, map, 0, {
+    student_id: studentId, '學員名稱': name,
+    '開始日期': now_(), '狀態': '啟用', '最後更新': now_()
+  });
+  console.log('「' + STUDENT_SHEET + '」新增一列：' + studentId + ' ' + name);
 }
 
 /* 任務狀態：一列 = 一條 KR。 */
@@ -471,7 +524,7 @@ function plain_(v) {
    ⚠️ 只掃「學員填寫」一次就把所有人的進度算完 ——
    一人一次查詢的話，學員一多就會逾時。 */
 
-var STUDENT_SHEET = '學員';
+/* 宣告移到檔頭，因為 syncStudentName_ 也要用。 */
 
 function studentList_() {
   var ss = sheet_();
@@ -494,9 +547,9 @@ function studentList_() {
      不然教練發了碼、學員綁好了，清單上卻看不到他。 */
   var seen = {};
   rows.forEach(function (x) { seen[x.id] = x; });
-  var bsh = bindingSheet_(), bmap = colMap_(bsh), brows = bsh.getDataRange().getValues();
-  for (var b = 1; b < brows.length; b++) {
-    var br = rowObj_(brows[b], bmap);
+  var bb = bindingBody_();
+  for (var b = 0; b < bb.rows.length; b++) {
+    var br = rowObj_(bb.rows[b], bb.map);
     var bid = String(br.student_id || '').trim();
     if (!bid || String(br.access_scope) === 'manage') continue;
     if (!seen[bid]) {

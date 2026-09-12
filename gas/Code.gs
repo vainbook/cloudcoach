@@ -216,12 +216,12 @@ function authBind_(body) {
     }
 
     var sh = bindingSheet_();
-    var map = colMap_(sh);
-    var rows = sh.getDataRange().getValues();
+    var b = bindingBody_(sh);
+    var map = b.map, rows = b.rows;
     var hash = hashCode_(code);
     var now = new Date();
 
-    for (var i = 1; i < rows.length; i++) {
+    for (var i = 0; i < rows.length; i++) {
       var r = rowObj_(rows[i], map);
       if (String(r.activation_code_hash) !== hash) continue;
 
@@ -268,7 +268,7 @@ function authBind_(body) {
                  accessScope: r.access_scope || 'manage', linkedAt: now.toISOString() };
       }
 
-      var line = i + 1;   /* 試算表列號（1-based，且第 1 列是標題） */
+      var line = b.first + i;   /* 試算表上的實際列號 */
       setCell_(sh, line, 'line_user_id', v.sub);
       setCell_(sh, line, 'activation_used_at', now);
       setCell_(sh, line, 'linked_at', now);
@@ -458,33 +458,125 @@ function sheet_() {
 }
 
 /** 取得「帳號綁定」分頁；不存在就建，欄位不齊就補齊。 */
+/* 欄名 → 中文說明。掛成儲存格註解（滑過去才出現），
+   不另外加一列 —— 多一列就多一種表頭位置，那正是要消滅的東西。 */
+var BINDING_NOTES = {
+  binding_id: '這一列的編號。自動產生，不用管。',
+  line_user_id: 'LINE 驗證後給的使用者 ID。⚠️ 這是個資，不要外流、不要貼進任何地方。',
+  student_id: '對應「學員」分頁的學員 ID。教練列可以留空。',
+  student_name: '學員在評測第一題（稱呼）自己填的。**以評測填的為準**，這裡只是快照。',
+  line_display_name: 'LINE 的顯示名稱，綁定時自動記。跟本人常常對不起來，只拿來認人。',
+  access_scope: 'self ＝ 只能看自己　manage ＝ 教練，看得到所有學員。用選單「把某個帳號升級成教練」改。',
+  reusable: 'TRUE ＝ 這是可重複使用的樣板（教練共用授權碼），用掉不會作廢。學員的碼一律留空。',
+  status: 'active 才能登入。要停用某個帳號就改成 disabled。',
+  activation_code_hash: '啟用碼的雜湊。**驗證只看這一欄**，不看明碼。不要手動改。',
+  activation_code_plain: '啟用碼的明碼，方便你抄給學員。**用掉的瞬間會自動清空。**',
+  activation_expires_at: '啟用碼的到期時間。',
+  activation_used_at: '啟用碼被用掉的時間。空的代表還沒人用。',
+  linked_at: '第一次綁定成功的時間。',
+  last_login_at: '最後一次開啟網站的時間。',
+  note: '你自己寫的備註。LINE 名稱跟本人對不起來的時候寫在這裡。'
+};
+
+/* 標題與說明，跟骨架其他分頁同一個形狀：
+   第 1 列空、第 2 列標題、第 3 列說明、第 4 列空、第 5 列表頭。 */
+function decorateBinding_(sh) {
+  sh.getRange(2, 1).setValue('帳號綁定');
+  sh.getRange(3, 1).setValue(
+    '一列 ＝ 一個 LINE 帳號對到哪位學員。這張表由程式維護，'
+    + '你平常只需要改 access_scope、status 與 note 三欄。'
+    + '　⚠️ 人的主檔在「學員」分頁；姓名以學員在評測填的為準。');
+  sh.setFrozenRows(BINDING_HEADER_ROW);
+  sh.setColumnWidth(1, 130);
+  var map = mapAt_(sh, BINDING_HEADER_ROW);
+  for (var col in BINDING_NOTES) {
+    if (map[col]) sh.getRange(BINDING_HEADER_ROW, map[col]).setNote(BINDING_NOTES[col]);
+  }
+}
+
+/**
+ * 把表頭在第 1 列的舊版搬成第 5 列。
+ * ⚠️ 用 insertRowsBefore 而不是重建 —— 既有的綁定資料一格都不能動，
+ * 那裡面有真的 line_user_id 與還沒用掉的啟用碼。
+ */
+function migrateBindingLayout_(sh) {
+  if (bindingHeadRow_(sh) !== 1) return false;
+  sh.insertRowsBefore(1, BINDING_HEADER_ROW - 1);
+  decorateBinding_(sh);
+  console.log('「' + BINDING_SHEET + '」已改成跟其他分頁一樣：表頭移到第 '
+              + BINDING_HEADER_ROW + ' 列');
+  return true;
+}
+
 function bindingSheet_() {
   var ss = sheet_();
   var sh = ss.getSheetByName(BINDING_SHEET);
   if (!sh) {
     sh = ss.insertSheet(BINDING_SHEET);
-    sh.getRange(1, 1, 1, BINDING_COLS.length).setValues([BINDING_COLS]);
-    sh.setFrozenRows(1);
-    sh.setColumnWidth(1, 130);
+    sh.getRange(BINDING_HEADER_ROW, 1, 1, BINDING_COLS.length).setValues([BINDING_COLS]);
+    decorateBinding_(sh);
     console.log('已建立「' + BINDING_SHEET + '」分頁');
     return sh;
   }
+  migrateBindingLayout_(sh);
 
   /* ⚠️ 既有的表要能就地升級。第一版只有 10 欄，後來加了姓名、明碼、備註。
      不做這段的話，rowObj_ 會把欄位對到錯的格子 —— 那是無聲的資料錯亂。
      只補在**最後面**，不重排既有欄位。 */
-  var have = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0]
+  var hrow = bindingHeadRow_(sh);
+  var have = sh.getRange(hrow, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0]
     .map(function (x) { return String(x || ''); });
   var missing = BINDING_COLS.filter(function (c) { return have.indexOf(c) < 0; });
   if (missing.length) {
-    sh.getRange(1, have.length + 1, 1, missing.length).setValues([missing]);
+    sh.getRange(hrow, have.length + 1, 1, missing.length).setValues([missing]);
     console.log('「' + BINDING_SHEET + '」補上欄位：' + missing.join('、'));
   }
+  decorateBinding_(sh);            /* 說明與註解每次都補齊，手動刪掉也會長回來 */
   return sh;
 }
 
 /** 讀表頭，回「欄名 → 欄號(1-based)」。**不要假設欄序跟 BINDING_COLS 一樣** ——
     舊表升級後新欄在最後面，寫死順序會對錯格子。 */
+/* 表頭在第 5 列（第 1–4 列是標題與說明）。骨架的每一張都是這樣，
+   「帳號綁定」2026-09-13 也改成一樣 —— 一份試算表只該有一種慣例。 */
+var BINDING_HEADER_ROW = 5;
+
+/** 讀任一列當表頭，回「欄名 → 欄號(1-based)」。 */
+function mapAt_(sh, row) {
+  var head = sh.getRange(row, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0];
+  var m = {};
+  for (var i = 0; i < head.length; i++) {
+    var k = String(head[i] || '');
+    if (k && !m[k]) m[k] = i + 1;
+  }
+  return m;
+}
+
+/* ⚠️ **相容舊版。** 遷移前表頭在第 1 列，遷移後在第 5 列。
+   靠「第 1 列第 1 格是不是 binding_id」判斷，不要用版本號猜。 */
+function bindingHeadRow_(sh) {
+  return String(sh.getRange(1, 1).getValue()) === BINDING_COLS[0] ? 1 : BINDING_HEADER_ROW;
+}
+
+function bindingMap_(sh) { return mapAt_(sh, bindingHeadRow_(sh)); }
+
+/**
+ * 綁定表的資料列。**所有掃這張表的地方都要用它**，
+ * 不要自己 getDataRange().getValues() 然後從索引 1 開始 ——
+ * 表頭一移位那些迴圈就會把標題列當成資料（無聲）。
+ * 回傳 { map, rows, first }：rows[0] 在試算表上的列號就是 first。
+ */
+function bindingBody_(sh) {
+  sh = sh || bindingSheet_();
+  var head = bindingHeadRow_(sh);
+  var map = mapAt_(sh, head);
+  var last = sh.getLastRow();
+  var rows = last > head
+    ? sh.getRange(head + 1, 1, last - head, Math.max(sh.getLastColumn(), 1)).getValues()
+    : [];
+  return { map: map, rows: rows, first: head + 1 };
+}
+
 function colMap_(sh) {
   var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   var m = {};
@@ -499,18 +591,18 @@ function rowObj_(arr, map) {
 }
 
 function setCell_(sh, line, col, value) {
-  var c = colMap_(sh)[col];
+  /* 綁定表的表頭不在第 1 列，所以不能用 colMap_。 */
+  var c = (sh.getName() === BINDING_SHEET ? bindingMap_(sh) : colMap_(sh))[col];
   if (!c) throw new AppError('INTERNAL_ERROR', '「帳號綁定」缺欄位 ' + col);
   sh.getRange(line, c).setValue(value);
 }
 
 function findBindingByLine_(sub) {
-  var sh = bindingSheet_(), map = colMap_(sh);
-  var rows = sh.getDataRange().getValues();
-  for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i], map);
+  var b = bindingBody_();
+  for (var i = 0; i < b.rows.length; i++) {
+    var r = rowObj_(b.rows[i], b.map);
     if (String(r.line_user_id) === String(sub) && r.student_id) {
-      r.row = i + 1;
+      r.row = b.first + i;
       return r;
     }
   }
@@ -518,7 +610,7 @@ function findBindingByLine_(sub) {
 }
 
 function hasSelfBinding_(rows, map, sub) {
-  for (var i = 1; i < rows.length; i++) {
+  for (var i = 0; i < rows.length; i++) {
     var r = rowObj_(rows[i], map);
     if (String(r.line_user_id) === String(sub) && r.access_scope === 'self'
         && r.activation_used_at) return true;
@@ -721,17 +813,16 @@ function setup() {
  * 沒有明碼可依據的未使用列會被列出來 —— 那些只能重發。
  */
 function rehashPlainCodes_() {
-  var sh = bindingSheet_(), map = colMap_(sh);
-  var rows = sh.getDataRange().getValues();
+  var sh = bindingSheet_(), b = bindingBody_(sh);
   var fixed = 0, orphan = [];
-  for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i], map);
+  for (var i = 0; i < b.rows.length; i++) {
+    var r = rowObj_(b.rows[i], b.map), line = b.first + i;
     if (r.activation_used_at) continue;              /* 用過了，不管 */
     if (!r.activation_code_hash) continue;           /* 空列 */
-    if (!r.activation_code_plain) { orphan.push(r.student_id || ('第 ' + (i + 1) + ' 列')); continue; }
+    if (!r.activation_code_plain) { orphan.push(r.student_id || ('第 ' + line + ' 列')); continue; }
     var want = hashCode_(String(r.activation_code_plain).trim().toUpperCase());
     if (String(r.activation_code_hash) === want) continue;   /* 已經對了 */
-    setCell_(sh, i + 1, 'activation_code_hash', want);
+    setCell_(sh, line, 'activation_code_hash', want);
     fixed++;
   }
   if (fixed) console.log('已用新的 CODE_SALT 重算 ' + fixed + ' 組還沒用掉的啟用碼');
@@ -751,7 +842,7 @@ function rehashPlainCodes_() {
 function newActivationCode(studentId, name, days, scope, reusable) {
   if (!studentId && scope !== 'manage') throw new Error('要給 studentId');
   var sh = bindingSheet_();
-  var map = colMap_(sh);
+  var map = bindingMap_(sh);
 
   /* 避開容易看錯的字元：0/O、1/I/L。教練要用口頭或訊息把碼給學員。 */
   var ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -836,17 +927,16 @@ function menuCoachCode() {
    動了等於把這個人換成另一個人。 */
 function menuMakeCoach() {
   var ui = SpreadsheetApp.getUi();
-  var sh = bindingSheet_(), map = colMap_(sh);
-  var rows = sh.getDataRange().getValues();
+  var sh = bindingSheet_(), b = bindingBody_(sh);
 
   /* 先把現有的綁定列出來，讓你照著抄，不要用猜的。 */
   var list = [], lineOf = {};
-  for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i], map);
+  for (var i = 0; i < b.rows.length; i++) {
+    var r = rowObj_(b.rows[i], b.map);
     if (!r.line_user_id) continue;                 /* 還沒有人綁的樣板列跳過 */
     var who = String(r.student_id || '（沒有學員 id）');
     list.push(who + '　' + (r.line_display_name || '') + '　目前：' + (r.access_scope || 'self'));
-    lineOf[who] = i + 1;
+    lineOf[who] = b.first + i;
   }
   if (!list.length) { ui.alert('「' + BINDING_SHEET + '」裡還沒有任何已綁定的帳號。'); return; }
 
@@ -866,11 +956,10 @@ function menuMakeCoach() {
 }
 
 function menuStatus() {
-  var sh = bindingSheet_(), map = colMap_(sh);
-  var rows = sh.getDataRange().getValues();
+  var b = bindingBody_();
   var issued = 0, used = 0, pending = 0;
-  for (var i = 1; i < rows.length; i++) {
-    var r = rowObj_(rows[i], map);
+  for (var i = 0; i < b.rows.length; i++) {
+    var r = rowObj_(b.rows[i], b.map);
     if (!r.activation_code_hash) continue;
     issued++;
     if (r.activation_used_at) used++; else pending++;
@@ -911,7 +1000,7 @@ function selftest() {
      那是無聲的資料錯亂，不會報錯。 */
   var miss = [];
   if (ss && ss.getSheetByName(BINDING_SHEET)) {
-    var cm = colMap_(bindingSheet_());
+    var cm = bindingMap_(bindingSheet_());
     miss = BINDING_COLS.filter(function (c) { return !cm[c]; });
   }
   t('「' + BINDING_SHEET + '」欄位齊全' + (miss.length ? '（缺 ' + miss.join('、') + '）' : ''),
@@ -921,9 +1010,9 @@ function selftest() {
      有明碼可以驗，就一定要驗。 */
   var mismatch = [];
   try {
-    var s3 = bindingSheet_(), m3 = colMap_(s3), r3 = s3.getDataRange().getValues();
-    for (var k = 1; k < r3.length; k++) {
-      var rw = rowObj_(r3[k], m3);
+    var b3 = bindingBody_();
+    for (var k = 0; k < b3.rows.length; k++) {
+      var rw = rowObj_(b3.rows[k], b3.map);
       if (rw.activation_used_at || !rw.activation_code_hash || !rw.activation_code_plain) continue;
       if (hashCode_(String(rw.activation_code_plain).trim().toUpperCase())
           !== String(rw.activation_code_hash)) mismatch.push(rw.student_id);
@@ -935,9 +1024,9 @@ function selftest() {
   /* 已經用掉的碼不該還留著明碼。 */
   var leaked = [];
   try {
-    var sh2 = bindingSheet_(), m2 = colMap_(sh2), rs = sh2.getDataRange().getValues();
-    for (var i = 1; i < rs.length; i++) {
-      var rr = rowObj_(rs[i], m2);
+    var b2 = bindingBody_();
+    for (var i = 0; i < b2.rows.length; i++) {
+      var rr = rowObj_(b2.rows[i], b2.map);
       if (rr.activation_used_at && rr.activation_code_plain) leaked.push(rr.student_id);
     }
   } catch (e) {}
@@ -979,7 +1068,18 @@ function selftest() {
     scopeOk = false;
   } catch (e) { scopeOk = e instanceof AppError; }
   t('student.list 沒有 Token 時丟的是 AppError', scopeOk);
-  t('綁定表有 reusable 欄位', !!(ss && colMap_(bindingSheet_()).reusable));
+  t('綁定表有 reusable 欄位', !!(ss && bindingMap_(bindingSheet_()).reusable));
+
+  /* 遷移之後最該怕的事：迴圈把標題列當成資料，或表頭讀錯列。 */
+  var bsh = bindingSheet_();
+  t('綁定表的表頭在第 ' + BINDING_HEADER_ROW + ' 列', bindingHeadRow_(bsh) === BINDING_HEADER_ROW);
+  var bb = bindingBody_(bsh);
+  t('綁定表的資料列不含標題列', bb.rows.every(function (row) {
+    var r = rowObj_(row, bb.map);
+    return !r.binding_id || String(r.binding_id).indexOf('BND-') === 0;
+  }));
+  t('綁定表的表頭有中文註解',
+    !!bsh.getRange(BINDING_HEADER_ROW, bindingMap_(bsh).access_scope || 1).getNote());
 
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];
