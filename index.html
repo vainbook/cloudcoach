@@ -4023,8 +4023,13 @@ window.UC_SELFTEST = function () {
      而 GAS 設不了回應標頭，OPTIONS 一定失敗。
      ⚠️ redirect 要 follow —— GAS 會 302 到 googleusercontent。 */
   function call(payload) {
-    payload.idToken = idToken;
-    if (studentId) payload.studentId = studentId;
+    /* ⚠️ **不要覆蓋呼叫端已經給的 Token。**
+       第一版寫死 `payload.idToken = idToken`，而 store.js 自己的 idToken
+       要到 connect() 才有值 —— 結果 auth.exchange／auth.bind（都在 connect 之前）
+       送出去的 Token 一律是空字串，後端回「沒有帶 idToken」。
+       本機測不出來，因為當時的假 fetch 只檢查 action，沒檢查 Token 在不在（踩過）。 */
+    if (!payload.idToken) payload.idToken = idToken;
+    if (studentId && !payload.studentId) payload.studentId = studentId;
     return fetch(api + (api.indexOf('?') < 0 ? '?' : '&') + '_ts=' + Date.now(), {
       method: 'POST', mode: 'cors', redirect: 'follow', cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -4129,8 +4134,13 @@ window.UC_SELFTEST = function () {
      之前就要能打，而那時候還沒有學員資料可以同步。 */
   function endpoint(url) { api = url || ''; }
 
+  /* 驗證成功之後把 Token 交給 store，之後所有請求都用它。
+     呼叫端還是可以在單一 payload 裡自己帶，那個優先。 */
+  function token(t) { idToken = t || ''; }
+
   window.UC_STORE = {
     endpoint: endpoint,
+    token: token,
     isRemote: isRemote,
     push: push,
     flush: flush,
@@ -7071,6 +7081,7 @@ window.UC_SELFTEST = function () {
       }
       step = 'TOKEN';
       idToken = liff.getIDToken();
+      window.UC_STORE.token(idToken);          /* 之後每個請求都用它 */
       if (!idToken) {
         throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
       }
