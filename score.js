@@ -352,7 +352,17 @@ window.UC_SELFTEST = function () {
       L.items.filter(function (i) { return i.dims && i.dims.indexOf(k) >= 0; }).length >= 1);
   });
   T.items.forEach(function (x) {
-    t('工具「' + x.t + '」有狀態標記', ['preview', 'soon'].indexOf(x.status) >= 0);
+    t('工具「' + x.t + '」有狀態標記', ['active', 'preview', 'soon'].indexOf(x.status) >= 0);
+    if (x.assignment) {
+      t('作業「' + x.t + '」有穩定 id', /^[a-z0-9-]+$/.test(x.assignment.id || ''));
+      t('作業「' + x.t + '」有題目', Array.isArray(x.assignment.fields) && x.assignment.fields.length > 0);
+      var assignmentFields = {};
+      (x.assignment.fields || []).forEach(function (f) {
+        t('作業「' + x.t + '」題目 ' + f.id + ' 的 id 不重複', !!f.id && !assignmentFields[f.id]);
+        assignmentFields[f.id] = 1;
+        t('作業「' + x.t + '」題目 ' + f.id + ' 有範例', typeof f.example === 'string' && f.example.length > 0);
+      });
+    }
     t('工具「' + x.t + '」有說明', x.lead && x.body);
   });
   var toolKeys = {};

@@ -821,6 +821,7 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   border: 1px solid var(--beige-18); border-radius: 2px; padding: 4px 8px; opacity: .6;
 }
 .badge.preview { border-color: var(--salmon-30); color: var(--salmon); opacity: .9; }
+.badge.active { border-color: var(--salmon-30); color: var(--salmon); opacity: 1; }
 .tlead { font-size: 15px; line-height: 1.9; color: var(--salmon); margin: 0 0 12px; }
 .tbody { font-size: 14px; line-height: 2.05; opacity: .72; }
 .legs { display: flex; flex-direction: column; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
@@ -843,6 +844,45 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .tplan td.fieldcell.coach { background: rgba(232, 168, 152, .075); }
 .tplan td:empty::after { content: '待填'; opacity: .28; }
 .tsource { margin-top: 18px; }
+.assignment { margin-top: 30px; }
+.assignment-note {
+  margin: 0 0 34px; padding: 16px 18px; border-left: 2px solid var(--salmon);
+  background: rgba(232,168,152,.07);
+}
+.assignment-note p { margin: 0; font-size: 13px; line-height: 1.95; opacity: .72; }
+.assignment-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.assignment-head h3 { margin: 3px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 500; }
+.assignment-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .55; }
+.assignment-guide { margin: 18px 0 24px; font-size: 13.5px; line-height: 1.95; opacity: .72; }
+.assignment-fields { display: flex; flex-direction: column; gap: 16px; }
+.assignment-field {
+  display: grid; grid-template-columns: 42px minmax(0, 1fr); column-gap: 12px;
+  padding: 20px; border: 1px solid var(--beige-12); background: rgba(232,228,220,.025);
+}
+.assignment-number { grid-row: 1; color: var(--salmon); font-size: 11px; letter-spacing: .08em; padding-top: 5px; opacity: .75; }
+.assignment-copy { grid-column: 2; }
+.assignment-copy h3 { margin: 0; font-family: var(--serif); font-size: 19px; font-weight: 500; }
+.assignment-sub { margin: 4px 0 10px; color: var(--salmon); font-size: 13px; }
+.assignment-scope { margin: 0; font-size: 12.5px; line-height: 1.85; opacity: .58; }
+.assignment-field textarea {
+  grid-column: 1 / -1; width: 100%; min-height: 178px; margin-top: 17px; padding: 14px 15px;
+  border-color: var(--beige-18); background: rgba(19,27,46,.55); line-height: 1.85;
+}
+.assignment-example { grid-column: 1 / -1; margin-top: 12px; font-size: 12px; }
+.assignment-example summary { width: max-content; max-width: 100%; color: var(--salmon); cursor: pointer; opacity: .78; }
+.assignment-example p { margin: 11px 0 0; padding: 13px 15px; border-left: 1px solid var(--beige-18); line-height: 1.9; opacity: .58; }
+.assignment-actions { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-top: 20px; }
+.assignment-actions p { margin: 0; font-size: 11px; opacity: .45; }
+.assignment-actions .btn { flex: none; }
+@media (max-width: 560px) {
+  .assignment { margin-top: 24px; }
+  .assignment-head { align-items: flex-start; }
+  .assignment-meta { padding-top: 3px; }
+  .assignment-field { padding: 17px 15px; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; }
+  .assignment-field textarea { min-height: 210px; padding: 13px; }
+  .assignment-actions { align-items: stretch; flex-direction: column; }
+  .assignment-actions .btn { width: 100%; }
+}
 /* ── toast ─────────────────────────────────────────── */
 .toast {
   position: fixed; bottom: 80px; left: 50%; transform: translate(-50%, 8px);

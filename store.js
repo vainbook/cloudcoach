@@ -92,6 +92,14 @@
       add('task', kr, 'key', kr + '／書本重點', !!S.key[kr]);
     });
 
+    /* 通用作業：一位學員的一份作業只送一包 JSON。
+       題目文字可以改，穩定的 assignmentId / field id 不跟著改。 */
+    Object.keys(S.assignments || {}).forEach(function (assignmentId) {
+      var submission = S.assignments[assignmentId];
+      if (!submission || typeof submission !== 'object') return;
+      add('assignment', assignmentId, 'submission', assignmentId + '／作業作答', JSON.stringify(submission));
+    });
+
     function add(scope, itemId, field, label, value) {
       out[scope + '|' + itemId + '|' + field] =
         { scope: scope, itemId: itemId, field: field, label: label, value: value };
@@ -300,6 +308,7 @@
         answers: data.answers || {},
         coachReport: unpackReport(data.report || {}),
         picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
+        assignments: data.assignments || {},
         log: Array.isArray(data.log) ? data.log : []
       };
       unpackTasks(data.tasks || {}, S);
@@ -340,9 +349,8 @@
     });
   }
 
-  /* 藍圖以試算表為準。只覆蓋你在表上會編輯的那幾欄，
-     ⚠️ **id 與 dim 不動** —— dim 是用中文能力名反查的，查不到就保留原本的，
-     不然打錯一個字整條 KR 會從雷達上消失。 */
+  /* 藍圖以試算表為準。既有 kr_id 會更新原任務，新 kr_id 會建立新任務。
+     能力名稱必須對得上五個維度；填錯的列不顯示，並由 Sheet 的檢查功能列出。 */
   function applyBlueprint(rows) {
     var O = window.UC_OKR, D = window.UC_DIMENSIONS;
     if (!O || !D) return;
@@ -353,16 +361,22 @@
 
     var next = [];
     rows.forEach(function (r) {
+      var dim = byLabel[r.dimLabel];
+      if (!r.id || !dim || !r.kr) return;    /* 後台檢查會列出哪一列不完整 */
       var it = byId[r.id];
-      if (!it) return;                       /* 表上多出來的 id 先不處理 */
-      it.sub = r.sub || it.sub;
-      it.kr = r.kr || it.kr;
-      it.tool = r.tool || it.tool;
-      it.sheet = r.sheet || it.sheet;
-      if (r.short) it.short = r.short;
-      if (r.note) it.note = r.note;
-      if (r.n != null) it.n = r.n;
-      if (byLabel[r.dimLabel]) it.dim = byLabel[r.dimLabel];
+      if (!it) {
+        /* Sheet 是藍圖的正式來源；新 kr_id 不需要再回頭改 okr.js。
+           ch 只供暫時保留的書頁分章，依能力放入現有三章。 */
+        it = { id: r.id, ch: dim === 'flirt' ? 2 : (dim === 'circle' || dim === 'emo' ? 1 : 0) };
+      }
+      it.dim = dim;
+      it.sub = r.sub || '';
+      it.kr = r.kr;
+      it.tool = r.tool || '';
+      it.sheet = r.sheet || '';
+      it.short = r.short || r.kr;
+      it.note = r.note || '';
+      it.n = r.n == null ? null : r.n;
       next.push(it);
     });
     if (next.length) O.items = next;         /* 表上停用的條目就不會出現 */

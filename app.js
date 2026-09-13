@@ -44,6 +44,7 @@
       taskNow: obj(raw.taskNow),
       hidden:  obj(raw.hidden),
       done:    obj(raw.done),
+      assignments: normalizeAssignments(raw.assignments),
       coachReport: normalizeCoachReport(raw.coachReport),
       log:     Array.isArray(raw.log) ? raw.log : b.log
     };
@@ -55,8 +56,30 @@
   function blank() {
     return {
       name: '', answers: {}, picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
-      coachReport: normalizeCoachReport(), log: []
+      assignments: {}, coachReport: normalizeCoachReport(), log: []
     };
+  }
+  function normalizeAssignments(v) {
+    var out = {};
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+    Object.keys(v).forEach(function (id) {
+      var raw = v[id];
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
+      var answers = {};
+      if (raw.answers && typeof raw.answers === 'object' && !Array.isArray(raw.answers)) {
+        Object.keys(raw.answers).forEach(function (field) {
+          if (typeof raw.answers[field] === 'string') answers[field] = raw.answers[field];
+        });
+      }
+      out[id] = {
+        assignmentId: id,
+        version: Math.max(1, Math.round(Number(raw.version) || 1)),
+        status: ['draft', 'submitted', 'completed'].indexOf(raw.status) >= 0 ? raw.status : 'draft',
+        answers: answers,
+        updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : ''
+      };
+    });
+    return out;
   }
   function normalizeCoachReport(v) {
     v = v && typeof v === 'object' && !Array.isArray(v) ? v : {};
@@ -2880,22 +2903,100 @@
         + '<span class="thumb' + (t.cover ? ' has-cover' : '') + '">'
         + (t.cover ? '<img src="' + esc(t.cover) + '" alt="" loading="lazy" decoding="async">' : '')
         + '<i class="num">' + ('0' + (i + 1)) + '</i>'
-        + '<u>' + (t.status === 'preview' ? '結構示意' : '內容待補') + '</u></span>'
+        + '<u>' + (t.status === 'active' ? '可填寫' : t.status === 'preview' ? '結構示意' : '內容待補') + '</u></span>'
         + '<b>' + esc(t.t) + '</b><s>' + esc(t.lead) + '</s>'
         + '<em class="num">' + esc(t.en) + '</em></button>';
     }).join('') + '</div>';
+  }
+
+  function assignmentState(t) {
+    var a = t.assignment;
+    var saved = S.assignments[a.id];
+    if (!saved) {
+      saved = S.assignments[a.id] = {
+        assignmentId: a.id, version: a.version || 1, status: 'draft', answers: {}, updatedAt: ''
+      };
+    }
+    return saved;
+  }
+
+  function assignmentStatusText(status) {
+    return status === 'completed' ? '已完成' : status === 'submitted' ? '已交作業' : '草稿';
+  }
+
+  function assignmentHTML(t) {
+    var a = t.assignment, saved = assignmentState(t);
+    var fields = a.fields || [];
+    var answered = fields.filter(function (f) { return String(saved.answers[f.id] || '').trim(); }).length;
+    return '<section class="assignment" data-assignment="' + esc(a.id) + '">'
+      + '<div class="assignment-note"><p>' + esc(a.note) + '</p></div>'
+      + '<div class="assignment-head"><div><p class="ey">這次的作業</p><h3>寫下你的三張生活藍圖</h3></div>'
+      + '<div class="assignment-meta"><span id="assignmentProgress">' + answered + ' / ' + fields.length + '</span>'
+      + '<span id="assignmentStatus">' + assignmentStatusText(saved.status) + '</span></div></div>'
+      + '<p class="assignment-guide">' + esc(a.prompt) + '</p>'
+      + '<div class="assignment-fields">' + fields.map(function (f, i) {
+        return '<section class="assignment-field" data-field-id="assignment.' + esc(a.id) + '.' + esc(f.id) + '" data-field-owner="student" data-field-label="' + esc(f.t) + '">'
+          + '<div class="assignment-number num">' + ('0' + (i + 1)).slice(-2) + '</div>'
+          + '<div class="assignment-copy"><h3>' + esc(f.t) + '</h3><p class="assignment-sub">' + esc(f.sub) + '</p>'
+          + '<p class="assignment-scope">' + esc(f.scope) + '</p></div>'
+          + '<textarea rows="7" data-assignment-answer="' + esc(f.id) + '" placeholder="請依序寫下：現況、目標、如何實踐、為什麼想要。">'
+          + esc(saved.answers[f.id] || '') + '</textarea>'
+          + '<details class="assignment-example"><summary>看一個填寫範例</summary><p>'
+          + esc(f.example).replace(/\n/g, '<br>') + '</p></details></section>';
+      }).join('') + '</div>'
+      + '<div class="assignment-actions"><p id="assignmentSaveHint">內容會隨填寫自動儲存。</p>'
+      + '<button type="button" class="btn pri" id="assignmentSubmit">'
+      + (ACTOR_ROLE === 'coach' ? '標記完成' : '交作業') + '</button></div></section>';
+  }
+
+  function bindAssignment(t, pane) {
+    var a = t.assignment, saved = assignmentState(t), fields = a.fields || [];
+    var button = pane.querySelector('#assignmentSubmit');
+    function sync() {
+      var answered = fields.filter(function (f) { return String(saved.answers[f.id] || '').trim(); }).length;
+      var progress = pane.querySelector('#assignmentProgress');
+      var status = pane.querySelector('#assignmentStatus');
+      if (progress) progress.textContent = answered + ' / ' + fields.length;
+      if (status) status.textContent = assignmentStatusText(saved.status);
+      if (button) {
+        button.disabled = answered !== fields.length || saved.status === 'completed'
+          || (ACTOR_ROLE !== 'coach' && saved.status === 'submitted');
+        button.textContent = saved.status === 'completed' ? '已完成'
+          : ACTOR_ROLE === 'coach' ? '標記完成' : saved.status === 'submitted' ? '已交作業' : '交作業';
+      }
+    }
+    [].forEach.call(pane.querySelectorAll('[data-assignment-answer]'), function (textarea) {
+      grow(textarea);
+      textarea.addEventListener('input', function () {
+        saved.answers[textarea.dataset.assignmentAnswer] = textarea.value;
+        saved.status = 'draft';
+        saved.updatedAt = new Date().toISOString();
+        save(); grow(textarea); sync();
+      });
+    });
+    if (button) button.addEventListener('click', function () {
+      if (button.disabled) return;
+      saved.status = ACTOR_ROLE === 'coach' ? 'completed' : 'submitted';
+      saved.updatedAt = new Date().toISOString();
+      save(); sync();
+      toast(saved.status === 'completed' ? '已標記為完成' : '作業已送出');
+    });
+    applyFieldAccess(pane);
+    sync();
   }
 
   /* 點開一張工具卡。只換窗格內容，捲動位置不動。 */
   function toolTo(k) {
     var t = window.UC_TOOLS.items.filter(function (x) { return x.k === k; })[0];
     if (!t) return;
-    var badge = t.status === 'preview' ? '結構示意' : '內容待補';
+    var badge = t.status === 'active' ? '可填寫' : t.status === 'preview' ? '結構示意' : '內容待補';
     var x = '<button class="btn gh bk" id="toolBack">← 回到課程工具</button>'
       + '<div class="thead"><div><p class="ey">' + t.en + '</p><h2>' + esc(t.t) + '</h2></div>'
       + '<span class="badge ' + t.status + '">' + badge + '</span></div>'
       + '<div class="divider"><i></i><s></s></div>'
-      + '<p class="tlead">' + esc(t.lead) + '</p><p class="tbody">' + esc(t.body) + '</p>';
+      + '<p class="tlead">' + esc(t.lead) + '</p>'
+      + String(t.body || '').split(/\n\n+/).map(function (p) { return '<p class="tbody">' + esc(p) + '</p>'; }).join('');
+    if (t.assignment) x += assignmentHTML(t);
     if (t.preview) {
       x += '<p class="snote">' + esc(t.preview.note) + '</p><div class="legs">'
         + t.preview.legs.map(function (g) {
@@ -2931,6 +3032,7 @@
     var pane = el('libPane');
     pane.innerHTML = '<div class="tool">' + x + '</div>';
     el('toolBack').addEventListener('click', function () { libTo('tool'); });
+    if (t.assignment) bindAssignment(t, pane);
     reveal(pane);
   }
 
