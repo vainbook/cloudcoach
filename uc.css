@@ -1,0 +1,2227 @@
+/* UC Training Cloud Coach — 品牌 tokens 與共用元件
+   基底來自 uc-design SKILL（簡報規格），延伸為響應式深色 App。色票不動。 */
+
+:root {
+  --navy: #131B2E;
+  --beige: #E8E4DC;
+  --salmon: #E8A898;
+  --white: #FFFFFF;
+
+  --navy-60: rgba(19, 27, 46, .6);
+  --navy-lift: #1B2440;          /* 深藍底上的卡片，用亮一階的同色，不引入新色 */
+  --navy-lift2: #222D4E;
+  --beige-70: rgba(232, 228, 220, .7);
+  --beige-40: rgba(232, 228, 220, .4);
+  --beige-18: rgba(232, 228, 220, .18);
+  --beige-08: rgba(232, 228, 220, .08);
+  /* 米白紙上的深藍階（跟 --beige-* 對稱）。評測頁是米白的，需要這一組。 */
+  --navy-40: rgba(19, 27, 46, .4);
+  --navy-18: rgba(19, 27, 46, .18);
+  --navy-12: rgba(19, 27, 46, .12);
+  --navy-08: rgba(19, 27, 46, .08);
+  --salmon-30: rgba(232, 168, 152, .3);
+  --salmon-12: rgba(232, 168, 152, .12);
+
+  --serif: 'Noto Serif TC', serif;
+  --sans: 'Noto Sans TC', system-ui, sans-serif;
+  --mono: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+  --display: 'DM Serif Display', 'Noto Serif TC', serif;
+
+  --pad: 20px;
+  --maxw: 880px;
+  --ease: cubic-bezier(.22, .61, .36, 1);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--navy);
+  color: var(--beige);
+  font-family: var(--sans);
+  font-weight: 400;
+  line-height: 1.75;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+/* 迷宮紋路：uc-design 的品牌底層裝飾，反色版（深底上用米白線） */
+.mesh {
+  background-image:
+    repeating-linear-gradient(0deg, var(--beige-08) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, var(--beige-08) 0 1px, transparent 1px 48px);
+}
+/* ── 品牌元件 ───────────────────────────────────────── */
+
+.uc-logo {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: .04em;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  flex: none;
+}
+/* 四角 L 型括號。uc-design 要求每頁都出現 */
+.brk { position: absolute; width: 22px; height: 34px; pointer-events: none; opacity: .35; }
+.brk-tl { top: 14px; left: 14px; border-top: 1.5px solid currentColor; border-left: 1.5px solid currentColor; }
+.brk-tr { top: 14px; right: 14px; border-top: 1.5px solid currentColor; border-right: 1.5px solid currentColor; }
+.brk-bl { bottom: 14px; left: 14px; border-bottom: 1.5px solid currentColor; border-left: 1.5px solid currentColor; }
+.brk-br { bottom: 14px; right: 14px; border-bottom: 1.5px solid currentColor; border-right: 1.5px solid currentColor; }
+/* 雙色橫線分隔符 */
+.divider { display: flex; align-items: center; gap: 8px; margin: 14px 0 22px; }
+.divider i { display: block; width: 60px; height: 3px; background: currentColor; }
+.divider s { display: block; flex: 1; height: 1px; background: currentColor; opacity: .2; }
+/* 右側直書標籤 */
+.side-label {
+  position: fixed; right: 6px; top: 50%; transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .28em;
+  opacity: .22; pointer-events: none; z-index: 2;
+}
+.ey {  /* 英文小標／眉標 */
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; opacity: .5;
+}
+h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.35; margin: 0; }
+h1 { font-size: 27px; }
+h2 { font-size: 22px; }
+h3 { font-size: 16px; }
+p { margin: 0 0 1em; }
+a { color: var(--salmon); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+/* ── 版面 ──────────────────────────────────────────── */
+
+.view { display: none; min-height: 100vh; position: relative; }
+.view.on { display: block; animation: fade .45s var(--ease) both; }
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+.paper > section > .wrap { max-width: 100%; }
+/* 頂部列（登入頁以外） */
+.top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) var(--pad) 12px;
+  background: rgba(19, 27, 46, .88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--beige-08);
+}
+.top .uc-logo { width: 30px; height: 30px; font-size: 11px; }
+.top .who { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; opacity: .55; margin-left: auto; }
+/* 底部導覽（uc-design 的膠囊 nav-bar，改成頁面切換） */
+.nav {
+  position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  z-index: 30;
+  display: flex; gap: 2px;
+  background: rgba(19, 27, 46, .92);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--beige-18);
+  border-radius: 40px;
+  padding: 6px;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav a {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  color: var(--beige-70); text-decoration: none;
+  padding: 7px 13px; border-radius: 30px; white-space: nowrap;
+  min-height: 44px; display: flex; align-items: center;
+  transition: background .2s, color .2s;
+}
+.nav a[aria-current="page"] { background: var(--salmon); color: var(--navy); font-weight: 600; }
+.pagepad { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+/* ── 控件 ──────────────────────────────────────────── */
+
+.btn {
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  color: var(--beige); background: transparent;
+  border: 1px solid var(--beige-40); border-radius: 3px;
+  padding: 13px 22px; cursor: pointer;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.btn:hover { border-color: var(--beige); }
+.btn.pri { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 700; }
+.btn.pri:hover { filter: brightness(1.07); }
+.btn.gh { border-color: var(--beige-18); font-size: 12px; padding: 10px 16px; }
+.btn:disabled { opacity: .35; cursor: default; }
+input[type=text], input[type=number], input[type=password], select, textarea {
+  width: 100%; font-family: var(--sans); font-size: 15px;
+  color: var(--beige); background: var(--navy-lift);
+  border: 1px solid var(--beige-18); border-radius: 3px;
+  padding: 12px 13px;
+}
+select { appearance: none; background-image: none; }
+textarea { resize: vertical; min-height: 84px; line-height: 1.7; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--salmon); }
+input::placeholder, textarea::placeholder { color: var(--beige-40); }
+.card {
+  background: var(--navy-lift);
+  border: 1px solid var(--beige-08);
+  border-radius: 4px;
+  padding: 18px;
+}
+/* ── 動態 ──────────────────────────────────────────── */
+
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@keyframes maskup { from { transform: translateY(105%) } to { transform: none } }
+@keyframes draw { to { stroke-dashoffset: 0 } }
+/* 捲動揭示：app.js 用 IntersectionObserver 加 .in */
+.rv { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.rv.in { opacity: 1; transform: none; }
+/* 文字遮罩上升 */
+.mask { overflow: hidden; display: block; }
+.mask > span { display: block; animation: maskup .9s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .rv { opacity: 1; transform: none; }
+}
+@media (min-width: 720px) {
+  :root { --pad: 32px; }
+  h1 { font-size: 38px; }
+  h2 { font-size: 27px; }
+}
+/* ── 登入／歡迎頁 ──────────────────────────────────── */
+
+.hero {
+  position: relative;
+  min-height: 100vh; min-height: 100svh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 56px var(--pad);
+  color: var(--beige);
+}
+/* 深藍底上的一圈鮭粉暈，唯一的光暈來源 */
+.hero::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(58% 42% at 50% 38%, var(--salmon-12), transparent 70%);
+}
+.hero-in { position: relative; max-width: 560px; width: 100%; text-align: center; }
+.hero-mark { width: 62px; height: 62px; color: var(--beige); margin-bottom: 26px; }
+.hero-mark circle { stroke-dasharray: 233; stroke-dashoffset: 233; animation: draw 1.1s var(--ease) .1s both; }
+.hero-mark text {
+  font-family: var(--mono); font-size: 24px; font-weight: 600; letter-spacing: .04em;
+  fill: currentColor; opacity: 0; animation: fade .6s ease .9s both;
+}
+.hero-ey { margin: 0 0 18px; animation: fade .8s ease 1.1s both; }
+.hero-h { font-size: 34px; font-weight: 900; letter-spacing: .01em; margin-bottom: 14px; }
+.hero-h .mask > span { animation-delay: 1.2s; }
+.hero-h .mask:last-child > span { animation-delay: 1.35s; color: var(--salmon); }
+.hero-sub {
+  font-family: var(--serif); font-size: 15px; letter-spacing: .3em;
+  opacity: .62; margin: 0 0 4px; animation: fade 1s ease 1.7s both;
+}
+.hero-div { justify-content: center; animation: fade 1s ease 1.9s both; }
+.hero-div i { width: 44px; }
+.hero-div s { max-width: 120px; }
+.hero-lead { font-size: 14.5px; line-height: 2; opacity: .8; animation: rise .9s var(--ease) 2s both; }
+.hero-form { display: flex; flex-direction: column; gap: 10px; margin-top: 30px; animation: rise .9s var(--ease) 2.2s both; }
+.hero-form input { text-align: center; }
+.hero-alt { margin: 20px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fade 1s ease 2.5s both; }
+.hero-alt small { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; opacity: .38; }
+.line-entry {
+  display: none; flex-direction: column; align-items: center; gap: 10px;
+  margin-top: 30px; animation: rise .7s var(--ease) .36s both;
+}
+.line-entry .btn { min-width: min(100%, 280px); }
+.line-entry small, .line-wait {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--beige-40);
+}
+.line-progress {
+  display: none; width: min(100%, 390px); margin: 26px auto 0; text-align: left;
+  animation: rise .35s var(--ease) both;
+}
+.line-progress > .ey { margin-bottom: 8px; color: var(--salmon); opacity: .8; }
+.line-progress h2 { margin-bottom: 20px; font-size: 20px; font-weight: 400; }
+.line-steps { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; }
+.line-steps li {
+  display: flex; align-items: center; gap: 11px; color: var(--beige-40);
+  font-size: 13px; transition: color .25s var(--ease), opacity .25s var(--ease);
+}
+.line-steps li i {
+  width: 8px; height: 8px; flex: none; border: 1px solid currentColor;
+  transform: rotate(45deg); transition: background .25s var(--ease), border-color .25s var(--ease);
+}
+.line-steps li.is-active { color: var(--beige); }
+.line-steps li.is-active i { border-color: var(--salmon); animation: line-pulse 1.1s ease-in-out infinite; }
+.line-steps li.is-done { color: var(--beige-70); }
+.line-steps li.is-done i { background: var(--salmon); border-color: var(--salmon); }
+.line-track { height: 1px; margin-top: 20px; overflow: hidden; background: var(--beige-18); }
+.line-track i {
+  display: block; width: var(--line-progress, 12%); height: 100%; background: var(--salmon);
+  transition: width .45s var(--ease);
+}
+.line-wait { margin: 14px 0 0; line-height: 1.7; }
+.line-retry { margin-top: 12px; }
+[data-uc-boot="line"] .hero-form,
+[data-uc-boot="line"] .hero-alt { display: none; }
+[data-uc-boot="line"][data-uc-line-state="ready"] .line-entry { display: flex; }
+[data-uc-boot="line"][data-uc-line-state="loading"] .line-progress { display: block; }
+[data-uc-boot="line"][data-uc-line-state="loading"] .hero-lead { display: none; }
+[data-uc-line-step="login"] { --line-progress: 18%; }
+[data-uc-line-step="sync"] { --line-progress: 58%; }
+[data-uc-line-step="route"] { --line-progress: 88%; }
+[data-uc-line-step="done"] { --line-progress: 100%; }
+@keyframes line-pulse {
+  0%, 100% { opacity: .35; transform: rotate(45deg) scale(.8); }
+  50% { opacity: 1; transform: rotate(45deg) scale(1.15); }
+}
+@media (min-width: 720px) {
+  .hero-h { font-size: 54px; }
+  .hero-form { flex-direction: row; }
+  .hero-form input { text-align: left; }
+  .hero-form .btn { white-space: nowrap; }
+}
+@media (max-width: 560px) {
+  /* LIFF 開啟後要立刻能操作；桌機的長入場節奏在手機上會像載入卡住。 */
+  .hero-mark circle { animation-delay: 0s; animation-duration: .55s; }
+  .hero-mark text { animation-delay: .12s; }
+  .hero-ey { animation-delay: .08s; }
+  .hero-h .mask > span { animation-delay: .12s; animation-duration: .55s; }
+  .hero-h .mask:last-child > span { animation-delay: .18s; }
+  .hero-sub { animation-delay: .22s; animation-duration: .55s; }
+  .hero-div { animation-delay: .26s; animation-duration: .55s; }
+  .hero-lead { animation-delay: .3s; animation-duration: .55s; }
+  .hero-form { animation-delay: .36s; animation-duration: .55s; }
+  .hero-alt { animation-delay: .42s; animation-duration: .55s; }
+  .line-entry { animation-delay: .36s; animation-duration: .55s; }
+}
+/* ── 評測頁（一頁式・米白考卷）───────────────────────
+   九區攤在同一頁往下捲。整張是一張浮在深藍上的**米白紙**（使用者指定：像考試紙），
+   跟報告頁的 .paper 同一套語彙：米白底、上緣一條鮭粉細線、四周有陰影當紙的邊界。
+
+   ⚠️ 米白上的鮭粉**文字**一律換成 --salmon-ink（#E8A898 在 #E8E4DC 上只有 1.3:1，
+   完全讀不了）。線條、邊框、底色不受影響 —— 那些不需要對比度。
+   深藍階用 --navy-*，不要沿用 --beige-*（那是給深藍底的，在米白上等於透明）。 */
+
+#assessBody {
+  background: var(--beige); color: var(--navy);
+  max-width: 880px; margin: 26px auto 46px; padding: 0 30px 26px;
+  border-radius: 2px; position: relative;
+  box-shadow: 0 26px 64px rgba(0, 0, 0, .42), 0 2px 6px rgba(0, 0, 0, .3);
+}
+#assessBody::before {                    /* 紙張上緣的細線，跟報告的 .paper 一致 */
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--salmon); opacity: .5; border-radius: 2px 2px 0 0;
+}
+
+/* 區塊列黏在 .top 底下。⚠️ 55px 是 .top 的實際高度（12px 內距 ×2 ＋ 30px logo）；
+   .top 改高度這裡要跟著改，不然會疊在一起。
+   左右負邊界是為了讓它貼齊紙的兩側 —— 黏住的時候，內容不能從側邊的留白穿過去。 */
+.asbar {
+  position: sticky; top: calc(55px + env(safe-area-inset-top)); z-index: 15;
+  background: var(--beige);
+  margin: 0 -30px; padding: 0 30px 10px;
+  border-bottom: 1px solid var(--navy-12);
+}
+.secnav { display: flex; gap: 4px; overflow-x: auto; padding: 16px 0 0; scrollbar-width: none; }
+.secnav::-webkit-scrollbar { display: none; }
+.pip {
+  flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: none; border: 0; border-top: 2px solid var(--navy-18);
+  padding: 8px 0 0; margin-right: 14px; cursor: pointer; color: var(--navy);
+  transition: border-color .25s, opacity .25s; opacity: .45;
+}
+.pip b { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
+.pip s { text-decoration: none; font-size: 11px; white-space: nowrap; }
+.pip.full { opacity: .7; border-top-color: var(--navy-40); }
+.pip.on { opacity: 1; border-top-color: var(--salmon-ink); }
+.prog { height: 2px; background: var(--navy-08); margin-top: 14px; }
+.prog i { display: block; height: 100%; background: var(--salmon-ink); transition: width .4s var(--ease); }
+.aspct { margin: 8px 0 0; color: var(--salmon-ink); opacity: .75; }
+
+/* ⚠️ 每一區要留 scroll-margin，不然跳過去之後標題會被上面兩條黏著的列蓋住。
+   172 = .top 55 ＋ .asbar 109 ＋ 8 呼吸（實際量出來的，不是猜的）。 */
+.assec { scroll-margin-top: 172px; }
+.sechead { margin: 40px 0 22px; }
+.sechead .ey { color: var(--salmon-ink); opacity: .85; }
+.sechead .lead { font-size: 14px; opacity: .62; margin: 0; }
+
+/* 收合的那一行 —— 這是整頁的預設樣貌，密度要夠才壓得短。
+   答案短的題目（姓名、年齡、級距選單）併排，像個人資料表格。
+   ⚠️ 六欄的 grid，**不要用 grid-auto-flow: dense** —— 那會為了填洞重排題目，
+   題目順序是有意義的（08 那 25 題刻意五個維度交錯）。
+   所以只有**相鄰**的短題目會併排；一個 col:2 後面接整排的題目，它就自己佔一排。 */
+.qlist {
+  display: grid; grid-template-columns: repeat(6, 1fr); column-gap: 26px;
+  border-top: 1px solid var(--navy-12);
+}
+.qrow { grid-column: span 6; border-bottom: 1px solid var(--navy-12); }
+.qrow[data-col="2"] { grid-column: span 3; }
+.qrow[data-col="3"] { grid-column: span 2; }
+/* 三分之一排太窄，8.5em 的固定標題欄會把答案擠掉 —— 標題自己一行（同手機的處理）。 */
+.qrow[data-col="3"] .qsum { flex-wrap: wrap; gap: 2px 10px; padding-right: 22px; }
+.qrow[data-col="3"] .qname { width: auto; flex: 1 1 100%; }
+.qrow[data-col="3"] .qval { flex: 1 1 100%; }
+.qrow[data-col="3"] .qcar { position: absolute; right: 2px; top: 15px; margin: 0; }
+.qsum {
+  position: relative;
+  display: flex; align-items: baseline; gap: 14px; width: 100%;
+  background: none; border: 0; padding: 11px 0; cursor: pointer;
+  text-align: left; color: var(--navy); font-family: var(--sans);
+}
+.qname { flex: none; width: 8.5em; font-size: 13px; opacity: .62; line-height: 1.5; }
+.qval { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.qtxt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .88; }
+.qnil { font-style: normal; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .12em; opacity: .3; }
+.qdots { display: inline-flex; gap: 5px; align-items: center; margin-right: 12px;
+  vertical-align: middle; }
+.qdots + .qtxt { display: inline; }
+.qdots i {
+  width: 6px; height: 6px; transform: rotate(45deg);
+  background: var(--navy); opacity: .16;
+}
+.qdots i.on { background: var(--salmon-ink); opacity: 1; }
+.qcar {
+  flex: none; width: 7px; height: 7px; margin-top: 2px; opacity: .3;
+  border-right: 1.2px solid var(--navy); border-bottom: 1.2px solid var(--navy);
+  transform: rotate(45deg); transition: transform .22s var(--ease), opacity .2s;
+}
+.qsum:hover .qcar { opacity: .7; }
+.qsum:hover .qname { opacity: 1; }
+.qrow.popped .qcar { transform: rotate(-135deg); opacity: .8; }
+.qrow.popped { background: rgba(255, 255, 255, .45); }
+.qrow.answered .qname { opacity: .9; }
+
+/* 填空題：格子本身就是輸入框，直接在原位打字。
+   ⚠️ 用 <textarea rows="1"> 不用 <input> —— 要能按 Enter 換行，也要能自己長高。
+   高度由 JS 的 grow() 設（先歸零再讀 scrollHeight，不歸零就只長不縮）。 */
+.qrow.free .qsum { align-items: flex-start; }
+/* ⚠️ .qval 預設是「一行、超出就截斷」（那是給選擇題的答案格用的）。
+   填空題要能換行，這三個都得解掉，不然補充說明會被截成一行（踩過）。 */
+.qrow.free .qval { white-space: normal; overflow: visible; text-overflow: clip; }
+/* ⚠️ **選擇器一定要寫成 `input.qfield`，不能只寫 `.qfield`。**
+   上面第 149 行那條全站規則裡有 `input[type=number]`（深藍底、米白字），
+   它的權重是 0,1,1；純 `.qfield` 只有 0,1,0 —— 於是唯一一題 number
+   （L02 交往次數）在米白考試紙上變成一個深藍色方塊（踩過，使用者回報）。
+   `textarea` 是 0,0,1 所以填空題沒事，只有 number 中招。
+   寫成 input.qfield 之後權重打平，而這條在後面，就贏了。 */
+input.qfield, textarea.qfield {
+  display: block; width: 100%; resize: none; overflow: hidden;
+  font-family: var(--sans); font-size: 13px; line-height: 1.75;
+  color: var(--navy); background: none; border: 0; border-radius: 0; padding: 0;
+  min-height: 1.75em;
+  /* number 的上下微調箭頭在考試紙上很突兀，關掉。 */
+  appearance: textfield; -webkit-appearance: textfield;
+}
+input.qfield::-webkit-outer-spin-button,
+input.qfield::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.qfield:focus, textarea.qfield:focus { outline: none; border-color: transparent; }
+input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); opacity: .3; }
+.qrow.free { transition: background .2s; }
+.qrow.focus { background: rgba(255, 255, 255, .45); }
+/* 補充說明只在游標在格子裡的時候出現 —— 常駐的話 17 個填空題會多 17 行。 */
+.qhint {
+  display: none; margin: 6px 0 0; font-size: 11.5px; line-height: 1.75;
+  color: var(--navy); opacity: .5;
+}
+.qrow.focus .qhint { display: block; animation: fade .2s var(--ease) both; }
+
+/* 原地彈出的選項浮層。position: fixed，所以它完全不參與版面 ——
+   開、關、換題目都不會推動任何東西（這就是改掉往下展開的全部理由）。 */
+.qpop {
+  position: fixed; z-index: 40; display: none;
+  background: var(--beige); color: var(--navy);
+  border: 1px solid var(--navy-18); border-radius: 4px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .38), 0 2px 6px rgba(0, 0, 0, .24);
+  max-height: 62vh; overflow-y: auto;
+}
+.qpop.on { display: block; animation: poppin .18s var(--ease) both; }
+/* 浮層裡的一切都要比頁面上緊一號 —— 它是暫時浮出來的東西，
+   照頁面的密度排會變成一個蓋掉半個畫面的大方塊（踩過）。 */
+.qpop .qh { font-size: 13.5px; line-height: 1.7; margin: 0 0 8px; }
+.qpop .qnote { font-size: 11.5px; line-height: 1.7; margin: 0 0 10px; }
+.qpop .opts { gap: 4px; }
+.qpop .opt { padding: 8px 12px; font-size: 13px; line-height: 1.6; }
+.qpop .checks { gap: 6px; }
+.qpop .chk { padding: 6px 11px; font-size: 12.5px; }
+.qpop .qhelp { margin-top: 10px; }
+/* 選項都很短的時候排成標籤流，不要一個一條。13 個星座直排是 600px 高的浮層。 */
+.qpop .opts.tight { flex-direction: row; flex-wrap: wrap; }
+.qpop .opts.tight .opt { flex: 0 0 auto; padding: 7px 13px; }
+@keyframes poppin { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: none } }
+.qh { font-size: 15px; font-weight: 500; margin: 0 0 10px; line-height: 1.8; }
+.qnote { font-size: 12.5px; line-height: 1.85; opacity: .55; margin: 0 0 12px; }
+.qhelp { font-size: 11.5px; opacity: .6; margin: 8px 0 0; }
+.qhelp em { font-style: normal; opacity: .6; }
+
+/* 勾選題。跟單選的 .opt 分開一套 —— 單選是直排長條（選項是句子），
+   複選是橫排標籤（選項是短詞），排版邏輯不一樣，共用只會兩邊都彆扭。 */
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.chk {
+  font-family: var(--sans); font-size: 13px; line-height: 1.6;
+  color: var(--navy); background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--navy-12); border-radius: 3px;
+  padding: 8px 14px; cursor: pointer;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.chk:hover { border-color: var(--navy-40); }
+.chk.sel { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 500; }
+
+/* 題目底下的參考清單 */
+.qref { margin: 12px 0 0; border-top: 1px solid var(--navy-12); padding-top: 10px; }
+.qref summary { cursor: pointer; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .14em; color: var(--salmon-ink); opacity: .8; }
+.qref summary:hover { opacity: 1; }
+.qref > div { padding-top: 10px; }
+.qref p { margin: 0 0 6px; font-size: 12.5px; line-height: 1.9; opacity: .7; }
+.qref b { display: inline-block; width: 4em; font-weight: 500; opacity: .55; }
+
+.opts { display: flex; flex-direction: column; gap: 7px; }
+.opt {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  font-family: var(--sans); font-size: 14px; line-height: 1.7;
+  color: var(--navy); background: rgba(255, 255, 255, .55);
+  border: 1px solid var(--navy-12); border-radius: 3px;
+  padding: 12px 14px; cursor: pointer;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.opt:hover { border-color: var(--navy-40); }
+.opt.sel { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 500; }
+.opt b { flex: none; font-size: 11px; opacity: .45; }
+.opt.sel b { opacity: .65; }
+.opts.scale { flex-direction: row; flex-wrap: wrap; }
+.opts.scale .opt { flex: 1 1 0; min-width: 92px; flex-direction: column; gap: 4px; text-align: center; padding: 11px 6px; }
+.opts.scale .opt span { font-size: 11.5px; opacity: .8; }
+.opts.scale .opt.sel span { opacity: 1; }
+
+.secfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 34px 0 10px; }
+.secfoot .btn { color: var(--navy); border-color: var(--navy-18); }
+.secfoot .btn:hover { border-color: var(--navy); }
+.secfoot .btn.pri { color: var(--navy); border-color: var(--salmon); }
+
+@media (max-width: 560px) {
+  /* ⚠️ 這一條**擋不住所有欄位** —— 權重只有 0,0,1／0,1,1，
+     而 .qfield、.crnote textarea、.gfr textarea 那些都在後面、權重更高，
+     所以真正用來填答的欄位還是 12～15px，點下去 iOS 照樣放大（踩過）。
+     真正生效的那條在檔案最後面的「手機輸入」區塊。 */
+  input[type=text], input[type=number], input[type=password], select, textarea { font-size: 16px; }
+  .rv { transition-duration: .35s; }
+  #assessBody { margin: 16px 10px 40px; padding: 0 18px 20px; }
+  /* 手機一律整排。375px 上併排等於兩邊都放不下。 */
+  .qlist { display: block; }
+  .qrow[data-col="2"], .qrow[data-col="3"] { grid-column: auto; }
+  .asbar { margin: 0 -18px; padding: 0 18px 10px; }
+  /* 手機把短標題改成獨立一行 —— 8.5em 的固定欄寬在 375px 上會把答案擠到剩三個字。 */
+  .qsum { flex-wrap: wrap; gap: 3px 12px; padding: 12px 34px 12px 0; }
+  .qname { width: auto; flex: 1 1 100%; font-size: 12px; }
+  .qval { flex: 1 1 100%; }
+  /* ⚠️ 箭頭要絕對定位。留在 flex 流裡的話，答案一長就被擠到下一行去，
+     整排箭頭高低不一（踩過）。 */
+  .qcar { position: absolute; right: 4px; top: 16px; margin: 0; }
+  .assec { scroll-margin-top: calc(166px + env(safe-area-inset-top)); }
+}
+/* ── 報告頁 ────────────────────────────────────────── */
+
+.empty { padding: 90px 0; text-align: center; }
+.empty .divider { justify-content: center; }
+.empty .divider i { width: 44px; }
+.empty .divider s { max-width: 100px; }
+.empty p { opacity: .65; }
+.rhead { padding: 44px 0 10px; }
+.rhead .rlead { font-size: 14.5px; line-height: 2; opacity: .72; margin: 0; }
+.rhead .rlead b { color: var(--salmon); font-weight: 700; }
+.rhead .warn {
+  font-size: 12.5px; color: var(--salmon); opacity: .85; margin: 14px 0 0;
+  border-left: 2px solid var(--salmon-30); padding-left: 12px;
+}
+#v-report section, #v-okr section, #v-growth section { padding: 46px 0 8px; }
+#v-report h2 { margin-bottom: 0; }
+.snote { font-size: 12.5px; opacity: .5; margin: -8px 0 22px; }
+/* 欄位歸屬。教練與學員看同一套介面，只標出誰負責填寫；
+   真正的可編輯權限由 LIFF 登入後的角色與後端驗證決定。 */
+.fieldtag {
+  display: inline-flex; align-items: center; width: max-content;
+  margin: 0 0 14px; padding: 3px 8px;
+  border: 1px solid var(--beige-18); border-radius: 20px;
+  color: var(--beige-70); font: 500 9px/1.35 var(--mono); letter-spacing: .08em;
+}
+.fieldtag.coach { color: var(--salmon); border-color: var(--salmon-30); }
+.fieldtag.shared { border-style: dashed; }
+.fieldtag.compact { display: block; margin: 3px 0 0; padding: 0; border: 0; border-radius: 0;
+  font-size: 8px; line-height: 1.35; letter-spacing: .04em; opacity: .68; }
+/* 能力圖 */
+/* ⚠️ max-width 必須跟 .radar 一樣（480）—— 評語面板是 inset:0 貼著 .chart，
+   兩者不同寬就對不上。
+   480 不是隨便選的：膠囊往外推之後 viewBox 從 400 寬長到 456.3，
+   原本 420 寬會讓五邊形縮小 12%，420 × 456.3 / 400 ≈ 480 才維持原本的圖面大小。 */
+.chart { position: relative; max-width: 480px; margin: 6px auto 4px; }
+
+/* 雷達圖：五個維度名是按鈕，點了中央才出評語 */
+.radar .lbtn { cursor: pointer; transform-box: fill-box; transform-origin: center; }
+.radar .lbtn:focus { outline: none; }
+.radar .lbtn:focus-visible .pill { stroke: var(--salmon); stroke-width: 2; }
+/* 命中矩形**畫出來**，維度名才看得出來是可以點的。
+   桌機還有 hover 和游標可以提示，手機兩個都沒有 —— 沒有這圈框就完全看不出來（這是重點）。
+   淡入的延遲要跟 .lb 對齊，不然入場時框先到、字後到。 */
+/* 外形照抄藍圖的能力卡（.bpcdim）—— 同一個東西（維度）在兩頁要長得像同一個東西。
+   ⚠️ **兩層 path 疊出底色**：CSS 的 `navy ＋ 米白薄膜` 在 SVG 沒有等價寫法，
+   一個元素只有一個 fill。底色必須不透明，半透明的話背後的雷達圈會穿過去，
+   字底下多幾條斜線（藍圖那邊也踩過同一個坑，見 .bpcdim 的註解）。 */
+.radar .lbtn .pillbg { fill: var(--navy); }
+.radar .lbtn .pill {
+  fill: var(--beige); fill-opacity: .035;
+  stroke: var(--beige-18); stroke-width: 1;
+  transition: stroke .2s, fill-opacity .2s;
+}
+/* 「需要注意」＝**膠囊內的底色**。低段整顆泛 salmon，掃一眼就看得到是哪幾條。
+   ⚠️ hover／選中只能動框線，**不能再動 fill-opacity** ——
+   動了就會把低段的 .13 蓋回 .08，反而在滑過時變淡（踩過）。 */
+.radar .lbtn[data-band="0"] .pill {
+  fill: var(--salmon); fill-opacity: .18;
+  stroke: rgba(232, 168, 152, .32);   /* 框也一起轉暖，光靠底色在 480px 上分不出來（試過） */
+}
+.radar .lbtn[data-band="1"] .pill { fill-opacity: .045; }
+.radar .lbtn[data-band="2"] .pill { fill-opacity: .022; }
+/* 細棒五顆一致 —— 拿它當狀態欄試過，只改顏色太不明顯（2px 寬的東西撐不起訊息）。 */
+.radar .lbtn .pillbar { fill: var(--salmon); opacity: .8; }
+.radar .lbtn .pillbg, .radar .lbtn .pill, .radar .lbtn .pillbar {
+  opacity: 0; animation: fade .5s ease both; animation-delay: calc(1.15s + .11s * var(--i));
+}
+.radar .lbtn:hover .pill { stroke: var(--beige-40); }
+.radar .lbtn.sel  .pill { stroke: var(--salmon); stroke-opacity: .75; }
+/* ⚠️ 兩個限制，都踩過：
+   ① 狀態一律改 fill，**不能改 opacity** —— .lb / .lv 的 opacity 是靠
+      `animation: fade both` 帶上來的，animation 贏過一般宣告，opacity 寫了沒作用。
+   ② 點擊的動畫**不能掛在 .lb 上** —— 掛上去就得重寫 animation 簡寫，
+      把入場的 fade 一起蓋掉（字會閃一下不見）。掛在外層 <g> 上，兩個互不干擾。 */
+.radar .lb, .radar .lv { transition: fill .3s var(--ease); }
+.radar .lbtn:hover .lb { fill: var(--white); }
+.radar .lbtn:hover .lv { fill: var(--salmon); }
+.radar .lbtn.sel .lb { fill: var(--salmon); }
+.radar .lbtn.sel .lv { fill: var(--white); }
+.radar .lbtn.sel { animation: lbpop .5s var(--ease); }
+@keyframes lbpop {
+  0%   { transform: scale(1) }
+  40%  { transform: scale(1.11) }
+  100% { transform: scale(1) }
+}
+
+/* 圖底下的一行提示。點過一次就淡掉 —— 學會了就不用再講。
+   ⚠️ 用 opacity 不用 display，不然它消失時整段文字會往上跳。 */
+.chint {
+  margin: 2px 0 0; text-align: center; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .18em; color: var(--salmon); opacity: .5;
+  transition: opacity .5s var(--ease); pointer-events: none;
+}
+.chint.used { opacity: 0; }
+
+/* 評語面板：一開始是空的，點維度名才淡入。罩住整張雷達圖（半透明毛玻璃），
+   這樣文字有地方排版，不用再截字。 */
+.rcmt {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 30px 34px; text-align: center;
+  border-radius: 16px; border: 1px solid rgba(232, 228, 220, .13);
+  /* 毛玻璃：blur ＋ 一層 navy。⚠️ backdrop-filter 一定要配一個夠不透明的底色 ——
+     只有 blur 沒有底色的話，salmon 的填色會透上來把字染紅（踩過類似的）。
+     Firefox 沒有 backdrop-filter，所以 .72 的底色本身就要讀得出來，不能只靠模糊。 */
+  background: rgba(19, 27, 46, .72);
+  backdrop-filter: blur(13px) saturate(115%);
+  -webkit-backdrop-filter: blur(13px) saturate(115%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(232, 228, 220, .07);
+  opacity: 0; visibility: hidden; cursor: pointer;
+}
+.rcmt.on { visibility: visible; animation: rcmtin .4s var(--ease) both; }
+@keyframes rcmtin {
+  from { opacity: 0; transform: translateY(9px) scale(.985) }
+  to   { opacity: 1; transform: none }
+}
+.rcmt b { display: block; font-family: var(--serif); font-size: 21px; font-weight: 700;
+  color: var(--salmon); letter-spacing: .03em; line-height: 1.5; }
+/* ⚠️ 不要用 text-align: justify —— 中文沒有詞間空格，兩端對齊只能拉字距，
+   每一行的鬆緊都不一樣，看起來像排壞了（試過）。置中就好。 */
+.rcmt p { margin: 14px auto 0; max-width: 25em; font-size: 13.5px; line-height: 2.05;
+  color: var(--beige); opacity: .8; }
+.rcmt .rx { position: absolute; top: 8px; right: 12px; padding: 4px 8px;
+  background: none; border: 0; cursor: pointer; font-size: 17px; line-height: 1;
+  color: var(--beige); opacity: .3; transition: opacity .2s var(--ease); }
+.rcmt .rx:hover { opacity: .8; }
+@media (max-width: 560px) {
+  .rcmt { padding: 20px 18px; border-radius: 13px; }
+  .rcmt b { font-size: 18px; }
+  .rcmt p { margin-top: 11px; font-size: 12.5px; line-height: 1.95; }
+  /* 手機把雷達圖拉到接近滿版。.wrap 左右各留 --pad(20px)，這裡各吃掉 14px，
+     只留 6px 邊 —— 手機螢幕小，五顆膠囊撐開之後圖本身會被擠得很小。
+     ⚠️ .chart 和 .radar 要一起放寬，兩者不同寬的話 .rcmt（inset:0）就對不上。 */
+  .chartwrap .chart { max-width: none; margin-left: -14px; margin-right: -14px; }
+  .chartwrap .radar { max-width: none; }
+}
+/* 有評語時把中間的填色壓暗一點，字才讀得出來 */
+.radar .fill { transition: opacity .2s var(--ease); }
+.chart:has(.rcmt.on) .radar .fill { opacity: .42; }
+.radar { width: 100%; max-width: 480px; margin: 0 auto; display: block; overflow: visible; }
+/* 沒有輻條 —— 圈與頂點已經定義了位置，五條放射線是 Excel 的預設值不是設計。
+   線寬 .8 / 透明度 .2 是**戶外手機看得到**的下限；原本的 .6 / .1 只在室內 Retina 上成立。 */
+.radar .rings { animation: fade .6s ease both; }
+.radar .ring { fill: none; stroke: var(--beige); stroke-width: .8; opacity: .2; }
+.radar .ring:first-child { opacity: .12; }  /* 內半徑地板：畫出來說明幾何，但不搶戲 */
+.radar .ring:last-child  { opacity: .42; }  /* 最外圈＝五顆星的邊界，是唯一該看得見的框 */
+.radar .fill  { fill: url(#rgFill); stroke: none; }
+.radar .glow2 { fill: none; stroke: var(--salmon); stroke-width: 7; opacity: .1; }
+.radar .glow1 { fill: none; stroke: var(--salmon); stroke-width: 3.5; opacity: .22; }
+.radar .line  { fill: none; stroke: var(--salmon); stroke-width: 1.6; stroke-linejoin: round; }
+.radar .vtx   { fill: var(--salmon); opacity: 0; animation: fade .4s ease both; animation-delay: calc(1.1s + .11s * var(--i)); }
+/* 最低的那一條，頂點菱形持續脈動，把視線拉回圖上。
+   ⚠️ 要**兩個動畫並列**，不能只寫脈動 —— .vtx 的 opacity 是靠 fade 帶上來的，
+   單寫脈動會把 fade 蓋掉，入場時菱形直接從 opacity:0 開始（踩過同類的坑）。
+   animation-delay 也要給兩個值，第二個晚一點進場，等入場動畫走完再開始。 */
+.radar .vtx[data-lead] {
+  transform-box: fill-box; transform-origin: center;
+  animation: fade .4s ease both, vtxpulse 1.7s var(--ease) infinite;
+  animation-delay: calc(1.1s + .11s * var(--i)), 1.8s;
+}
+/* 閃爍以**透明度**為主，縮放只是陪襯。做成「放大＋變淡」的漣漪試過，
+   讀起來像呼吸不像閃爍，抓不到注意力。 */
+@keyframes vtxpulse {
+  0%, 100% { opacity: 1;   transform: scale(1.18) }
+  50%      { opacity: .22; transform: scale(1) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar .vtx[data-lead] { animation: fade .4s ease both; }
+}
+.radar .lb {
+  font-family: var(--sans); font-size: 13.5px; font-weight: 500; fill: var(--beige);
+  opacity: 0; animation: fade .5s ease both; animation-delay: calc(1.15s + .11s * var(--i));
+}
+.radar .lv {
+  font-family: var(--mono); font-size: 8.5px; font-weight: 400; letter-spacing: .11em;
+  fill: var(--salmon); opacity: 0; animation: fade .5s ease both;
+  animation-delay: calc(1.22s + .11s * var(--i));
+}
+/* 交叉規則 */
+.cross { border-left: 2px solid var(--salmon); padding: 2px 0 2px 18px; margin: 22px 0; }
+.cross h3 { color: var(--salmon); margin-bottom: 8px; }
+.cross p { font-size: 14px; line-height: 2; opacity: .78; margin: 0; }
+/* 逐條解讀 */
+.dim { border-top: 1px solid var(--beige-08); padding: 30px 0 6px; }
+.dhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.dhead h3 { font-size: 21px; }
+.dscore { text-align: right; flex: none; }
+.dscore b { display: block; font-family: var(--mono); font-size: 34px; font-weight: 500; color: var(--salmon); line-height: 1; }
+.dscore s { text-decoration: none; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; opacity: .45; }
+.dfacets { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; opacity: .38; margin: 10px 0 18px; }
+.dband { font-family: var(--serif); font-size: 17px; font-weight: 700; color: var(--salmon); margin: 0 0 10px; }
+.dim p { font-size: 14px; line-height: 2.05; opacity: .78; }
+.dbox { background: var(--navy-lift); border: 1px solid var(--beige-08); border-radius: 3px; padding: 15px 17px; margin: 18px 0; }
+.dbox .ey { margin: 0 0 6px; color: var(--salmon); opacity: .75; }
+.dbox p:last-child { margin: 0; font-size: 13.5px; }
+.dstd { margin: 14px 0 6px; border-top: 1px solid var(--beige-08); padding-top: 12px; }
+.dstd summary {
+  cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+  opacity: .5; padding: 4px 0; list-style: none;
+}
+.dstd summary::marker, .dstd summary::-webkit-details-marker { display: none; }
+.dstd summary::before { content: '＋　'; }
+.dstd[open] summary::before { content: '－　'; }
+.dstd summary:hover { opacity: .8; }
+.dstd .ey { margin: 16px 0 4px; color: var(--salmon); opacity: .7; }
+.dstd p { font-size: 13px; line-height: 2; }
+.cite { border-left: 1px solid var(--beige-18); padding-left: 13px; }
+.cite b { display: block; font-family: var(--sans); font-size: 13.5px; font-weight: 700; opacity: 1; }
+.cite em { display: block; font-family: var(--mono); font-style: normal; font-size: 10.5px; letter-spacing: .06em; opacity: .45; margin-bottom: 5px; }
+/* 透鏡與訪談 */
+.lens { margin: 20px 0; }
+.lens .ey { margin: 0 0 6px; }
+.lens .ey b { color: var(--salmon); font-size: 12px; letter-spacing: 0; }
+.lens p:last-child { font-size: 13.5px; line-height: 2; opacity: .75; margin: 0; }
+.notes { display: grid; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
+.note { background: var(--navy); padding: 14px 16px; }
+.note .ey { margin: 0 0 5px; opacity: .42; letter-spacing: .06em; text-transform: none; font-size: 11px; }
+.note p:last-child { margin: 0; font-size: 13.5px; line-height: 1.9; white-space: pre-wrap; }
+.next { text-align: center; padding-top: 50px !important; }
+.next .divider { justify-content: center; }
+.next .divider i { width: 44px; }
+.next .divider s { max-width: 100px; }
+.next p { opacity: .75; font-size: 14px; }
+.next p b { color: var(--salmon); }
+.next .btn { margin-top: 12px; }
+@media (min-width: 720px) {
+  .notes { grid-template-columns: 1fr 1fr; }
+  .dim p, .cross p { font-size: 14.5px; }
+}
+/* ── 課程藍圖 ──────────────────────────────────────── */
+
+#v-library section, #v-tools section { padding: 44px 0 8px; }
+.axes { display: grid; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
+.ax { background: var(--navy); padding: 18px 18px 20px; }
+.ax .ey { margin: 0 0 6px; }
+.ax h3 { font-size: 17px; color: var(--salmon); margin-bottom: 8px; }
+.ax p:last-child { font-size: 12.5px; line-height: 1.95; opacity: .6; margin: 0; }
+.okr { flex: none; font-size: 10.5px; opacity: .35; }
+.onum { flex: none; font-size: 11px; letter-spacing: .1em; color: var(--salmon); border: 1px solid var(--salmon-30); border-radius: 2px; padding: 4px 7px; }
+code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift); padding: 2px 5px; border-radius: 2px; }
+/* ── 課程資源 ──────────────────────────────────────── */
+
+.tabs { display: flex; gap: 4px; overflow-x: auto; margin: 26px 0 18px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: none; display: flex; align-items: baseline; gap: 7px;
+  font-family: var(--sans); font-size: 13px; color: var(--beige-70);
+  background: none; border: 1px solid var(--beige-08); border-radius: 30px;
+  padding: 8px 15px; cursor: pointer; transition: all .18s;
+}
+.tab b { font-size: 10.5px; opacity: .5; }
+.tab:hover { border-color: var(--beige-40); }
+.tab.on { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 500; }
+.tab.on b { opacity: .65; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 14px; }
+.tile {
+  display: flex; flex-direction: column; text-align: left; gap: 5px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--beige);
+}
+.thumb {
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  aspect-ratio: 16 / 10; margin-bottom: 5px; padding: 10px;
+  position: relative; overflow: hidden;
+  background: var(--navy-lift);
+  border: 1px solid var(--beige-08);
+  background-image:
+    repeating-linear-gradient(0deg, var(--beige-08) 0 1px, transparent 1px 20px),
+    repeating-linear-gradient(90deg, var(--beige-08) 0 1px, transparent 1px 20px);
+  transition: border-color .2s, background-color .2s;
+}
+.tile:hover .thumb { border-color: var(--salmon); background-color: var(--navy-lift2); }
+.thumb i { font-style: normal; font-size: 13px; letter-spacing: .06em; color: var(--salmon); opacity: .8; }
+.thumb.has-cover { padding: 0; background: var(--navy); }
+.thumb.has-cover img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .35s var(--ease);
+}
+.thumb.has-cover i {
+  position: absolute; right: 10px; bottom: 10px;
+  padding: 3px 6px; background: rgba(19,27,46,.82);
+  border: 1px solid var(--beige-18); opacity: 1;
+}
+.thumb.has-cover u {
+  position: absolute; left: 10px; top: 10px;
+  padding: 3px 6px; background: rgba(19,27,46,.82);
+  border: 1px solid var(--beige-18); opacity: 1;
+}
+.tile:hover .thumb.has-cover img { transform: scale(1.025); }
+.tile b { font-size: 13.5px; font-weight: 500; line-height: 1.6; }
+.tile s { text-decoration: none; font-size: 11.5px; opacity: .5; line-height: 1.6; }
+.tile em { font-style: normal; font-size: 10px; letter-spacing: .1em; opacity: .35; margin-top: 2px; color: var(--salmon); }
+/* ── 課程工具 ──────────────────────────────────────── */
+
+.tool { border-top: 1px solid var(--beige-08); }
+.tool .bk { margin-bottom: 22px; }
+.thead { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.thead .ey { margin: 0 0 4px; }
+.badge {
+  flex: none; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  border: 1px solid var(--beige-18); border-radius: 2px; padding: 4px 8px; opacity: .6;
+}
+.badge.preview { border-color: var(--salmon-30); color: var(--salmon); opacity: .9; }
+.tlead { font-size: 15px; line-height: 1.9; color: var(--salmon); margin: 0 0 12px; }
+.tbody { font-size: 14px; line-height: 2.05; opacity: .72; }
+.legs { display: flex; flex-direction: column; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
+.leg { display: flex; gap: 14px; background: var(--navy); padding: 15px 17px; }
+.leg > span { flex: none; font-size: 11px; letter-spacing: .1em; color: var(--salmon); opacity: .7; padding-top: 4px; }
+.leg h3 { font-size: 15px; margin-bottom: 5px; }
+.leg .lplace { font-size: 13.5px; margin: 0 0 5px; opacity: .85; }
+.leg .lwhy { font-size: 12.5px; line-height: 1.9; margin: 0; opacity: .5; }
+.tplans { display: flex; flex-direction: column; gap: 22px; margin-top: 28px; }
+.tplan { border-top: 1px solid var(--beige-18); padding-top: 14px; }
+.tplan > h3 { font-family: var(--serif); font-size: 17px; margin: 0 0 11px; }
+.tplan-scroll { overflow-x: auto; border: 1px solid var(--beige-12); }
+.tplan table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 12px; line-height: 1.6; }
+.tplan th, .tplan td { padding: 9px 11px; text-align: left; vertical-align: top; border-right: 1px solid var(--beige-08); border-bottom: 1px solid var(--beige-08); }
+.tplan th:last-child, .tplan td:last-child { border-right: 0; }
+.tplan tbody tr:last-child td { border-bottom: 0; }
+.tplan th { color: var(--salmon); font-weight: 500; letter-spacing: .04em; background: rgba(232, 228, 220, .04); }
+.tplan td { min-width: 86px; opacity: .72; }
+.tplan td.fieldcell { opacity: 1; background: rgba(232, 228, 220, .035); }
+.tplan td.fieldcell.coach { background: rgba(232, 168, 152, .075); }
+.tplan td:empty::after { content: '待填'; opacity: .28; }
+.tsource { margin-top: 18px; }
+/* ── toast ─────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translate(-50%, 8px);
+  z-index: 40; max-width: calc(100vw - 40px);
+  background: var(--beige); color: var(--navy);
+  font-size: 13px; padding: 11px 18px; border-radius: 3px;
+  opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s var(--ease);
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+@media (min-width: 720px) {
+  .axes { grid-template-columns: repeat(3, 1fr); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px; }
+}
+/* ═══ 米白閱讀區 ═══════════════════════════════════════
+   uc-design：「章節分隔頁用深色，內容頁用米白，交替出現」。
+   多數元件用 currentColor ＋ opacity，會自動反轉；只覆寫硬寫深色底的那幾個。 */
+
+/* 藍色桌上的白紙：頁面底色維持深藍，內容落在一張有邊界、有陰影的米白紙上。
+   滿版米白太亮，而且失去「文件被放在桌上」的層次。 */
+.paper {
+  background: var(--beige);
+  color: var(--navy);
+  max-width: 880px;
+  margin: 40px 15px;              /* 兩側留深藍，紙才有邊界 */
+  padding: 10px 0 14px;
+  position: relative;
+  border-radius: 2px;
+  box-shadow: 0 26px 64px rgba(0, 0, 0, .42), 0 2px 6px rgba(0, 0, 0, .3);
+}
+.paper::before {                  /* 紙張上緣的細線 */
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--salmon); opacity: .5; border-radius: 2px 2px 0 0;
+}
+.paper .wrap { padding: 0 26px; }
+.paper section:first-child { padding-top: 42px; }
+.paper section:last-child { padding-bottom: 42px; }
+@media (min-width: 720px) {
+  .paper { margin: 60px auto; }
+  .paper .wrap { padding: 0 56px; }
+  .paper section:first-child { padding-top: 56px; }
+  .paper section:last-child { padding-bottom: 56px; }
+}
+.paper .dbox { background: rgba(19, 27, 46, .045); border-color: rgba(19, 27, 46, .1); }
+.paper .dim, .paper .dstd, .paper .notes, .paper .note { border-color: rgba(19, 27, 46, .12); }
+.paper .notes { background: rgba(19, 27, 46, .12); border-color: rgba(19, 27, 46, .12); }
+.paper .note { background: var(--beige); }
+.paper .cite { border-left-color: rgba(19, 27, 46, .2); }
+.paper code { background: rgba(19, 27, 46, .07); }
+.paper a { color: var(--salmon-ink); }   /* 鮭粉在米白上對比不足，用同色系壓深 */
+
+/* 章節格言 */
+.epi {
+  font-family: var(--serif); font-size: 19px; font-weight: 700; line-height: 1.9;
+  margin: 6px 0 30px; padding-left: 18px;
+  border-left: 3px solid var(--salmon);
+}
+/* ═══ 教練評語：讀起來要像一封信 ═══════════════════════
+   白色區塊只剩這一節。信的節奏是「稱謂 → 正文 → 署名」，
+   所以段落不編號、不加小標當標題 —— 組合特徵的名字改成句首的粗體引語，
+   讀起來是「你會靠近，也會退開……」而不是一張條列表。 */
+.letter { max-width: 34em; margin: 4px auto 0; }
+.lsalu { font-family: var(--serif); font-size: 17px; margin: 0 0 22px; }
+.lpara { font-size: 14.5px; line-height: 2.15; margin: 0 0 20px; text-indent: 0; }
+/* 句首的粗體引語要跟正文分開，不然會連成「技術到位，骨架空白你會靠近」。
+   用破折號不用換行 —— 換行就變成小標，那是條列不是信。 */
+.lpara b { font-family: var(--serif); font-weight: 700; color: var(--salmon-ink); }
+.lpara b::after { content: '——'; margin: 0 .1em 0 .15em; opacity: .45; font-weight: 400; }
+.lsign { margin: 30px 0 0; text-align: right; font-family: var(--serif); font-size: 15px; }
+.ldate { margin: 6px 0 0; text-align: right; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .12em; opacity: .42; }
+
+/* 教練評測編輯：一個維度一列，手機與桌機都只需要往下填。 */
+.creview { max-width: 760px; }
+.crstatus, .crmeta, .crfoot { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.crstatus { margin-bottom: 18px; }
+.crstatus p { margin: 0; }
+.crstatus #crProgress { font-family: var(--mono); font-size: 11px; opacity: .5; }
+.crgrid { display: grid; gap: 12px; }
+.crrow { padding: 20px; border: 1px solid rgba(19, 27, 46, .12); }
+.crmeta .ey { margin: 0 0 4px; color: var(--salmon-ink); }
+.crmeta h3 { margin: 0; font-family: var(--serif); font-size: 20px; }
+/* 分數不是教練從零填的 —— 25 道計分題算出基準，教練只做 ±。
+   所以這一格要同時講三件事：測出來幾級、教練動了幾級、最後是幾級。 */
+.crscore { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  font-size: 12px; font-weight: 700; }
+.crbase { font-family: var(--mono); font-size: 10.5px; font-weight: 400;
+  letter-spacing: .05em; opacity: .5; }
+.crbase b { font-size: 12px; opacity: .85; }
+.crstep { display: flex; align-items: center; gap: 2px;
+  border: 1px solid rgba(19, 27, 46, .22); border-radius: 2px; }
+.crstep button {
+  width: 30px; height: 34px; color: var(--navy); background: transparent;
+  border: 0; font: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+  transition: background .15s var(--ease);
+}
+.crstep button:hover:not(:disabled) { background: rgba(19, 27, 46, .06); }
+.crstep button:disabled { opacity: .25; cursor: default; }
+.crstep button:focus-visible { outline: 2px solid rgba(193, 102, 82, .5); outline-offset: -2px; }
+.crfin { min-width: 46px; font-family: var(--serif); font-style: normal; font-size: 19px;
+  text-align: center; }
+.crfin s { font-family: var(--mono); font-size: 10px; text-decoration: none; opacity: .45; }
+.cradj { font-family: var(--mono); font-size: 10px; font-weight: 400;
+  letter-spacing: .05em; opacity: .38; }
+.cradj.on { color: var(--salmon-ink); opacity: 1; }
+.crfacet { margin: 10px 0 15px; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .05em; line-height: 1.7; opacity: .48; }
+.crnote, .crletter { display: block; font-size: 12px; font-weight: 700; }
+.crnote textarea, .crletter textarea {
+  display: block; width: 100%; min-height: 104px; margin-top: 7px; padding: 12px 13px;
+  resize: vertical; color: var(--navy); background: rgba(19, 27, 46, .035);
+  border: 1px solid rgba(19, 27, 46, .18); border-radius: 2px;
+  font: 400 14px/1.85 var(--sans);
+}
+.crnote textarea:focus, .crletter textarea:focus {
+  outline: 2px solid rgba(193, 102, 82, .22); border-color: var(--salmon-ink);
+}
+.crletter { margin-top: 28px; font-family: var(--serif); font-size: 17px; }
+.crletter textarea { min-height: 210px; font-family: var(--sans); font-size: 14.5px; }
+.crfoot { align-items: flex-end; margin-top: 22px; }
+.crfoot p { max-width: 30em; margin: 0; font-size: 12px; line-height: 1.8; opacity: .55; }
+@media (max-width: 560px) {
+  .crrow { padding: 16px; }
+  .crmeta { align-items: flex-start; }
+  .crscore { align-items: flex-end; }
+  .crfoot { align-items: stretch; flex-direction: column; }
+  .crfoot .btn { width: 100%; }
+}
+
+/* ═══ 引用學員自己的話 ═════════════════════════════════ */
+
+.quote { margin: 20px 0; padding: 18px 20px; background: rgba(19, 27, 46, .045); border-left: 2px solid var(--salmon); }
+.quote > .ey { margin: 0 0 12px; color: var(--salmon-ink); opacity: .9; }
+.quote blockquote { margin: 0 0 14px; }
+.quote cite {
+  display: block; font-style: normal; font-family: var(--mono);
+  font-size: 10.5px; letter-spacing: .04em; opacity: .5; margin-bottom: 5px;
+}
+.quote blockquote span {
+  display: block; font-family: var(--serif); font-size: 15.5px; font-weight: 700;
+  line-height: 1.95; white-space: pre-wrap;
+}
+.quote .qn { font-size: 13px; line-height: 2; opacity: .68; margin: 0; padding-top: 12px; border-top: 1px dashed rgba(19, 27, 46, .18); }
+/* ═══ 基準分佈曲線 ═════════════════════════════════════ */
+
+.dcurve { display: flex; flex-direction: column; gap: 4px; margin: 0 0 20px; }
+.curve { width: 100%; max-width: 260px; height: auto; overflow: visible; }
+.curve .carea { fill: currentColor; opacity: .1; }
+.curve .cline { fill: none; stroke: currentColor; stroke-width: 1; opacity: .35; }
+.curve .cmark { stroke: var(--salmon); stroke-width: 1.5; }
+.curve .cdot   { fill: var(--salmon); }
+.paper .curve .cmark, .paper .curve .cdot { stroke: var(--salmon-ink); fill: var(--salmon-ink); }
+.curve .ctx {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .1em;
+  fill: currentColor; opacity: .55;
+}
+.cnote2 { font-size: 11.5px; line-height: 1.8; opacity: .5; margin: 0; }
+.cnote2 b { opacity: 1; font-weight: 700; }
+/* ═══ 能力圖：ghost 與差值 ═════════════════════════════ */
+
+.radar .ghost { fill: none; stroke: var(--beige); stroke-width: 1; stroke-dasharray: 3 3; opacity: .38; }
+.radar .gvtx  { fill: var(--beige); opacity: .3; }
+.sheets { display: grid; gap: 1px; background: rgba(19, 27, 46, .14); border: 1px solid rgba(19, 27, 46, .14); }
+.sheet { background: var(--beige); padding: 13px 15px; }
+.sheet .sk { font-family: var(--mono); font-size: 12.5px; font-weight: 500; margin: 0 0 4px; }
+.sheet .sk em { font-style: normal; font-size: 10px; letter-spacing: .1em; opacity: .4; margin-left: 9px; }
+.sheet .sc { font-size: 11.5px; line-height: 1.85; opacity: .6; margin: 0; }
+/* ═══ 成長紀錄 ═════════════════════════════════════════
+   三條錄音軌（電話／社交／約會，由上到下），x 軸＝十二週。
+   **一筆紀錄＝一組電平段，段數＝那一筆的狀況**（lv 1 差／2 好／3 優），
+   軌與軌之間不能互相比較。
+   圖案只在最左邊的示意欄出現一次；儀器層（邊框、上下刻度桿、道號、讀數）
+   一律待在框上，不疊在三條軌跡上 —— 「太眼花撩亂」是第四版的死因。 */
+
+.tl { margin: 30px 0 26px; }
+.tlbar { display: flex; gap: 3px; }
+.tw {
+  flex: 1; background: none; border: 0; border-top: 2px solid var(--beige-18);
+  padding: 9px 0 0; cursor: pointer; color: var(--beige); opacity: .35;
+  transition: opacity .45s var(--ease), border-color .45s var(--ease);
+}
+.tw b { font-size: 11px; letter-spacing: .06em; }
+.tw.past { opacity: .6; border-top-color: var(--salmon-30); }
+.tw.on { opacity: 1; border-top-color: var(--salmon); }
+.tw:hover { opacity: .85; }
+.tlfoot { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+.tlfoot .ey { opacity: .7; transition: opacity .3s; }
+.gsum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); margin-top: 10px; }
+.gs { background: var(--navy); padding: 12px 6px; text-align: center; }
+.gs b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--salmon); line-height: 1.1; }
+.gs s { text-decoration: none; font-size: 10.5px; opacity: .5; }
+.gblk .ey { margin: 0 0 10px; color: var(--salmon); opacity: .8; }
+.glist { list-style: none; margin: 0; padding: 0; min-height: 172px; }   /* 撐住 4 筆，播放時容器不抽動 */
+.glist li { font-size: 13.5px; line-height: 1.9; padding: 8px 0 8px 16px; border-bottom: 1px solid var(--beige-08); position: relative; }
+.glist li::before { content: '—'; position: absolute; left: 0; opacity: .35; }
+.glist.ev li { padding-left: 0; }
+.glist.ev li::before { content: none; }
+.ek {
+  display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em;
+  border: 1px solid currentColor; border-radius: 2px; padding: 2px 6px; margin-right: 9px;
+  opacity: .55; vertical-align: 1px;
+}
+.glist.ev li.call   .ek { color: var(--salmon); opacity: .9; }
+.glist.ev li.booked .ek { color: var(--salmon); opacity: .9; }
+.gdelta { display: flex; flex-direction: column; gap: 2px; }
+.gd { display: flex; align-items: baseline; gap: 8px; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--beige-08); }
+.gd span { flex: 1; }
+.gd i { font-style: normal; opacity: .4; font-size: 12px; }
+.gd u { text-decoration: none; opacity: .3; font-size: 10px; }
+.gd b { font-weight: 500; font-size: 15px; }
+.gd em { font-style: normal; font-size: 11.5px; color: var(--salmon); min-width: 34px; text-align: right; }
+.gd em.flat { opacity: .3; color: inherit; }
+/* 卡片縮圖左上的小標（目前只有課程工具的狀態在用）。
+   原本是「為你安排」那區標維度用的，那一區已刪除。 */
+.thumb u { text-decoration: none; font-family: var(--mono); font-size: 9px; letter-spacing: .08em; color: var(--salmon); margin-right: auto; align-self: flex-start; }
+.thumb { justify-content: space-between; }
+@media (min-width: 860px) {
+  .dcurve { flex-direction: row; align-items: center; gap: 16px; }
+  .cnote2 { flex: 1; }
+}
+/* 鮭粉 #E8A898 在米白 #E8E4DC 上只有約 1.3:1，當文字完全讀不了。
+   米白區裡所有鮭粉「文字」一律換成同色系壓深的 --salmon-ink（約 4.6:1，過 AA）。
+   線條、邊框、底色不受影響 —— 那些不需要對比度。 */
+:root { --salmon-ink: #A85F4A; }
+.paper .cross h3,
+.paper .dband,
+.paper .dscore b,
+.paper .dbox .ey,
+.paper .dstd .ey,
+.paper .lens .ey b,
+.paper .mgroup .ey,
+.paper .quote > .ey,
+.paper .otgt,
+.paper .snote b { color: var(--salmon-ink); opacity: 1; }
+.paper .dbox .ey, .paper .dstd .ey { opacity: .9; }
+/* 四種教練接觸的圖例。通話只講頻率，不講時長。 */
+.glegend { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--beige-08); }
+.glegend p { display: flex; align-items: baseline; gap: 4px; font-size: 11.5px; line-height: 1.9; opacity: .55; margin: 0 0 5px; }
+.glegend .ek { flex: none; opacity: .8; }
+.glegend p.call .ek, .glegend p.booked .ek { color: var(--salmon); }
+/* ═══ 課程藍圖：人物總覽 ═══════════════════════════════ */
+
+.vsw { display: inline-flex; gap: 2px; margin-top: 22px; border: 1px solid var(--beige-18); border-radius: 30px; padding: 4px; }
+.vb {
+  font-family: var(--sans); font-size: 12.5px; color: var(--beige-70);
+  background: none; border: 0; border-radius: 30px; padding: 7px 18px; cursor: pointer;
+  transition: background .2s, color .2s;
+}
+.vb.on { background: var(--salmon); color: var(--navy); font-weight: 600; }
+.bpcover-sec { padding-top: 20px !important; }
+.bpcover {
+  position: relative; max-width: var(--maxw); margin: 0 auto; overflow: hidden;
+  padding: 24px 0 8px;
+  background-image:
+    linear-gradient(rgba(232, 228, 220, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 228, 220, .025) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.bpctag {
+  margin: 0 0 18px; text-align: center; font-family: var(--mono); font-size: 9.5px;
+  font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--beige); opacity: .44;
+}
+.bpcgrid {
+  display: grid; grid-template-columns: minmax(215px, 1fr) minmax(180px, 236px) minmax(215px, 1fr);
+  grid-template-rows: repeat(6, 62px); gap: 12px 48px; align-items: stretch;
+}
+.bpcdim {
+  /* ⚠️ 能力卡要壓在塗鴉上面。人物那一格在 DOM 裡排最後，塗鴉又比人物寬，
+     不提 z-index 的話塗鴉會蓋到卡片上（踩過）。
+     不要改用 z-index:-1 —— .bpcover 沒有建立堆疊脈絡，負值會沉到它的背景後面消失。 */
+  z-index: 2;
+  position: relative; display: grid; grid-template-columns: 1fr auto;
+  align-content: center; column-gap: 12px; min-width: 0;
+  padding: 14px 22px; text-align: left; color: var(--beige); cursor: pointer;
+  /* ⚠️ 底色必須**不透明**。原本是 rgba(...,.035) 半透明，人物背後的生活圈塗鴉
+     會直接透出來壓在卡片的字上（踩過）。改成「不透明深藍 ＋ 同一層米白薄膜」，
+     看起來一模一樣，但擋得住後面。代價：卡片裡看不到背景那層 48px 格線。 */
+  background-color: var(--navy);
+  background-image: linear-gradient(rgba(232, 228, 220, .035), rgba(232, 228, 220, .035));
+  border: 1px solid var(--beige-18);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  transition: border-color .2s, background .2s, transform .2s;
+}
+.bpcdim::before {
+  content: ''; position: absolute; left: 0; top: 18px; bottom: 18px; width: 2px;
+  background: var(--salmon); opacity: .8;
+}
+.bpcdim:hover { border-color: var(--beige-40); transform: translateX(3px);
+  background-image: linear-gradient(var(--beige-08), var(--beige-08)); }
+.bpcdim:focus-visible { outline: 2px solid var(--salmon); outline-offset: 3px; }
+.bpcey {
+  grid-column: 1; font-family: var(--mono); font-size: 8.5px; font-weight: 500;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--salmon); opacity: .82;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.bpcdim b {
+  grid-column: 1; margin-top: 6px; font-family: var(--serif); font-size: 19px;
+  font-weight: 700; line-height: 1.2; letter-spacing: .02em;
+}
+.bpclv {
+  grid-column: 1; margin-top: 5px; font-family: var(--mono); font-size: 9px;
+  font-weight: 400; letter-spacing: .12em; line-height: 1; color: var(--salmon); opacity: .72;
+}
+.bpcgain {
+  grid-column: 1; margin-top: 5px; font-family: var(--mono); font-size: 8.5px;
+  font-weight: 500; letter-spacing: .1em; color: var(--salmon); opacity: .9;
+}
+.bpccur {
+  grid-column: 1; display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin-top: 8px; font-size: 10.5px; line-height: 1.35; color: var(--beige-70);
+}
+.bpccur small {
+  flex: none; padding: 2px 5px; border: 1px solid var(--beige-18);
+  font-family: var(--mono); font-size: 7.5px; line-height: 1.2; letter-spacing: .1em;
+  color: var(--salmon); font-weight: 500;
+}
+.bpccur span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; opacity: .55; }
+.bpcdim.has-task .bpccur small { background: var(--salmon); border-color: var(--salmon); color: var(--navy); }
+.bpcdim.has-task .bpccur span { color: var(--beige); opacity: .9; }
+.bpcdim > i {
+  grid-column: 2; grid-row: 1 / 5; align-self: center; font-family: var(--mono);
+  font-size: 15px; font-style: normal; color: var(--salmon); opacity: .8;
+}
+/* 左欄：人格魅力／情緒價值／調情升溫　右欄：形象魅力／生活圈（使用者指定） */
+.bpc-values { grid-column: 1; grid-row: 1 / 3; }
+.bpc-emo    { grid-column: 1; grid-row: 3 / 5; }
+.bpc-flirt  { grid-column: 1; grid-row: 5 / 7; }
+.bpc-image  { grid-column: 3; grid-row: 2 / 4; }
+.bpc-circle { grid-column: 3; grid-row: 4 / 6; }
+.bpcfigure {
+  /* ⚠️ **每一層都要明確給 z-index**，不能靠 DOM 順序。
+     `.fxnet` 是 position:absolute，而定位元素一律畫在非定位元素之上 ——
+     不管誰先寫。結果網絡蓋過剪影與線稿（踩過）。
+     `isolation: isolate` 保證這些 z-index 只在這個容器內比較。 */
+  isolation: isolate;
+  position: relative; grid-column: 2; grid-row: 1 / 7;
+  display: grid; place-items: center; min-height: 420px;
+  animation: bpcfigure-in .8s var(--ease) both;   /* 進場只跑一次，掛在容器上 */
+}
+/* 人物：一張手繪線稿疊兩層 —— 底層壓暗，亮層加光暈再用遮罩框出部位。
+   ⚠️ 用 grid 的同一格疊，不要用 absolute ＋ translate 置中 ——
+   進場動畫 bpcfigure-in 的結束狀態是 `transform: none`，會把置中的 translate 蓋掉（踩過）。
+   ⚠️ **遮罩要用漸層衰減，不要用 clip-path** —— 矩形裁切會在腰部留一條直邊，
+   看起來像被切掉不是被照亮（踩過）。 */
+.bpcfigure img {
+  grid-area: 1 / 1; position: relative;      /* z-index 要生效就得脫離 static */
+  display: block; width: min(100%, 214px); max-height: 420px; object-fit: contain;
+  pointer-events: none;
+}
+/* 由下而上：網絡 1 → 遮擋剪影 2 → 外圈光暈 3 → 線稿 4 → 高亮 5 → 心臟 6 */
+.fxnet   { z-index: 1; }
+.fxfill  { z-index: 2; }
+.fx-aura { z-index: 3; }
+.fxbase  { z-index: 4; }
+.fx-head, .fx-upper, .fx-limbs { z-index: 5; }
+.fxheart { z-index: 6; }
+.fxbase { filter: brightness(.30) saturate(.32); transition: filter .18s var(--ease); }
+.fxhi {
+  opacity: 0; transition: opacity .18s var(--ease);
+  filter: drop-shadow(0 0 4px rgba(232, 168, 152, .95))
+          drop-shadow(0 0 12px rgba(232, 168, 152, .45)) brightness(1.55) saturate(.75);
+}
+/* 沒有任何能力被指到時，人物維持原本的亮度 —— 不要一進頁面就是暗的 */
+.bpcfigure:not([data-lit]) .fxbase {
+  filter: none; -webkit-filter: none;
+}
+.bpcfigure[data-lit="head"]  .fx-head,
+.bpcfigure[data-lit="upper"] .fx-upper,
+.bpcfigure[data-lit="limbs"] .fx-limbs,
+.bpcfigure[data-lit="aura"]  .fx-aura { opacity: 1; }
+
+.fx-head  { -webkit-mask-image: radial-gradient(ellipse 26% 8.5% at 50% 6.4%, #000 55%, transparent 100%);
+                    mask-image: radial-gradient(ellipse 26% 8.5% at 50% 6.4%, #000 55%, transparent 100%); }
+.fx-upper { -webkit-mask-image: radial-gradient(ellipse 46% 15% at 50% 30%, #000 50%, transparent 100%);
+                    mask-image: radial-gradient(ellipse 46% 15% at 50% 30%, #000 50%, transparent 100%); }
+.fx-limbs { -webkit-mask-image:
+    radial-gradient(ellipse 17% 22% at 12% 39%, #000 45%, transparent 100%),
+    radial-gradient(ellipse 17% 22% at 88% 39%, #000 45%, transparent 100%),
+    radial-gradient(ellipse 34% 24% at 50% 82%, #000 50%, transparent 100%);
+  mask-image:
+    radial-gradient(ellipse 17% 22% at 12% 39%, #000 45%, transparent 100%),
+    radial-gradient(ellipse 17% 22% at 88% 39%, #000 45%, transparent 100%),
+    radial-gradient(ellipse 34% 24% at 50% 82%, #000 50%, transparent 100%); }
+/* 形象魅力＝身體四周，所以不遮罩，改成整個剪影往外發光 */
+.fx-aura {
+  filter: drop-shadow(0 0 3px rgba(232, 168, 152, .95))
+          drop-shadow(0 0 14px rgba(232, 168, 152, .55))
+          drop-shadow(0 0 30px rgba(232, 168, 152, .30)) brightness(1.15);
+}
+/* 形象魅力＝**只亮外圈**。用實心剪影加外光暈：剪影是深藍的，
+   光暈在身體內部被自己擋掉，只剩往外那一圈 —— 這就是「聚焦向外」。
+   ⚠️ 不要用整張線稿加光暈（舊做法）——那會整個人一起發光，焦點就散了。 */
+.fx-aura {
+  filter: drop-shadow(0 0 5px rgba(232, 168, 152, .60))
+          drop-shadow(0 0 15px rgba(232, 168, 152, .34))
+          drop-shadow(0 0 34px rgba(232, 168, 152, .18));
+}
+
+/* 生活圈＝人物背後的大網絡。 */
+.fxnet {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 404px; height: 454px; opacity: 0; pointer-events: none;
+  transition: opacity .26s var(--ease);
+  /* ⚠️ 外緣要淡出。網絡比能力卡之間那條帶子寬，而卡片底色是不透明的，
+     不淡出的話網絡會被卡片切出一條垂直硬邊（踩過）。 */
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 60%, transparent 100%);
+          mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 60%, transparent 100%);
+}
+.bpcfigure[data-lit="net"] .fxnet { opacity: 1; }
+
+/* 遮擋用的實心剪影。⚠️ 平常必須是透明的 ——
+   它是深藍實心，一直顯示會把背景那層 48px 格線在身體範圍內蓋掉。
+   只有網絡亮起來時才需要它擋住後面的線。 */
+.fxfill { opacity: 0; transition: opacity .26s var(--ease); }
+.bpcfigure[data-lit="net"] .fxfill { opacity: 1; }
+
+/* 情緒價值：胸口的心臟。跟人物同一套語言（細線、青色、不填色）。 */
+.fxheart {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(100%, 214px); height: 420px; pointer-events: none;
+  opacity: 0; transition: opacity .22s var(--ease);
+  filter: drop-shadow(0 0 4px rgba(232, 168, 152, .9))
+          drop-shadow(0 0 11px rgba(232, 168, 152, .45));
+}
+.bpcfigure[data-lit="upper"] .fxheart { opacity: 1; animation: fxbeat 1.9s ease-in-out infinite; }
+@keyframes fxbeat { 0%,100% { transform: translate(-50%,-50%) scale(1) }
+                    14% { transform: translate(-50%,-50%) scale(1.045) }
+                    28% { transform: translate(-50%,-50%) scale(1) }
+                    42% { transform: translate(-50%,-50%) scale(1.03) } }
+
+.bpcfigure::after {
+  content: ''; position: absolute; left: 12%; right: 12%; top: 8%; height: 1px;
+  background: var(--salmon); opacity: 0; pointer-events: none;
+  box-shadow: 0 0 8px rgba(232, 168, 152, .55); animation: bpcscan 1.4s .45s ease-out both;
+}
+@keyframes bpcfigure-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+@keyframes bpcscan { 0% { opacity: 0; transform: translateY(0) } 20% { opacity: .65 } 100% { opacity: 0; transform: translateY(340px) } }
+.bpccap { margin: 20px auto 0; text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+  .bpcfigure { animation: none; }
+  .bpcfigure[data-lit="upper"] .fxheart { animation: none; }
+  .bpcfigure::after { animation: none; display: none; }
+}
+@media (max-width: 780px) {
+  .bpcover { padding-top: 10px; }
+  .bpcgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; gap: 10px; }
+  .bpcfigure { order: -1; grid-column: 1 / -1; grid-row: auto; min-height: 320px; }
+  .bpcfigure img { width: 178px; max-height: 310px; }
+  .fxheart { width: 178px; height: 310px; }
+  /* 網絡要跟著人物縮，不然會被 .bpcover 的 overflow 裁掉 */
+  .fxnet { width: 300px; height: 336px; }
+  .bpcdim { grid-column: auto; grid-row: auto; min-height: 112px; padding: 15px 17px; }
+  .bpcdim:hover { transform: none; }
+  .bpccap { text-align: left; }
+}
+@media (max-width: 520px) {
+  .bpcgrid { grid-template-columns: 1fr; }
+  .bpcfigure { grid-column: 1; min-height: 300px; }
+  .bpcdim { min-height: 104px; }
+}
+
+/* 當前任務：雷達評語的毛玻璃層，加上書頁的刻度、網格與方括號。
+   它是固定浮層，不參與藍圖版面，所以開關不會推動人物或改變捲動位置。 */
+html.task-open, html.task-open body { overflow: hidden; }
+.taskveil {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid; place-items: center; padding: 28px;
+  background: rgba(19, 27, 46, .68);
+  backdrop-filter: blur(10px) saturate(110%);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
+}
+.taskveil.on { animation: taskveil-in .22s var(--ease) both; }
+.taskpanel {
+  position: relative; width: min(680px, 100%); max-height: calc(100vh - 56px); overflow: auto;
+  padding: 42px 48px 34px; color: var(--beige); outline: none;
+  background-color: rgba(19, 27, 46, .91);
+  background-image:
+    linear-gradient(rgba(232, 228, 220, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 228, 220, .025) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0 34px, rgba(232, 168, 152, .20) 34px 35px, transparent 35px);
+  background-size: 26px 26px, 26px 26px, 100% 100%;
+  border: 1px solid var(--beige-18);
+  clip-path: polygon(0 18px, 18px 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, .48), inset 0 1px 0 var(--beige-08);
+}
+.taskveil.on .taskpanel { animation: taskpanel-in .42s var(--ease) both; }
+.taskpanel::before {
+  content: ''; position: absolute; left: 24px; top: 70px; bottom: 34px; width: 3px;
+  background: repeating-linear-gradient(to bottom, var(--salmon) 0 2px, transparent 2px 8px);
+  opacity: .45;
+}
+.taskbrk { position: absolute; width: 20px; height: 28px; opacity: .45; pointer-events: none; }
+.taskbrk-tl { left: 12px; top: 12px; border-left: 1px solid var(--salmon); border-top: 1px solid var(--salmon); }
+.taskbrk-tr { right: 12px; top: 12px; border-right: 1px solid var(--salmon); border-top: 1px solid var(--salmon); }
+.taskbrk-bl { left: 12px; bottom: 12px; border-left: 1px solid var(--beige-40); border-bottom: 1px solid var(--beige-40); }
+.taskbrk-br { right: 12px; bottom: 12px; border-right: 1px solid var(--beige-40); border-bottom: 1px solid var(--beige-40); }
+.taskscan {
+  position: absolute; left: 7%; right: 7%; top: 18%; height: 1px; opacity: 0;
+  background: var(--salmon); box-shadow: 0 0 10px rgba(232, 168, 152, .7);
+  pointer-events: none;
+}
+.taskveil.on .taskscan { animation: taskscan 1s .16s ease-out both; }
+.taskx {
+  position: absolute; right: 18px; top: 16px; width: 34px; height: 34px;
+  color: var(--beige); background: none; border: 0; cursor: pointer;
+  font-size: 20px; line-height: 1; opacity: .42; transition: opacity .2s;
+}
+.taskx:hover, .taskx:focus-visible { opacity: 1; }
+.taskey {
+  margin: 0 44px 12px 0; font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--salmon); opacity: .85;
+}
+.taskhead { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.taskhead span {
+  padding: 4px 8px; color: var(--navy); background: var(--salmon);
+  font-family: var(--mono); font-size: 8.5px; font-weight: 600; letter-spacing: .12em;
+}
+.taskhead b { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .14em; color: var(--beige-70); }
+.taskpanel h2 { max-width: 18em; font-size: clamp(25px, 4vw, 36px); line-height: 1.35; }
+.taskrule { display: flex; align-items: center; gap: 8px; margin: 18px 0 20px; }
+.taskrule i { width: 62px; height: 3px; background: var(--salmon); }
+.taskrule s { flex: 1; height: 1px; background: var(--beige-18); }
+.taskbody { max-width: 36em; margin: 0; font-size: 14px; line-height: 2; color: var(--beige-70); white-space: pre-line; }
+.taskmeta {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0 18px;
+  margin: 24px 0 0; padding: 13px 0; border-top: 1px solid var(--beige-08); border-bottom: 1px solid var(--beige-08);
+}
+.taskmeta dt, .taskmeta dd { margin: 0; padding: 6px 0; }
+.taskmeta dt { font-family: var(--mono); font-size: 9px; letter-spacing: .13em; color: var(--salmon); opacity: .75; }
+.taskmeta dd { font-size: 12px; line-height: 1.7; color: var(--beige-70); }
+.taskactions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 28px; padding-right: 34px; }
+.taskfolio { position: absolute; right: 18px; bottom: 15px; font-size: 9px; letter-spacing: .16em; color: var(--salmon); opacity: .45; }
+@keyframes taskveil-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes taskpanel-in { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
+@keyframes taskscan { 0% { opacity: 0; transform: translateY(0) } 18% { opacity: .8 } 100% { opacity: 0; transform: translateY(280px) } }
+@media (prefers-reduced-motion: reduce) {
+  .taskveil.on, .taskveil.on .taskpanel, .taskveil.on .taskscan { animation: none; }
+}
+@media (max-width: 560px) {
+  .taskveil { padding: 12px; align-items: center; }
+  .taskpanel { max-height: calc(100vh - 24px); padding: 36px 25px 28px 35px; }
+  .taskpanel h2 { font-size: 24px; }
+  .taskbody { font-size: 13px; line-height: 1.9; }
+  .taskmeta { grid-template-columns: 1fr; gap: 0; }
+  .taskmeta dt { padding-bottom: 0; }
+  .taskmeta dd { padding-top: 2px; }
+  .taskactions { padding-right: 0; flex-wrap: wrap; }
+  .taskactions .btn { flex: 1; }
+}
+.mapinner { min-width: 900px; }
+/* 節點詳情卡 */
+.ncard {
+  background: var(--navy-lift); border: 1px solid var(--salmon-30); border-radius: 3px;
+  padding: 18px; margin: 0 0 8px; animation: rise .4s var(--ease) both;
+}
+.nchead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.nchead .ey { margin: 0 0 5px; }
+.nchead h3 { font-size: 19px; }
+.npick { display: flex; align-items: center; gap: 8px; flex: none; cursor: pointer; font-size: 12.5px; }
+.npick input { width: 16px; height: 16px; accent-color: var(--salmon); }
+@media (max-width: 719px) {
+}
+/* 詳情卡的條列。地圖節點只放短標籤，內容全部落在這裡。 */
+.ncard .nchead .ey { color: var(--salmon); opacity: .85; }
+.nlist { display: grid; grid-template-columns: auto 1fr; gap: 0; margin: 16px 0 0; }
+.nlist dt {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+  opacity: .45; padding: 9px 16px 9px 0; border-top: 1px solid var(--beige-08); white-space: nowrap;
+}
+.nlist dd {
+  margin: 0; font-size: 13.5px; line-height: 1.85;
+  padding: 9px 0; border-top: 1px solid var(--beige-08);
+}
+.nlist dt:first-of-type, .nlist dd:first-of-type { border-top: 0; }
+/* ═══ 成長紀錄：三條時間帶 ═════════════════════════════
+   x 軸是時間，**y 的起伏純屬美術**（三條不同相位的正弦波，看起來像三股獨立的流）。
+   沒有 Y 軸、沒有刻度、沒有數值 —— 不假裝它是數據。
+   標記：電話＝雙圈　社交＝星　約會＝愛心。重複最多的最安靜。 */
+
+.demo-note {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
+  opacity: .4; margin: 12px 0 0;
+}
+/* 儀器邊框。四角括號掛在 .rdframe 上（捲動容器外面），所以橫向捲動時不會跟著滑走。
+   .brk 原本是 22×34／inset 14px，這裡覆寫成小一號並收進 padding 裡。 */
+.rdframe { position: relative; border: 1px solid var(--beige-08); padding: 15px 12px 9px; }
+.rdframe .brk { width: 15px; height: 21px; opacity: .3; }
+.rdframe .brk-tl, .rdframe .brk-tr { top: 5px; }
+.rdframe .brk-bl, .rdframe .brk-br { bottom: 5px; }
+.rdframe .brk-tl, .rdframe .brk-bl { left: 5px; }
+.rdframe .brk-tr, .rdframe .brk-br { right: 5px; }
+.rdwrap { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.bands { width: 100%; height: auto; display: block; overflow: visible; }
+/* 窄螢幕不縮到看不見 —— 橫向捲動而不是壓成三分之一（第四版踩過） */
+.rdinner { min-width: 660px; }
+.rdhint {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+  opacity: .3; margin: 6px 0 0; text-align: right;
+}
+@media (min-width: 760px) { .rdinner { min-width: 0; } .rdhint { display: none; } }
+/* ── 標記圖案 ────────────────────────────────────────
+   基本樣式**不限定容器** —— chip 與讀數列裡的複本才拿得到 fill:none，
+   否則會變成實心黑塊（踩過一次）。 */
+.gy { fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linejoin: round; }
+.gy.ph { stroke-linecap: round; }   /* 線寬由 glyphSvg 按 r 給 inline style */
+.gy.pk { fill: currentColor; stroke: none; }           /* 話筒兩端的聽筒 */
+
+/* chip 與讀數列裡的小圖例 */
+.cgy { width: 15px; height: 15px; flex: none; overflow: visible; }
+.cgy .gy { opacity: .8; }
+.cgy .gy.pk { opacity: .55; }
+.rk.on .cgy .gy { opacity: 1; }
+/* ── 軌跡（錄音軌）── */
+/* 格線加密到 step/8，透明度同時降一階 —— 總墨量持平，密度加倍。 */
+.bands .grid { fill: none; stroke: var(--beige); stroke-width: .5; opacity: .03; }
+.bands .grid2 { fill: none; stroke: var(--beige); stroke-width: .5; opacity: .09; }
+/* 上下兩條刻度桿：主齒每一週，次齒每 1/4 週。全部米白＋透明度，沒有第五色。
+   淡入**掛在群組上，不能掛在 path 上** —— @keyframes fade 的終點是 opacity:1，
+   掛在 path 上會把刻意調低的 .1／.2 吹掉。群組淡入不影響子元素自己的透明度。 */
+.bands .chrome { animation: fade .7s ease .12s both; }
+.bands .rail { fill: none; stroke: var(--beige); stroke-width: .6; opacity: .14; }
+.bands .tkM { fill: none; stroke: var(--beige); stroke-width: .7; opacity: .2; }
+.bands .tkm { fill: none; stroke: var(--beige); stroke-width: .5; opacity: .1; }
+.bands .lane { transition: opacity .3s; }
+/* 靜音線：直線帶一點底噪。振幅 1.1，遠小於一段的高度 —— 大到會被誤讀成資料就錯了。 */
+.bands .silence { fill: none; stroke: var(--salmon); stroke-width: 1.1; opacity: .3; }
+/* 電話用米白區隔另兩條鮭粉，但它是最上面那條、只有 12 筆，不能再是最暗的。 */
+.bands .lane.call .silence { stroke: var(--beige); opacity: .3; }
+/* 電平段：段數＝差／好／優。上下對稱，中間是軌線。 */
+.bands .seg rect { fill: var(--salmon); transition: opacity .2s, fill .2s; }
+.bands .lane.call .seg rect { fill: var(--beige); opacity: .8; }
+/* hover／選中的回饋長在**段本身**上，不再靠一顆額外的小圓點 */
+.bands .gmk:hover .seg rect { opacity: 1; }
+.bands .gmk.sel .seg rect { opacity: 1; fill: var(--white); }
+/* 空白區的說明。沒有這三個字，空白讀起來像「沒了」而不是「還沒輪到」。 */
+.bands .notyet {
+  font-family: var(--sans); font-size: 10px; letter-spacing: .1em;
+  fill: var(--beige); opacity: .26;
+}
+/* 播放頭。sweep() 每一帧改 x1/x2，掃完加 .done 淡出。
+   **淡出用 class 不用 inline opacity** —— 重播時清掉 inline 值會從 0 過渡回來，
+   前 0.3 秒的播放頭是暗的；拿掉 class 則是立刻回到 .55。 */
+.bands .playhead { stroke: var(--salmon); stroke-width: 1; opacity: .55; }
+.bands .playhead.done { opacity: 0; transition: opacity .3s; }
+/* 週次刻度 */
+.bands .bwk { cursor: pointer; }
+.bands .bhit { fill: transparent; }
+/* --mono 是 Space Grotesk，不是等寬字 —— 數字要對齊必須自己加 tabular-nums。 */
+.bands .bwt {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+  fill: var(--beige); opacity: .28; transition: opacity .3s, fill .3s;
+}
+/* 當前週次框起來（沿用 .onum 的作法）。只靠 markWeek 的 class 切換，不重畫。 */
+.bands .bwbox {
+  fill: none; stroke: var(--salmon); stroke-width: .8; opacity: 0;
+  transition: opacity .3s;
+}
+.bands .bwk.on .bwbox { opacity: .45; }
+.bands .bwk.on .bwt { opacity: 1; fill: var(--salmon); }
+.bands .bwk:hover .bwt { opacity: .7; }
+/* 一週是一段跨距，所以選定的那一週用整條色帶，不是一條線。x 就地移動。 */
+.bands .bcur { fill: var(--salmon); stroke: none; opacity: .07; transition: x .4s var(--ease); }
+/* 最左邊的示意欄：圖案只在這裡出現一次（軌上不放圖案，會太眼花） */
+.bands .lkt {
+  font-family: var(--sans); font-size: 11.5px; letter-spacing: .04em;
+  fill: var(--beige); opacity: .5;
+}
+.bands .lane.call .lkt { opacity: .42; }
+.bands .lkc {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .18em;
+  font-variant-numeric: tabular-nums; fill: var(--beige); opacity: .3;
+}
+.bands .lane.call .lkc { opacity: .26; }
+/* 點擊熱區 */
+/* 段的亮起由 sweep() 切 .on，過渡交給 CSS —— 不要每一帧寫 28 個 opacity。
+   **不能用 animation** —— @keyframes fade 的終點是 opacity:1，重播時無法重新觸發，
+   而且會把子元素刻意調低的透明度一起吹掉（.chrome 那邊踩過同一個坑）。 */
+.bands .gmk { cursor: pointer; opacity: 0; transition: opacity .3s ease; }
+.bands .gmk.on { opacity: 1; }
+.bands .ghit { fill: transparent; }
+/* 顏色分層：範例裡較密的通話記錄最安靜 */
+.bands .gy.ph { stroke: var(--beige); opacity: .62; }
+.bands .gy.pk { fill: var(--beige); opacity: .55; }
+.bands .gy.tr, .bands .gy.h { stroke: var(--salmon); opacity: .9; }
+.tlact { display: flex; align-items: center; gap: 16px; margin: 14px 0 0; flex-wrap: wrap; }
+.tlact .ey { opacity: .45; }
+/* 事件卡 */
+.evc { border-bottom: 1px solid var(--beige-08); padding: 15px 0; }
+.evc .ey { margin: 0 0 7px; opacity: .5; }
+.evc .ey b { color: var(--salmon); opacity: 1; }
+.evc h3 { font-size: 16px; }
+.evc .ey b.lv1 { color: var(--beige); opacity: .55; }
+.evc .ey b.lv2 { color: var(--salmon); opacity: .8; }
+.evc .ey b.lv3 { color: var(--salmon); opacity: 1; }
+/* 說明文字換到控制項底下自己一行。跟 flex:1 的 select 擠同一列會被壓到看不清。
+   74px = 標籤 62px ＋ gap 12px，這樣會對齊控制項的左緣。 */
+/* 說明文字換到控制項底下自己一行。跟 flex:1 的 select 擠同一列會被壓到看不清。
+   74px = 標籤 62px ＋ gap 12px，對齊控制項的左緣。
+   **basis 要扣掉那 74px** —— 寫 `flex: 1 0 100%` 再加 margin-left 會超出容器
+   （shrink 0 又不讓它縮回來），375px 下整頁就橫向溢出了（踩過）。 */
+.gfh {
+  flex: 1 1 calc(100% - 74px); margin: 2px 0 0 74px;
+  font-size: 11.5px; opacity: .4; font-style: normal; text-decoration: none;
+}
+/* 窄螢幕不縮排，讓說明文字用滿整行 */
+@media (max-width: 520px) {
+  .gfh { flex-basis: 100%; margin-left: 0; }
+}
+.evn { font-size: 13.5px; line-height: 1.95; opacity: .72; margin: 8px 0 0; white-space: pre-wrap; }
+.evs { font-size: 11.5px; opacity: .55; margin: 8px 0 0; }
+.evc.cmp h3 { font-size: 14.5px; font-family: var(--sans); font-weight: 500; }
+/* 紀錄表單 */
+.gfm {
+  background: var(--navy-lift); border: 1px solid var(--beige-18); border-radius: 3px;
+  padding: 18px; margin: 16px 0 0; animation: rise .3s var(--ease) both;
+}
+.gfm > .ey { margin: 0 0 14px; color: var(--salmon); opacity: .85; }
+.gfr { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 11px; }
+.gfr > label:first-child {
+  flex: none; width: 62px; font-size: 12px; opacity: .55; padding-top: 12px;
+}
+.gfr select, .gfr input[type=text], .gfr textarea { flex: 1; }
+.gfr textarea { min-height: 62px; }
+.ck { display: flex; align-items: center; gap: 9px; padding-top: 12px; cursor: pointer; font-size: 13px; }
+.ck input { width: 16px; height: 16px; accent-color: var(--salmon); flex: none; }
+.fscores { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; }
+.fsc { display: flex; flex-direction: column; gap: 3px; }
+.fsc s { text-decoration: none; font-size: 10.5px; opacity: .5; }
+.fsc input { width: 100%; }
+.gfb { display: flex; gap: 9px; margin-top: 16px; }
+/* ═══ 星等（逐條報告與表單沿用；能力圖／藍圖改用菱形）═══ */
+.stars { font-size: 15px; letter-spacing: .12em; color: var(--salmon); line-height: 1; }
+.stars.big { display: block; font-size: 20px; letter-spacing: .1em; }
+.paper .stars { color: var(--salmon-ink); }
+/* 事件卡裡的評分 */
+.evst { margin: 10px 0 0; display: grid; gap: 3px; }
+.evst p { display: flex; align-items: baseline; gap: 9px; margin: 0; font-size: 12px; }
+.evst s { text-decoration: none; opacity: .5; min-width: 62px; }
+.evst b { color: var(--salmon); letter-spacing: .1em; font-weight: 400; }
+/* 教練打分的星等選擇器 */
+.starpick { display: flex; gap: 1px; }
+.sp {
+  background: none; border: 0; cursor: pointer; padding: 2px 1px;
+  font-size: 16px; line-height: 1; color: var(--beige-18); transition: color .15s, transform .15s;
+}
+.sp.on { color: var(--salmon); }
+.sp:hover { transform: scale(1.2); }
+/* ═══ 成果卡：outcome 是主體，標題退到上面一行 ═══════════════ */
+/* 紀錄區的類型選擇（含總筆數）。圖上已經沒有篩選了，回看是在這裡選。 */
+.rkind { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 18px; }
+.rk {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 11.5px; color: var(--beige-70);
+  background: none; border: 1px solid var(--beige-18); border-radius: 30px;
+  padding: 6px 13px; cursor: pointer; transition: all .2s;
+}
+.rk:hover { border-color: var(--beige-40); }
+.rk.on { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 500; }
+.rk b { font-size: 10.5px; opacity: .55; }
+.rk.on b { opacity: .7; }
+.gpanel { margin-top: 8px; }
+.evt { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; opacity: .45; margin: 0 0 6px; }
+.evo { font-size: 16.5px; line-height: 1.75; font-family: var(--serif); font-weight: 700; }
+.evc.cmp .evo { font-size: 15px; }
+/* ═══ 課程藍圖：攤開的書 ═══════════════════════════════
+   從 coach_portal/site/console.html 的版型實驗搬進來的。設計判斷寫在那裡，
+   這裡只留會影響改動的那幾條：
+
+   · **兩頁同一套材質，由同一個函式 panelArt() 產生**，只差缺角在外側哪一邊
+     （左頁左上、右頁右上，鏡像對稱）。材質一致不是靠手動對數值，是靠共用程式碼。
+   · SVG 用 preserveAspectRatio="none" ＋ vector-effect="non-scaling-stroke"，
+     所以頁面尺寸變了**線寬不會被拉粗**。
+   · 幾何：左頁 354 ＋ 書溝 22 ＋ 右頁 424 ＋ 左右邊界各 40 = 880（同 --maxw），兩頁同高 600。
+     ⚠️ 之前砍過跨頁，理由是「880 之下每頁只剩 200 出頭」——那個結論的前提是
+     **兩頁等寬**。這裡是**不等寬**：左頁窄（清單）、右頁寬（內容），所以成立。
+   · 左頁兩層（目錄 → 小任務）**一次全部渲染，切層只切 class** ——
+     重建會讓捲動歸零、動畫重播，使用者會讀成整頁重載。
+   · 書溝是刻度軸不是漸層陰影：漸層在宣告光源，刻度只是介面。
+   · ⚠️ 這一區的底是 navy-lift（比深藍亮），所有 alpha 都是**對它**反解的，
+     不能從深藍區直接搬數值。 */
+/* ⚠️ **書不能有自己的外框。** 原本它有底色、邊框與鮭粉折角，
+   那是版型實驗頁的「控制台」身份 —— 放進網頁之後就變成**嵌在頁面上的一個小工具**。
+   移除之後兩頁直接落在頁面的深藍底上，跟上下文同一個平面。 */
+.bkspread { max-width: var(--maxw); margin: 30px auto 10px; padding: 0 var(--pad); }
+.bkbody {
+  position: relative; display: grid; grid-template-columns: 354px 22px 424px;
+  justify-content: center;
+}
+.pg { position: relative; height: 600px; }
+.pgart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* ⚠️ 規則 8 是「不加第五色、不做霓虹」。這裡的發光是刻意的偏離，
+   但守住實質那一半：**光只有鮭粉與米白兩色**。霓虹的問題是引進新色相，不是亮度。 */
+.pgpanel { fill: var(--navy-lift); stroke: var(--beige-40); stroke-width: 1.4;
+  filter: drop-shadow(0 0 9px rgba(232, 168, 152, .22)); }
+.pgcrop { fill: none; stroke: var(--salmon); stroke-width: 2;
+  filter: drop-shadow(0 0 5px rgba(232, 168, 152, .7)); }
+.pgbar { fill: var(--salmon); filter: drop-shadow(0 0 7px rgba(232, 168, 152, .85));
+  animation: bkbreath 3.2s ease-in-out infinite; }
+@keyframes bkbreath { 0%, 100% { opacity: .6 } 50% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .pgbar { animation: none; opacity: .9 } }
+.bkgutter {
+  height: 600px;
+  background: repeating-linear-gradient(180deg,
+    var(--beige-18) 0 1px, transparent 1px 26px) center / 9px 100% no-repeat;
+}
+/* ── 左頁 ─────────────────────────────────────────── */
+.pgin { position: absolute; inset: 0; padding: 26px 22px; overflow-y: auto; }
+.pgin.is-scroll { mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent); }
+.blv { display: none; }
+.blv.is-on { display: block; }
+.blvh { margin: 0 0 18px; font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--salmon); }
+.blvh s { text-decoration: none; opacity: .72; margin-left: 8px; }
+.bmk, .btask, .blvback {
+  position: relative; display: flex; align-items: baseline; gap: 10px; width: 100%;
+  background: none; border: 0; cursor: pointer; text-align: left;
+  font: inherit; color: inherit; padding-left: 16px;
+}
+.bmk:focus-visible, .btask:focus-visible, .blvback:focus-visible {
+  outline: 2px solid var(--salmon); outline-offset: 2px;
+}
+/* 書籤的舌。伸到頁面的內距裡，所以看起來是「夾在頁緣」的 */
+.bmk::before, .btask::before {
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+  background: var(--beige-18);
+}
+.bmk:hover::before, .btask:hover::before { background: var(--beige-40); }
+/* 第一層＝五個大主題，用規則線切成五格；第二層拿掉線（見下） */
+.bmk { border-bottom: 1px solid var(--beige-08); padding-top: 17px; padding-bottom: 17px; }
+.bmk:last-of-type { border-bottom: 0; }
+.bmk b { font-family: var(--serif); font-size: 17px; font-weight: 700; letter-spacing: .01em; }
+.bmk s { text-decoration: none; font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; opacity: .58; margin-right: auto; }
+.bmk em { font-style: normal; font-size: 11.5px; opacity: .58; }
+.bmk u { flex: none; text-decoration: none; width: 6px; height: 6px; align-self: center;
+  border-right: 1.5px solid var(--beige-70); border-bottom: 1.5px solid var(--beige-70);
+  transform: rotate(-45deg); }
+/* 本期菜單：目錄的第一列。教練排好之後要能一眼看完，不必逐維翻。 */
+.bmk-pick { border-bottom-color: var(--beige-18); }
+.bmk-pick b { color: var(--salmon); }
+.bmk-pick .bpn { font-style: normal; color: var(--salmon); opacity: 1; }
+/* 菜單那一層的列：沒有膠囊也沒有鏈（那是「順序」的語彙，菜單講的是「選了哪些」）*/
+.btask.bp { padding: 5px 0 5px 16px; }
+.btask.bp::before { display: block; background: var(--salmon-30); }
+.btask.bp.is-key::before { background: var(--salmon); width: 4px; }
+.btask.bp.is-sel .btkr { color: var(--salmon); font-weight: 500; }
+.bpnone { font-size: 12.5px; line-height: 1.9; opacity: .58; margin: 6px 0 0; padding-left: 16px; }
+
+/* 目錄頁的頁腳＝藍圖自己的三句格言（真資料）。五個書籤只佔半頁，下面空著會像沒排完。 */
+.blvep { margin: 26px 0 0; padding-top: 16px; border-top: 1px solid var(--beige-18); }
+.blvep p { margin: 0 0 7px; font-family: var(--serif); font-size: 11.5px;
+  line-height: 1.85; opacity: .58; }
+.blvep p:last-child { margin-bottom: 0; }
+/* 第二層的頁首：眉標 → 標題 → 線（跟右頁同一個構造）。
+   ⚠️ 原本維度名 16px 夾在返回鍵與代號中間，那是工具列的解剖，讀起來像副標。 */
+.blvback { border-bottom: 0; padding: 0 0 0 16px; margin-bottom: 10px; gap: 6px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--salmon); }
+.blvback u { flex: none; text-decoration: none; width: 6px; height: 6px; align-self: center;
+  border-left: 1.5px solid var(--salmon); border-bottom: 1.5px solid var(--salmon);
+  transform: rotate(45deg); margin-right: 2px; }
+.blvhead { padding-left: 16px; margin-bottom: 12px; }
+.blvey { margin: 0 0 5px; font-family: var(--mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .22em; text-transform: uppercase; color: var(--salmon); opacity: .8; }
+.blvttl { margin: 0; font-family: var(--serif); font-size: 22px; font-weight: 700;
+  line-height: 1.35; letter-spacing: .01em; color: var(--beige); }
+.blvrule { height: 1px; background: var(--beige-18); margin: 10px 0 0; }
+/* O（Objective）是一層 —— 靠字族＋字重＋顏色分層，不靠字級（見 AGENTS 規則 23）*/
+.bsub { display: block; margin: 11px 0 2px; font-family: var(--serif);
+  font-size: 14px; font-weight: 700; line-height: 1.4; letter-spacing: .01em;
+  color: var(--salmon); }
+/* ── 第二層＝序列鏈 ───────────────────────────────
+   一條連續的線穿過所有膠囊 —— 順序看得出來。
+   深／淺交替**不是每隔一個換，是換 O 才換**，所以交替本身就在講分組。
+   膠囊是 28×28 的固定槽，序號只是它現在的內容（之後換小圖示不用改幾何）。
+   鏈的 x ＝ 內距 16 ＋ 半徑 14 ＝ 30，跟膠囊中心綁在一起。
+   第二層不放 id（右頁講過了），也不畫列線（九條一樣的線會讀成資料表）。 */
+.bchain { position: relative; }
+.bchain::before {
+  content: ''; position: absolute; left: 30px; top: 14px; bottom: 14px; width: 2px;
+  background: var(--beige-18);
+}
+.bsub { padding-left: 58px; margin: 7px 0 2px; }
+.btask {
+  align-items: center; gap: 14px; padding: 1px 0 1px 16px; margin-bottom: 1px;
+}
+.btask::before { display: none; }              /* 書籤舌換成膠囊，不重複 */
+.btno {
+  display: flex; flex: none; align-items: center; justify-content: center;
+  position: relative; z-index: 1;              /* 壓在鏈上面 */
+  width: 28px; height: 28px; border-radius: 9px;
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  font-variant-numeric: tabular-nums; color: var(--beige);
+}
+.btask.g-a .btno { background: var(--navy); border: 1px solid rgba(232, 228, 220, .34); }
+.btask.g-b .btno { background: rgba(232, 228, 220, .30); border: 1px solid transparent; }
+.btkr { display: block; text-decoration: none;
+  font-family: var(--sans); font-size: 13px; font-weight: 400; line-height: 1.5; }
+.btask.is-sel .btkr { color: var(--salmon); font-weight: 500; }
+.btask.is-sel .btno { background: var(--salmon); border-color: var(--salmon);
+  color: var(--navy); font-weight: 600; }
+/* 已排進書裡：膠囊帶鮭粉邊；再標成重點就填一半 */
+.btask.is-pick .btno { border-color: var(--salmon); }
+.btask.is-key .btno { background: var(--salmon-30); border-color: var(--salmon); }
+.btask.is-key .btkr::after { content: '　★'; font-size: 10px; color: var(--salmon); }
+/* ── 右頁 ─────────────────────────────────────────── */
+.bkwrap { --bkink: var(--beige); --bkink-75: var(--beige-70);
+  --bkink-50: rgba(232, 228, 220, .58); --bkink-22: var(--beige-18);
+  --bkacc: var(--salmon); container-type: inline-size; }
+/* 換內容時一道鮭粉掃線走一次（規則 8：酷炫感從動態來，不加第五色） */
+.bksweep { position: absolute; left: 6%; right: 6%; top: 8%; height: 2px;
+  background: var(--salmon); opacity: 0; pointer-events: none; z-index: 3;
+  box-shadow: 0 0 12px 3px rgba(232, 168, 152, .6); }
+.bksweep.is-run { animation: bksweep .5s ease-out; }
+@keyframes bksweep {
+  0%   { opacity: .85; transform: translateY(0); }
+  100% { opacity: 0;   transform: translateY(1000%); }
+}
+@media (prefers-reduced-motion: reduce) { .bksweep.is-run { animation: none; } }
+/* 文字層用 viewBox 的百分比定位；字級用 cqw，面板縮放時字跟著縮（原生，不寫 JS 量測），
+   每個都包 max() 保底。文字塊垂直居中：各條長短差很多，上齊會讓短的空一大片。 */
+/* 內距從 14%/11% 收到 10%/9% —— 原本文字區只佔右頁的 72%，內容又只填 48%，
+   整頁看起來半空。收窄留白 ＋ 放大字級之後約填到 8 成。 */
+.bkpage { position: absolute; left: 10%; right: 10%; top: 9%; bottom: 8%;
+  /* ⚠️ 不要用 justify-content:center。置中的話內容只佔一半、上下各留一大塊空白，
+     整頁看起來半空 —— 而且放大字級也解決不了（框會跟著變高）。
+     改成內容靠上、備註用 margin-top:auto 釘在頁底，版面就自然撐滿。 */
+  display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden;
+  color: var(--bkink); font-family: var(--sans); }
+.bkey { margin: 0 0 max(8px, 1.3cqw); font-family: var(--mono);
+  font-size: max(10px, 2.5cqw); letter-spacing: .2em; text-transform: uppercase;
+  color: var(--bkacc); }
+.bktitle { margin: 0; font-family: var(--serif); font-size: max(29px, 8.1cqw);
+  font-weight: 700; line-height: 1.25; letter-spacing: .02em; }
+.bkrule { height: 1px; background: var(--bkink-22); margin: max(14px, 2.6cqw) 0 max(16px, 3cqw); }
+.bkkr { margin: 0; font-size: max(16px, 3.8cqw); line-height: 2.0; color: var(--bkink); }
+/* 標籤與值分兩欄，值才會對齊 —— 對齊是最便宜的「有設計過」 */
+.bkmeta { margin: max(17px, 3cqw) 0 0; display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: max(12px, 2.2cqw); row-gap: max(5px, .9cqw); align-items: baseline; }
+.bkmeta b { font-family: var(--mono); font-size: max(9.5px, 1.9cqw); letter-spacing: .12em;
+  color: var(--bkink-50); font-weight: 400; white-space: nowrap; }
+.bkmeta span { font-size: max(12px, 2.4cqw); line-height: 1.75; color: var(--bkink-75); }
+/* ⚠️ 兩個元素都設 margin-top:auto，flex 的剩餘空間會**平均分給它們** ——
+   只設一個的話空白會全部堆在同一處，中間破一個大洞。 */
+.bkact { margin: max(18px, 3.2cqw) 0 0; margin-top: auto;
+  display: flex; align-items: center; gap: 13px; }
+.bkpick { font-family: var(--sans); font-size: max(12px, 2.4cqw);
+  background: none; color: var(--salmon); border: 1px solid var(--salmon-30);
+  border-radius: 30px; padding: 8px 17px; cursor: pointer; transition: all .18s; }
+.bkpick:hover { border-color: var(--salmon); }
+.bkpick.on { background: var(--salmon); border-color: var(--salmon); color: var(--navy); font-weight: 600; }
+.bkpick.key { border-style: dashed; }
+.bkpick.key.on { border-style: solid; }
+.bkstate { display: flex; align-items: center; gap: max(7px, 1.3cqw);
+  font-size: max(11.5px, 2.4cqw); color: var(--bkink-75); }
+.bkstate i { flex: none; width: max(7px, 1.25cqw); height: max(7px, 1.25cqw);
+  border-radius: 50%; border: 1px solid var(--bkink-50); }
+.bkstate.is-done i { background: var(--bkacc); border-color: var(--bkacc); }
+.bknote { margin: max(24px, 4.4cqw) 0 0; margin-top: auto; padding-top: max(12px, 2.2cqw);
+  border-top: 1px solid var(--bkink-22);
+  font-size: max(11.5px, 2.4cqw); line-height: 1.9; color: var(--bkink-75); }
+.bkfol { position: absolute; right: 13%; bottom: 5.5%; font-family: var(--mono);
+  font-size: max(8px, 1.5cqw); letter-spacing: .16em; color: var(--bkink-50);
+  font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) {
+  /* 窄螢幕沒有跨頁：兩頁上下疊、書溝收掉、SVG 材質也收掉
+     （354×600 的 viewBox 拉到手機寬度會把缺角與格線拉歪），退成兩個自然高度的框。 */
+  .bkspread { margin: 24px 0 6px; }
+  .bkbody { grid-template-columns: 1fr; padding: 16px; gap: 18px; }
+  .bkgutter { display: none; }
+  .pg { height: auto; background: var(--navy-lift);
+        border: 1px solid var(--beige-40); border-radius: 3px; }
+  .pgart { display: none; }
+  .pgin { position: static; padding: 20px 16px; overflow: visible; }
+  .pgin.is-scroll { mask-image: none; }
+  .bkwrap { container-type: normal; padding: 20px 16px; }
+  .bkpage { position: static; overflow: visible; }
+  .bkfol { position: static; align-self: flex-end; margin-top: 14px; font-size: 9px; }
+  .bkey { font-size: 9px; }
+  .bktitle { font-size: 23px; }
+  .bkkr { font-size: 13.5px; }
+  .bkmeta span, .bkstate, .bknote, .bkpick { font-size: 12.5px; }
+  .bkpick { padding: 12px 18px; }        /* 觸控目標 ≥44px */
+  .bkmeta b { font-size: 9px; }
+  .bkstate i { width: 8px; height: 8px; }
+  .bmk { padding-top: 19px; padding-bottom: 19px; }   /* 觸控目標 ≥44px */
+  .btask { padding-top: 11px; padding-bottom: 11px; }   /* 22px 字高 ＋ 22 內距 = 44 觸控目標 */
+}
+/* ═══ 課程藍圖：總覽（教練設定任務）═════════════════════
+   平常一列有「當前任務」與「完成」；按管理按鈕後才切成「隱藏任務」。
+   所有任務預設可見，S.hidden 只記錄個別學員不需要的項目。
+   ⚠️ 勾選**不重建整頁**（見 bindOkr），避免連續設定時失去捲動位置。 */
+.edt { font-size: 13px; }
+.edth {
+  position: sticky; top: calc(52px + env(safe-area-inset-top)); z-index: 2;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 9px 0; margin-bottom: 6px;
+  background: var(--navy); border-bottom: 1px solid var(--beige-18);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; opacity: .8;
+}
+.edth b { color: var(--salmon); font-size: 12px; margin-left: 3px; }
+.edtmode {
+  margin-left: auto; font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+  color: var(--beige-70); background: none; border: 1px solid var(--beige-18);
+  border-radius: 30px; padding: 4px 11px; cursor: pointer;
+}
+.edtmode:hover { border-color: var(--salmon); color: var(--salmon); }
+.edt.is-hide-mode .edtmode { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.edtmodehint { display: none; color: var(--salmon); letter-spacing: .04em; }
+.edt.is-hide-mode .edtmodehint { display: inline; }
+.edtworkhint { color: var(--beige-70); letter-spacing: .04em; }
+.edt.is-hide-mode .edtworkhint { display: none; }
+.edt:not(.is-hide-mode) .edtr.is-hidden,
+.edt:not(.is-hide-mode) .edtgrp.is-all-hidden,
+.edt:not(.is-hide-mode) .edtdim.is-all-hidden { display: none; }
+.edtdim, .edtgrp { display: block; }
+/* 維度：一行，不留白 */
+.edtd {
+  display: flex; align-items: baseline; gap: 9px; margin: 16px 0 2px;
+  font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--salmon);
+}
+.edtd s { text-decoration: none; font-family: var(--mono); font-size: 9.5px;
+  font-weight: 400; letter-spacing: .2em; text-transform: uppercase; opacity: .5; }
+.edtd .edtdgain {
+  margin-left: auto; font-family: var(--mono); font-size: 9.5px; font-style: normal;
+  font-weight: 500; letter-spacing: .08em; color: var(--beige-70);
+}
+/* O：更小一階，同樣不留白 */
+.edto { margin: 7px 0 1px; font-family: var(--serif); font-size: 12.5px;
+  font-weight: 700; color: var(--salmon); opacity: .78; }
+/* 一列 KR：26px 高，滑過整列反白 */
+.edtr {
+  display: flex; align-items: center; gap: 9px;
+  padding: 3px 4px; border-radius: 2px;
+  line-height: 1.45;
+}
+.edtr:hover { background: var(--beige-08); }
+.edtr input { flex: none; width: 14px; height: 14px; margin: 0; accent-color: var(--salmon); cursor: pointer; }
+.edtr input.now { accent-color: var(--salmon); }
+.edtr input.hide { display: none; }
+.edt.is-hide-mode .edtr input.now,
+.edt.is-hide-mode .edtr input.done { display: none; }
+.edt.is-hide-mode .edtr input.hide { display: block; }
+.edtr input:disabled { cursor: not-allowed; opacity: .22; }
+.edtr b { flex: 1; font-weight: 400; opacity: .8; }
+.edtr i { flex: none; font-style: normal; font-size: 11px; color: var(--salmon); opacity: .7; }
+.edtr .edthidden {
+  display: none; flex: none; font-style: normal; font-family: var(--mono);
+  font-size: 8.5px; letter-spacing: .08em; color: var(--beige-70);
+  border: 1px solid var(--beige-18); border-radius: 2px; padding: 1px 5px;
+}
+.edtr .edtdone {
+  display: none; flex: none; font-style: normal; font-family: var(--mono);
+  font-size: 8.5px; letter-spacing: .08em; color: var(--navy);
+  background: var(--salmon); border-radius: 2px; padding: 1px 5px;
+}
+.edtr .edtgain {
+  flex: none; min-width: 24px; text-align: right; font-size: 9.5px;
+  letter-spacing: .06em; color: var(--salmon); opacity: .58;
+}
+.edtr s { flex: none; text-decoration: none; font-family: var(--mono);
+  font-size: 9.5px; letter-spacing: .08em; opacity: .32; width: 34px; text-align: right; }
+.edtr.is-current {
+  background: var(--salmon-12);
+  box-shadow: inset 2px 0 0 var(--salmon);
+}
+.edtr.is-current b { color: var(--beige); font-weight: 500; }
+.edtr.is-done b { opacity: .46; }
+.edtr.is-done .edtdone { display: inline-block; }
+.edtr.is-done .edtgain { opacity: 1; }
+.edtr.is-hidden b { opacity: .32; }
+.edtr.is-hidden s { opacity: .2; }
+.edtr.is-hidden .edthidden { display: inline-block; }
+@media (max-width: 900px) {
+  /* 手機也不放寬 —— 這一頁的目的就是密。只把勾選框撐到能點。 */
+  .edth { top: calc(48px + env(safe-area-inset-top)); }
+  .edtr { padding: 6px 4px; }
+  .edtr input { width: 18px; height: 18px; }
+}
+
+/* 圖說。**說明放在它描述的那張圖旁邊，不放頁首** ——
+   擺在頁首等於要人先讀一段話才能看到東西（頁首只留標題）。 */
+.cap { font-size: 12.5px; line-height: 1.95; opacity: .58; margin: 14px 0 0; max-width: 62ch; }
+.cap b { opacity: 1; font-weight: 500; }
+
+/* 文案直接編輯（edit.js）。**畫面上不能有任何編輯的痕跡** ——
+   焦點外框、拼字紅底線都算，所以這裡把它們關掉。
+   游標維持文字的 I 型（本來就是），不要改成 pointer 或加 hover 底色。 */
+[contenteditable] { outline: none; }
+[contenteditable]:focus { outline: none; }
+
+/* 文字稽核模式（audit.html / ?audit=1）。正常網站沒有任何稽核痕跡。
+   狀態只用 UC 四色與線型區分，不引入紅黃綠第五色。 */
+#ucAuditOverlay { position: fixed; inset: 0; z-index: 8000; pointer-events: none; }
+.uca-box {
+  position: fixed; display: block; margin: 0; padding: 0;
+  color: var(--beige); background: rgba(19,27,46,.04);
+  border: 1px dashed rgba(232,228,220,.48); border-radius: 2px;
+  pointer-events: auto; cursor: crosshair; font: 500 8.5px/1.2 var(--sans);
+  text-align: left; overflow: visible;
+}
+.uca-box > span {
+  position: absolute; left: -1px; top: -15px; z-index: 1;
+  width: max-content; max-width: 180px; padding: 2px 5px;
+  color: var(--beige); background: rgba(19,27,46,.94);
+  border: 1px solid rgba(232,228,220,.25); border-radius: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: .02em; pointer-events: none;
+}
+.uca-box.status-keep { border-style: solid; border-color: rgba(232,228,220,.7); }
+.uca-box.status-revise { border-style: solid; border-color: var(--salmon); }
+.uca-box.status-remove { border-style: dashed; border-color: var(--salmon); box-shadow: inset 0 -2px 0 var(--salmon); }
+.uca-box.status-missing { border: 2px double var(--salmon); }
+.uca-box.is-selected { box-shadow: 0 0 0 2px var(--white), 0 0 0 4px rgba(19,27,46,.75); }
+#ucAuditOverlay.is-browse .uca-box { pointer-events: none; }
+
+#ucAuditPanel {
+  position: fixed; z-index: 9000; top: 68px; right: 14px; width: min(340px, calc(100vw - 28px));
+  max-height: calc(100vh - 86px); overflow: auto; padding: 18px;
+  color: var(--beige); background: rgba(19,27,46,.96);
+  border: 1px solid rgba(232,228,220,.28); border-top: 2px solid var(--salmon);
+  box-shadow: 0 22px 54px rgba(0,0,0,.38); backdrop-filter: blur(14px);
+  font-family: var(--sans);
+}
+.uca-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+.uca-head small { display: block; margin-bottom: 4px; color: var(--salmon); font: 500 8px/1 var(--mono); letter-spacing: .2em; }
+.uca-head h2 { margin: 0; font: 700 22px/1.2 var(--serif); }
+.uca-mode, .uca-tools button, .uca-foot button, .uca-choices button {
+  color: var(--beige); background: none; border: 1px solid rgba(232,228,220,.25);
+  border-radius: 24px; cursor: pointer; font-family: var(--sans);
+}
+.uca-mode { flex: none; padding: 7px 10px; font-size: 11px; }
+.uca-mode:hover, .uca-tools button:hover, .uca-foot button:hover { border-color: var(--salmon); color: var(--salmon); }
+.uca-page { margin: 14px 0 6px; color: var(--salmon); font: 500 10px/1 var(--mono); letter-spacing: .14em; }
+.uca-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-block: 1px solid rgba(232,228,220,.15); }
+.uca-stats span { padding: 10px 4px; font-size: 9px; opacity: .68; }
+.uca-stats b { display: block; margin-bottom: 2px; color: var(--beige); font: 500 18px/1 var(--mono); opacity: 1; }
+.uca-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 10px; padding: 10px 0; }
+.uca-tools label { font-size: 10px; opacity: .78; }
+.uca-tools input { accent-color: var(--salmon); vertical-align: -2px; }
+.uca-tools button { margin-left: auto; padding: 4px 9px; font-size: 10px; }
+.uca-empty { padding: 22px 8px; border-top: 1px solid rgba(232,228,220,.15); font-size: 12px; line-height: 1.8; opacity: .62; }
+.uca-picked { border-top: 1px solid rgba(232,228,220,.15); padding-top: 12px; }
+.uca-k { margin: 10px 0 6px; color: var(--salmon); font: 500 9px/1 var(--mono); letter-spacing: .12em; }
+.uca-picked blockquote { margin: 0; padding: 10px 12px; border-left: 2px solid var(--salmon); background: rgba(232,228,220,.055); font-size: 12px; line-height: 1.65; }
+.uca-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.uca-choices button { padding: 5px 9px; font-size: 10.5px; }
+.uca-choices button.on { color: var(--navy); background: var(--salmon); border-color: var(--salmon); font-weight: 600; }
+.uca-id { margin: 12px 0 0; font: 400 8px/1.4 var(--mono); opacity: .34; }
+.uca-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(232,228,220,.15); }
+.uca-foot button { flex: none; padding: 6px 10px; font-size: 10px; }
+.uca-foot small { flex-basis: 100%; font-size: 8.5px; line-height: 1.5; opacity: .45; }
+.uca-file { display: none; }
+@media (max-width: 560px) {
+  #ucAuditPanel { top: auto; right: 8px; bottom: 8px; width: calc(100vw - 16px); max-height: 48vh; }
+  .uca-box > span { display: none; }
+}
+
+/* 只給螢幕閱讀器 */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ═══ 書本的入口：總覽右下角 ═══════════════════════════════
+   使用者 2026-09-12：「書這個功能暫時不需要，但也不需要刪掉…
+   放在右下角，讓使用者的體驗更乾淨一點。」
+   所以它**不進頁首的檢視切換器**，只在「總覽」畫得出來。
+   固定定位不會影響版面，換檢視時 pane 重畫，按鈕跟著消失。 */
+.bkcorner {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--navy-lift); border: 1px solid var(--beige-18);
+  color: var(--beige-70); font-family: var(--serif); font-size: 15px;
+  cursor: pointer; transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.bkcorner:hover { border-color: var(--salmon); color: var(--beige); }
+.bkcorner:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+
+/* ═══ 登入閘門（正式站的 LINE 登入）═══════════════════
+   從 LINE 開啟時會蓋在最上面，驗證完就消失。demo 模式完全不會出現。 */
+.gate {
+  position: fixed; inset: 0; z-index: 200; display: none;
+  align-items: center; justify-content: center; padding: 24px;
+  background: rgba(19, 27, 46, .92); backdrop-filter: blur(6px);
+}
+.gate.on { display: flex; }
+.gatebox {
+  width: 100%; max-width: 380px; padding: 30px 28px;
+  background: var(--navy-lift); border: 1px solid var(--beige-18);
+  text-align: center;
+}
+.gatebox .ey { margin: 0 0 10px; color: var(--salmon); }
+.gatebox h2 { margin: 0 0 12px; font-family: var(--serif); font-size: 22px; }
+.gatebox p { margin: 0 0 18px; font-size: 13px; line-height: 1.9; color: var(--beige-70); }
+.gatebox input {
+  width: 100%; margin-bottom: 12px; padding: 12px; text-align: center;
+  color: var(--beige); background: transparent; border: 1px solid var(--beige-18);
+  border-radius: 2px; font-family: var(--mono); font-size: 18px; letter-spacing: .3em;
+}
+.gatebox input:focus { outline: none; border-color: var(--salmon); }
+.gatebox .btn { width: 100%; margin-top: 6px; }
+.gateerr { min-height: 1.4em; margin: 0 0 12px !important; font-size: 12px !important;
+  color: var(--salmon); }
+
+/* ═══ 學員清單（教練用）═══════════════════════════════
+   一列一位學員：名字、id、評測進度條、現在卡在哪一關。
+   用按鈕不用連結 —— 點下去是「切換目前看誰」，不是導覽。 */
+.stlist { display: grid; gap: 10px; }
+.strow {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 14px;
+  width: 100%; padding: 16px 18px; text-align: left; cursor: pointer;
+  color: var(--beige); background: var(--navy-lift);
+  border: 1px solid var(--beige-18); border-radius: 0;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.strow:hover { border-color: var(--salmon); }
+.strow.is-cur { border-left: 3px solid var(--salmon); background: var(--navy-lift2); }
+.strow.is-busy { opacity: .5; pointer-events: none; }
+.stname { grid-column: 1; font-family: var(--serif); font-size: 17px; font-weight: 400; }
+.stid { grid-column: 1; font-family: var(--mono); font-size: 10.5px;
+  letter-spacing: .05em; text-decoration: none; opacity: .5; }
+.ststage { grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  font-family: var(--mono); font-size: 10.5px; font-style: normal;
+  letter-spacing: .05em; opacity: .65; white-space: nowrap; }
+.stbar { grid-column: 1 / -1; display: block; height: 2px; margin-top: 8px;
+  background: var(--beige-08); }
+.stbar u { display: block; height: 100%; background: var(--salmon); text-decoration: none; }
+@media (max-width: 560px) {
+  .strow { grid-template-columns: 1fr; }
+  .ststage { grid-column: 1; grid-row: auto; }
+}
+
+/* ═══ 成長紀錄：三顆大按鈕 ═══════════════════════════
+   使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
+   點下去開始寫紀錄。」入口就是分類，不要先問「要不要新增」再問「哪一種」。 */
+.gkinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 26px 0 14px; }
+.gkind {
+  display: grid; justify-items: center; gap: 6px; padding: 20px 12px 18px;
+  color: var(--beige); background: var(--navy-lift);
+  border: 1px solid var(--beige-18); border-radius: 0; cursor: pointer;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.gkind:hover { border-color: var(--salmon); background: var(--navy-lift2); }
+.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+.gkind b { font-family: var(--serif); font-size: 16px; font-weight: 400; }
+.gkind s { font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+  text-decoration: none; opacity: .5; text-align: center; }
+.gkico { display: block; width: 32px; height: 32px; }
+.gkico svg { width: 100%; height: 100%; }
+/* glyphSvg 畫的是 .gy，配色跟軌上的圖案同一套。 */
+.gkico .gy { fill: none; stroke: var(--salmon); }
+.gkico .gy.pk, .gkico .gy.tr { fill: var(--salmon); stroke: none; }
+.gfkind { margin: 2px 0 10px; font-family: var(--serif); font-size: 20px; font-weight: 400; }
+@media (max-width: 560px) {
+  .gkinds { grid-template-columns: 1fr; gap: 8px; }
+  .gkind { grid-template-columns: 32px 1fr; justify-items: start; align-items: center;
+           gap: 4px 14px; padding: 14px 16px; }
+  .gkico { grid-row: 1 / span 2; }
+  .gkind s { text-align: left; }
+}
+
+/* 範例學員：跟真學員視覺上要分得開 —— 虛線邊框＋沒有進度條。
+   點錯人是這一頁最貴的錯誤。 */
+.stdemo {
+  display: grid; gap: 4px; width: 100%; margin-top: 14px; padding: 16px 18px;
+  text-align: left; cursor: pointer;
+  color: var(--beige-70); background: none;
+  border: 1px dashed var(--beige-18); border-radius: 0;
+  font-family: var(--serif); font-size: 15px;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.stdemo:hover { border-color: var(--salmon); color: var(--beige); }
+.stdemo.is-cur { border-style: solid; border-left: 3px solid var(--salmon); color: var(--beige); }
+.stdemo s { font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
+  text-decoration: none; opacity: .5; }
+
+/* ═══ 手機：面板貼底，人物留在上面看得見 ═══════════════
+   使用者 2026-09-13：「手機版本把框框也放到人物旁邊，點選時會先跑人物動畫，
+   再跳出框框。」
+
+   窄螢幕沒有「旁邊」可用（人物就佔掉大半個寬度），所以改成**上下**：
+   人物留在上半部、面板貼在底下，兩個同時看得見。
+   ⚠️ 遮罩的模糊要調低 —— 10px 的話人物糊成一團，那盞剛點亮的燈就白點了。 */
+@media (max-width: 720px) {
+  .taskveil {
+    place-items: end stretch; padding: 0;
+    background: linear-gradient(to bottom,
+      rgba(19, 27, 46, .10) 0 34%, rgba(19, 27, 46, .72) 52%, rgba(19, 27, 46, .86));
+    backdrop-filter: blur(2px) saturate(105%);
+    -webkit-backdrop-filter: blur(2px) saturate(105%);
+  }
+  .taskpanel {
+    width: 100%; max-height: 62vh; padding: 26px 22px 24px;
+    border-width: 1px 0 0;
+  }
+  /* 由下往上推，不要從中間放大 —— 那會讀成「蓋住人物」。 */
+  .taskveil.on .taskpanel { animation: taskpanel-up .34s var(--ease) both; }
+}
+@keyframes taskpanel-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ═══ 手機輸入：不要放大、不要跳 ═══════════════════════
+   使用者 2026-09-13：「幾乎所有要填寫的地方，我點擊時視窗都會彈跳、放大或是晃動。」
+
+   ── 為什麼會放大 ──
+   iOS Safari（LIFF 裡也是 WebKit）只要欄位的 font-size **小於 16px**，
+   點進去就會自動把整頁放大，然後你得手動縮回來。
+   `.qfield` 是 13px、`.crnote textarea` 12px、`.gfr textarea` 15px，全都中招。
+   前面那條 `@media (max-width:560px)` 擋不住，因為那些選擇器權重比它高。
+
+   ── 為什麼放在檔案最後 ──
+   權重打平時後面的贏。這裡用 `:is()` 把所有會被輸入的元素一次蓋掉，
+   而且**不寫死選擇器清單**，之後新增欄位也自動涵蓋。
+
+   ⚠️ 不要改用 `maximum-scale=1` 那招 —— 那會連使用者自己的雙指縮放一起關掉。 */
+@media (pointer: coarse) {
+  input, select, textarea,
+  :is(input, select, textarea).qfield,
+  .crnote textarea, .crletter textarea, .gfr input, .gfr select, .gfr textarea {
+    font-size: 16px !important;
+    line-height: 1.6;
+  }
+  /* 鍵盤彈出來時瀏覽器會自己把欄位捲進畫面 —— 留一點邊，
+     不然欄位會剛好貼在鍵盤上緣，看不到自己在打什麼。 */
+  input, select, textarea { scroll-margin-block: 96px 140px; }
+  /* 自動長高的欄位：把過渡關掉。一邊打字一邊做高度動畫就是「晃動」的來源。 */
+  .qfield, .crnote textarea, .crletter textarea { transition: none; }
+  /* 焦點時的底色換成不影響版面的方式（原本就是 background，這裡只是把時間縮短）。 */
+  .qrow.free { transition-duration: .08s; }
+}
+
+/* 成長紀錄的「狀況」：三顆按鈕，不用下拉。
+   手機上點一下就選好，比「開下拉→捲→選→關」快得多 ——
+   而這張表使用者每週都要填。 */
+.gflv { display: flex; gap: 6px; flex: 1; }
+.gflvb {
+  flex: 1; padding: 11px 0; cursor: pointer;
+  color: var(--beige-70); background: transparent;
+  border: 1px solid var(--beige-18); border-radius: 2px;
+  font-family: var(--sans); font-size: 15px;
+  transition: border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
+}
+.gflvb:hover { border-color: var(--salmon); }
+.gflvb.on { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.gflvb:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+
+/* 報告頁首的按鈕列（編輯評測 ＋ 傳到 LINE）。手機上並排放不下就換行。 */
+.rhact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+@media (max-width: 480px) { .rhact .btn { flex: 1 1 100%; } }
+
+/* ═══ 鎖住的欄位要看得出來被鎖住 ═══════════════════════
+   applyFieldAccess 會把不該由你填的欄位設成 disabled／readonly，
+   但 2026-09-13 之前 `.field-locked` **一條樣式都沒有** ——
+   於是被鎖的欄位長得跟能用的一模一樣，點下去沒反應就像壞掉。
+   使用者升級成教練之後第一個回報的就是這件事。
+
+   ⚠️ 不要用 `display: none` 藏起來 —— 學員應該看得到教練會填什麼，
+   只是不能動。看得到但明顯不能碰，才是對的。 */
+.field-locked { opacity: .55; }
+.field-locked, .field-locked * { cursor: not-allowed; }
+.field-locked :is(input, textarea, select, .opt, .chk):disabled,
+.field-locked :is(input, textarea)[readonly] { pointer-events: none; }
+/* 深色底上降透明度會糊掉，改用邊框說明它是靜止的 */
+.field-locked :is(input, select, textarea) { border-style: dashed; }
+
+/* ?diag=1 的診斷表。只有除錯會看到，所以求清楚不求好看。 */
+.diagt { width: 100%; margin: 0 0 16px; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11.5px; text-align: left; }
+.diagt td { padding: 5px 6px; border-bottom: 1px solid var(--beige-08);
+  color: var(--beige-70); word-break: break-all; }
+.diagt td:first-child { width: 42%; color: var(--salmon); }
+
+/* ?perf=1 的耗時面板 */
+.perft { font-size: 11px; }
+.perft th { padding: 5px 6px; color: var(--salmon); text-align: left;
+  border-bottom: 1px solid var(--beige-18); font-weight: 400; }
+.perft td:first-child { width: auto; color: var(--beige-70); }
+.perft td { color: var(--beige); }
+.perflaps { color: var(--beige-40) !important; font-size: 10px; padding-bottom: 10px !important; }
