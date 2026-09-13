@@ -381,6 +381,8 @@ function studentPayload_(b, sid) {
   lap_('讀報告');
   var tasks = stateLoad_('task', sid);
   lap_('讀任務');
+  var assignments = stateLoad_('assignment', sid);
+  lap_('讀作業');
   var log = growthLoad_(sid);
   lap_('讀成長');
   var blueprint = blueprintLoad_();
@@ -397,6 +399,7 @@ function studentPayload_(b, sid) {
     answers: answers,
     report: report,
     tasks: tasks,
+    assignments: assignments,
     log: log,
     blueprint: blueprint
   };
@@ -413,6 +416,20 @@ function studentListAction_(body) {
   return { students: studentList_() };
 }
 
+/* 欄位的寫入角色由後端決定，不能只靠前端 disabled。
+   self：自己的評測、成長紀錄與作業；manage：上述全部，另可寫報告與任務設定。 */
+function canWriteScope_(binding, scope) {
+  if (!binding) return false;
+  if (scope === 'report' || scope === 'task') return binding.access_scope === 'manage';
+  return ['assessment', 'growth', 'assignment'].indexOf(scope) >= 0;
+}
+
+function requireWriteScope_(binding, scope) {
+  if (!canWriteScope_(binding, scope)) {
+    throw new AppError('FORBIDDEN_FIELD', '只有教練可以修改這項內容');
+  }
+}
+
 /* state.save —— 單格 patch。
    scope 決定寫哪張分頁，field 走哪張白名單。 */
 function stateSaveAction_(body) {
@@ -421,6 +438,7 @@ function stateSaveAction_(body) {
 
   var scope = String(body.scope || '');
   if (!STATE_SHEETS[scope]) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
+  requireWriteScope_(b, scope);
 
   var itemId = String(body.itemId || '').trim();
   var field = String(body.field || '').trim();
@@ -440,14 +458,45 @@ function stateSaveAction_(body) {
   if (scope === 'growth' && field !== 'event') {
     throw new AppError('INVALID_INPUT', '成長紀錄只接受 event 欄位');
   }
+  if (scope === 'assignment' && field !== 'submission') {
+    throw new AppError('INVALID_INPUT', '作業只接受 submission 欄位');
+  }
 
   var value = body.value;
+  if (scope === 'growth') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new AppError('INVALID_INPUT', '成長紀錄格式不正確');
+    }
+    /* author_role 只相信已驗證的帳號，不相信前端送來的 by。 */
+    value.by = b.access_scope === 'manage' ? 'coach' : 'student';
+  }
   /* 成長紀錄送的是整個事件物件，其他 scope 送的是單一值。 */
   if (scope !== 'growth' && value !== null && typeof value === 'object') {
     throw new AppError('INVALID_INPUT', '這個欄位不接受物件');
   }
-  if (typeof value === 'string' && value.length > 8000) {
+  if (typeof value === 'string' && value.length > (scope === 'assignment' ? 40000 : 8000)) {
     throw new AppError('INVALID_INPUT', '內容太長');
+  }
+  if (scope === 'assignment') {
+    var submission;
+    try { submission = JSON.parse(String(value || '')); }
+    catch (e) { throw new AppError('INVALID_INPUT', '作業內容格式不正確'); }
+    if (!submission || typeof submission !== 'object' || Array.isArray(submission)
+        || String(submission.assignmentId || '') !== itemId
+        || ['draft', 'submitted', 'completed'].indexOf(String(submission.status || '')) < 0
+        || !submission.answers || typeof submission.answers !== 'object' || Array.isArray(submission.answers)) {
+      throw new AppError('INVALID_INPUT', '作業內容格式不正確');
+    }
+    if (submission.status === 'completed' && b.access_scope !== 'manage') {
+      throw new AppError('FORBIDDEN_STUDENT', '只有教練可以標記作業完成');
+    }
+    for (var answerId in submission.answers) {
+      if (!/^[a-z0-9-]{1,40}$/.test(answerId)
+          || typeof submission.answers[answerId] !== 'string'
+          || submission.answers[answerId].length > 12000) {
+        throw new AppError('INVALID_INPUT', '作業回答格式不正確');
+      }
+    }
   }
 
   /* ⚠️ 「報告完成」不能由前端說了算。前端也會檢查，但那是為了體驗（早點跳提示）；
@@ -569,6 +618,88 @@ function decorateBinding_(sh) {
   if (map.line_user_id) {
     sh.getRange(BINDING_HEADER_ROW, map.line_user_id).setFontColor(SALMON);
   }
+}
+
+/* 藍圖內容是教練會直接維護的全域資料。排版跟其他分頁一致，
+   但鮮粉表頭代表「可手動編輯」，kr_id 則特別標出不可改既有值。 */
+function decorateBlueprint_(sh) {
+  var NAVY = '#131B2E', BEIGE = '#E8E4DC', SALMON = '#E8A898';
+  var w = Math.max(sh.getLastColumn(), BLUEPRINT_COLS.length);
+  sh.getRange(2, 1).setValue('課程藍圖內容')
+    .setFontSize(16).setFontWeight('bold').setFontColor(NAVY);
+  sh.getRange(3, 1).setValue(
+    '一列 ＝ 一條 KR。網站會依「能力 → 目標 O → KR」顯示。'
+    + '新增任務至少要填 kr_id、能力、KR、排序與啟用；已上線的 kr_id 不可更改。'
+    + '修改後請用上方「UC 雲端教練 → 整理並檢查藍圖內容」，再重新開啟網站。')
+    .setFontSize(10).setFontStyle('italic').setFontColor('#6B7280').setWrap(true);
+  sh.setRowHeight(3, 44);
+  sh.getRange(4, 1, 1, w).setBorder(null, null, true, null, null, null,
+                                    SALMON, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(BLUEPRINT_HEADER_ROW, 1, 1, w)
+    .setBackground(NAVY).setFontColor(BEIGE).setFontWeight('bold')
+    .setVerticalAlignment('middle');
+  sh.setRowHeight(BLUEPRINT_HEADER_ROW, 30);
+  sh.setFrozenRows(BLUEPRINT_HEADER_ROW);
+
+  var map = blueprintMap_(sh);
+  for (var col in BLUEPRINT_NOTES) {
+    if (map[col]) sh.getRange(BLUEPRINT_HEADER_ROW, map[col]).setNote(BLUEPRINT_NOTES[col]);
+  }
+  ['能力', '目標 O', 'KR', '教材', '作業', '排序', '啟用', '次數', '短標', '教練備註'].forEach(function (c) {
+    if (map[c]) sh.getRange(BLUEPRINT_HEADER_ROW, map[c]).setBackground(SALMON).setFontColor(NAVY);
+  });
+  if (map.kr_id) sh.getRange(BLUEPRINT_HEADER_ROW, map.kr_id).setFontColor(SALMON);
+
+  var dataRows = Math.max(200, sh.getMaxRows() - BLUEPRINT_HEADER_ROW);
+  if (map['能力']) {
+    sh.getRange(BLUEPRINT_HEADER_ROW + 1, map['能力'], dataRows, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation()
+        .requireValueInList(['人格魅力', '情緒價值', '形象魅力', '生活圈', '調情升溫'], true)
+        .setAllowInvalid(false).build());
+  }
+  if (map['啟用']) {
+    sh.getRange(BLUEPRINT_HEADER_ROW + 1, map['啟用'], dataRows, 1)
+      .setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  }
+  var widths = { kr_id: 80, '能力': 105, '目標 O': 175, KR: 250, '教材': 220,
+                 '作業': 145, '排序': 70, '啟用': 65, '次數': 65, '短標': 120, '教練備註': 320 };
+  for (var name in widths) if (map[name]) sh.setColumnWidth(map[name], widths[name]);
+}
+
+function validateBlueprint_() {
+  var sh = blueprintSheet_(), map = blueprintMap_(sh);
+  var errors = [], warnings = [], seen = {}, count = 0;
+  var missing = BLUEPRINT_COLS.filter(function (c) { return !map[c]; });
+  if (missing.length) errors.push('缺少欄位：' + missing.join('、'));
+  var last = sh.getLastRow();
+  if (last <= BLUEPRINT_HEADER_ROW) return { count: 0, errors: errors, warnings: ['還沒有任務資料'] };
+  var rows = sh.getRange(BLUEPRINT_HEADER_ROW + 1, 1, last - BLUEPRINT_HEADER_ROW,
+                         Math.max(sh.getLastColumn(), 1)).getValues();
+  var abilities = ['人格魅力', '情緒價值', '形象魅力', '生活圈', '調情升溫'];
+  rows.forEach(function (row, i) {
+    var line = BLUEPRINT_HEADER_ROW + 1 + i;
+    /* 空白列也會因為「啟用」欄套了核取方塊而讀成 false。
+       判斷是否有任務內容時忽略該欄，避免把所有預留列誤報為缺 kr_id。 */
+    var any = BLUEPRINT_COLS.some(function (name) {
+      if (name === '啟用' || !map[name]) return false;
+      var v = row[map[name] - 1];
+      return v !== '' && v != null;
+    });
+    if (!any) return;
+    var r = rowObj_(row, map), id = String(r.kr_id || '').trim();
+    if (!id) { errors.push('第 ' + line + ' 列：缺 kr_id'); return; }
+    count++;
+    if (seen[id]) errors.push('第 ' + line + ' 列：kr_id 與第 ' + seen[id] + ' 列重複（' + id + '）');
+    else seen[id] = line;
+    if (abilities.indexOf(String(r['能力'] || '')) < 0) errors.push('第 ' + line + ' 列：能力名稱不正確');
+    if (!String(r.KR || '').trim()) errors.push('第 ' + line + ' 列：缺 KR');
+    if (!isFinite(Number(r['排序'])) || Number(r['排序']) <= 0) errors.push('第 ' + line + ' 列：排序必須是大於 0 的數字');
+    if (!(r['啟用'] === true || r['啟用'] === false || r['啟用'] === 'TRUE' || r['啟用'] === 'FALSE')) {
+      errors.push('第 ' + line + ' 列：啟用必須勾選 TRUE 或 FALSE');
+    }
+    if (!String(r['目標 O'] || '').trim()) warnings.push('第 ' + line + ' 列：目標 O 留空');
+  });
+  return { count: count, errors: errors, warnings: warnings };
 }
 
 /**
@@ -1000,6 +1131,7 @@ function setup() {
 
   /* 資料分頁。藍圖只在空的時候灌一次，之後試算表上的內容才是唯一來源。 */
   blueprintSheet_();
+  decorateBlueprint_(blueprintSheet_());
   seedBlueprint_();
   /* 三張骨架分頁本來就存在，只補缺的欄位，既有版面一格不動。 */
   for (var scope in SKEL) skelSheet_(scope);
@@ -1099,6 +1231,7 @@ function onOpen() {
     .addItem('發教練用的共用授權碼…', 'menuCoachCode')
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('修復「帳號綁定」的排版', 'menuDecorate')
+    .addItem('整理並檢查「藍圖內容」', 'menuBlueprintSetup')
     .addItem('清掉藍圖快取（改完藍圖想立刻生效）', 'menuClearBlueprintCache')
     .addItem('查這份表的狀態', 'menuStatus')
     .addSeparator()
@@ -1179,6 +1312,24 @@ function menuDecorate() {
   SpreadsheetApp.getUi().alert('「' + BINDING_SHEET + '」的標題、說明、欄位註解與底色都補回來了。');
 }
 
+/* 藍圖內容的單一維護入口：舊版會安全搬表頭、補說明與下拉選單，
+   接著檢查欄位與每條 KR，最後清掉快取。 */
+function menuBlueprintSetup() {
+  var sh = blueprintSheet_();
+  decorateBlueprint_(sh);
+  var result = validateBlueprint_();
+  try { CacheService.getScriptCache().remove('bp'); } catch (e) {}
+  SpreadsheetApp.flush();
+  var message = '已整理「' + BLUEPRINT_SHEET + '」，目前 ' + result.count + ' 條 KR。\n'
+    + '藍圖快取已清除。';
+  if (result.errors.length) message += '\n\n需要修正：\n• ' + result.errors.join('\n• ');
+  else message += '\n\n必要欄位檢查通過。';
+  if (result.warnings.length) message += '\n\n提醒：\n• ' + result.warnings.join('\n• ');
+  message += '\n\n修正完後請再執行一次這個檢查，然後重新開啟網站。';
+  SpreadsheetApp.getUi().alert(result.errors.length ? '藍圖內容還有問題' : '藍圖內容檢查完成',
+                               message, SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
 /* 藍圖有 15 分鐘的快取（那一段實測 497ms，是登入時間裡很大一塊）。
    改完藍圖不想等就按這個。 */
 function menuClearBlueprintCache() {
@@ -1223,6 +1374,16 @@ function runSelftest_() {
   t('有可用的 Channel ID', !!channelId_());
   t('指令碼屬性有 SHEET_ID', !!prop_('SHEET_ID'));
   t('指令碼屬性有 CODE_SALT', !!prop_('CODE_SALT'));
+  t('學員可以寫自己的評測', canWriteScope_({ access_scope: 'self' }, 'assessment'));
+  t('學員不能修改教練報告', !canWriteScope_({ access_scope: 'self' }, 'report'));
+  t('學員不能修改任務設定', !canWriteScope_({ access_scope: 'self' }, 'task'));
+  t('學員可以寫作業與成長紀錄',
+    canWriteScope_({ access_scope: 'self' }, 'assignment')
+    && canWriteScope_({ access_scope: 'self' }, 'growth'));
+  t('教練可以修改所有資料範圍',
+    ['assessment', 'report', 'task', 'growth', 'assignment'].every(function (scope) {
+      return canWriteScope_({ access_scope: 'manage' }, scope);
+    }));
 
   /* ⚠️ 只准碰一份表 —— 使用者的硬性要求，不能讓它靜靜壞掉。 */
   var ss = null;
@@ -1374,11 +1535,12 @@ function runSelftest_() {
   t('有「' + BLUEPRINT_SHEET + '」分頁', !!(ss && ss.getSheetByName(BLUEPRINT_SHEET)));
   var bpMiss = [];
   if (ss && ss.getSheetByName(BLUEPRINT_SHEET)) {
-    var bm = colMap_(blueprintSheet_());
+    var bm = blueprintMap_(blueprintSheet_());
     bpMiss = BLUEPRINT_COLS.filter(function (c) { return !bm[c]; });
   }
   t('「' + BLUEPRINT_SHEET + '」欄位齊全' + (bpMiss.length ? '（缺 ' + bpMiss.join('、') + '）' : ''),
     bpMiss.length === 0);
+  t('「' + BLUEPRINT_SHEET + '」表頭在第 5 列', BLUEPRINT_HEADER_ROW === 5);
 
   var bp = [];
   try { bp = blueprintLoad_(); } catch (e) {}

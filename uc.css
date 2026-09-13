@@ -63,6 +63,13 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex: none;
 }
+.hero-demo-mark {
+  display: block; margin: 0 auto; padding: 0; border: 0;
+  color: inherit; background: none; border-radius: 50%; cursor: pointer;
+}
+.hero-demo-mark .hero-mark { display: block; margin: 0; }
+.hero-demo-mark:focus-visible { outline: 2px solid var(--salmon); outline-offset: 5px; }
+.hero-demo-mark:active { transform: scale(.97); }
 /* 四角 L 型括號。uc-design 要求每頁都出現 */
 .brk { position: absolute; width: 22px; height: 34px; pointer-events: none; opacity: .35; }
 .brk-tl { top: 14px; left: 14px; border-top: 1.5px solid currentColor; border-left: 1.5px solid currentColor; }
@@ -107,7 +114,35 @@ a { color: var(--salmon); }
   border-bottom: 1px solid var(--beige-08);
 }
 .top .uc-logo { width: 30px; height: 30px; font-size: 11px; }
-.top .who { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; opacity: .55; margin-left: auto; }
+.top .tname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uc-session {
+  display: grid; grid-template-columns: 30px auto; align-items: center; gap: 8px;
+  min-width: 0; margin-left: auto; color: var(--beige);
+}
+.uc-avatar {
+  display: grid; place-items: center; width: 30px; height: 30px; overflow: hidden;
+  border: 1px solid var(--beige-18); border-radius: 50%;
+  background: var(--navy-lift2); color: var(--salmon);
+  font-family: var(--serif); font-size: 13px;
+}
+.uc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.uc-session-copy { display: grid; justify-items: end; min-width: 0; line-height: 1.15; }
+.top .who {
+  max-width: 116px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; opacity: .78;
+}
+.uc-sync {
+  display: flex; align-items: center; gap: 5px; margin-top: 3px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .05em;
+  color: var(--beige-40); white-space: nowrap;
+}
+.uc-sync i { width: 5px; height: 5px; border: 1px solid currentColor; border-radius: 50%; }
+.uc-sync[data-state="saving"] { color: var(--salmon); }
+.uc-sync[data-state="saving"] i { background: currentColor; animation: syncpulse 1.1s ease-in-out infinite; }
+.uc-sync[data-state="saved"] { color: var(--beige-70); }
+.uc-sync[data-state="saved"] i { background: currentColor; }
+.uc-sync[data-state="offline"], .uc-sync[data-state="error"] { color: var(--salmon); }
+@keyframes syncpulse { 50% { opacity: .25; transform: scale(.72); } }
 /* 底部導覽（uc-design 的膠囊 nav-bar，改成頁面切換） */
 .nav {
   position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
@@ -131,7 +166,31 @@ a { color: var(--salmon); }
   transition: background .2s, color .2s;
 }
 .nav a[aria-current="page"] { background: var(--salmon); color: var(--navy); font-weight: 600; }
+.nav a[aria-disabled="true"] {
+  color: var(--beige-40); opacity: .34; cursor: not-allowed;
+}
+.nav a[aria-disabled="true"]::after {
+  content: ''; width: 4px; height: 4px; margin-left: 5px;
+  border: 1px solid currentColor; border-radius: 50%;
+}
 .pagepad { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+@media (max-width: 520px) {
+  .top { gap: 8px; }
+  .top .tname { font-size: 14px; }
+  .uc-session { grid-template-columns: 28px auto; gap: 6px; }
+  .uc-avatar { width: 28px; height: 28px; }
+  .top .who { max-width: 78px; font-size: 9.5px; }
+}
+
+/* 軟體鍵盤打開時，固定導覽列不要被瀏覽器抬到鍵盤上方。 */
+@media (max-width: 900px) {
+  .nav { transition: opacity .16s var(--ease), transform .2s var(--ease); }
+  html.uc-keyboard-open .nav {
+    opacity: 0; pointer-events: none;
+    transform: translate(-50%, calc(100% + 36px + env(safe-area-inset-bottom)));
+  }
+  html.uc-keyboard-open .pagepad { padding-bottom: 24px; }
+}
 /* ── 控件 ──────────────────────────────────────────── */
 
 .btn {

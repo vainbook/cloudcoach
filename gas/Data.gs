@@ -33,6 +33,22 @@ var STUDENT_SHEET = '學員';
 var BLUEPRINT_COLS = ['kr_id', '能力', '目標 O', 'KR', '教材', '作業',
                       '排序', '啟用', '次數', '短標', '教練備註'];
 
+/* 跟其他後台分頁一樣：第 2 列標題、第 3 列說明、第 5 列表頭。 */
+var BLUEPRINT_HEADER_ROW = 5;
+var BLUEPRINT_NOTES = {
+  kr_id: '每條 KR 的永久識別碼。必填、不可重複；新增可用 V-10、C-07 這類格式。已上線的 id 不要改。',
+  '能力': '必填。只能填：人格魅力、情緒價值、形象魅力、生活圈、調情升溫。',
+  '目標 O': '這條 KR 服務的目標（Objective）。同一能力下文字完全相同的 O 會自動分在同一組。',
+  KR: '必填。學員在藍圖上看到的具體任務。',
+  '教材': '可選。與任務相關的課程、文章或教材名稱，目前作為文字顯示。',
+  '作業': '可選。填入已建立的作業名稱，例如：＃生活藍圖。有程式對應時，「執行任務」會開啟該工具；否則改為聯絡教練。',
+  '排序': '必填數字。數字越小越前面；建議每條間隔 10，方便之後插入新任務。',
+  '啟用': 'TRUE ＝網站可顯示；FALSE ＝暫時不顯示。',
+  '次數': '可選。需要重複完成的目標次數；單次作業可留空。',
+  '短標': '可選。畫面空間較小時顯示的簡短名稱。',
+  '教練備註': '可選。教練查看任務時的補充說明，不是學員的作答欄位。'
+};
+
 /* 骨架分頁的表頭在第 5 列，不是第 1 列。 */
 var SKEL_HEADER_ROW = 5;
 
@@ -51,7 +67,11 @@ var SKEL = {
      所以它不走 stateSave_，另外有 growthSave_／growthLoad_。 */
   growth:     { sheet: '成長紀錄', prefix: 'EVT',
                 need: ['event_id', 'student_id', 'author_role', 'kind', '日期', '週次',
-                       '標題', '狀況', '成果', '補充', '更新時間'] }
+                       '標題', '狀況', '成果', '補充', '更新時間'] },
+  /* 一位學員的一份作業一列；不為每個題目增加試算表欄位。 */
+  assignment: { sheet: '課程工具', prefix: 'SUB',
+                need: ['record_id', 'student_id', 'tool_id', 'table_id', 'row_id', 'field_id',
+                       '學員內容', '更新時間', '狀態', '版本'] }
 };
 
 /* 任務狀態：我的 field → 那張表的欄名。白名單，不是黑名單。 */
@@ -72,7 +92,8 @@ var STATE_SHEETS = {
   assessment: SKEL.assessment.sheet,
   report:     SKEL.report.sheet,
   task:       SKEL.task.sheet,
-  growth:     SKEL.growth.sheet
+  growth:     SKEL.growth.sheet,
+  assignment: SKEL.assignment.sheet
 };
 
 /* ── 分頁 ──────────────────────────────────────────── */
@@ -105,7 +126,41 @@ function ensureSheet_(name, cols) {
   return sh;
 }
 
-function blueprintSheet_() { return ensureSheet_(BLUEPRINT_SHEET, BLUEPRINT_COLS); }
+function blueprintMap_(sh) {
+  var head = sh.getRange(BLUEPRINT_HEADER_ROW, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0];
+  var map = {};
+  for (var i = 0; i < head.length; i++) {
+    var key = String(head[i] || '');
+    if (key && !map[key]) map[key] = i + 1;
+  }
+  return map;
+}
+
+/* 就地把舊版第 1 列表頭搬到第 5 列；只插入列，不重建也不覆蓋資料。 */
+function migrateBlueprintLayout_(sh) {
+  if (String(sh.getRange(1, 1).getValue() || '') !== 'kr_id') return false;
+  sh.insertRowsBefore(1, BLUEPRINT_HEADER_ROW - 1);
+  console.log('「' + BLUEPRINT_SHEET + '」表頭已從第 1 列移到第 ' + BLUEPRINT_HEADER_ROW + ' 列');
+  return true;
+}
+
+function blueprintSheet_() {
+  var ss = sheet_();
+  var sh = ss.getSheetByName(BLUEPRINT_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(BLUEPRINT_SHEET);
+    sh.getRange(BLUEPRINT_HEADER_ROW, 1, 1, BLUEPRINT_COLS.length).setValues([BLUEPRINT_COLS]);
+    return sh;
+  }
+  migrateBlueprintLayout_(sh);
+  var map = blueprintMap_(sh);
+  var missing = BLUEPRINT_COLS.filter(function (c) { return !map[c]; });
+  if (missing.length) {
+    sh.getRange(BLUEPRINT_HEADER_ROW, sh.getLastColumn() + 1, 1, missing.length).setValues([missing]);
+    console.log('「' + BLUEPRINT_SHEET + '」補上欄位：' + missing.join('、'));
+  }
+  return sh;
+}
 
 /** 骨架分頁：表頭在第 5 列。缺的欄補在最右邊，既有欄位一格不動。 */
 function skelSheet_(scope) {
@@ -222,10 +277,10 @@ function blueprintLoad_() {
 }
 
 function blueprintLoadRaw_() {
-  var sh = blueprintSheet_(), map = colMap_(sh);
+  var sh = blueprintSheet_(), map = blueprintMap_(sh);
   var rows = sh.getDataRange().getValues();
   var out = [];
-  for (var i = 1; i < rows.length; i++) {
+  for (var i = BLUEPRINT_HEADER_ROW; i < rows.length; i++) {
     var r = rowObj_(rows[i], map);
     var id = String(r.kr_id || '').trim();
     if (!id) continue;
@@ -259,22 +314,22 @@ function krIndex_() {
 /** setup() 用：分頁空的時候灌一次種子，之後永遠不覆蓋。 */
 function seedBlueprint_() {
   var sh = blueprintSheet_();
-  if (sh.getLastRow() > 1) {
-    console.log('「' + BLUEPRINT_SHEET + '」已經有 ' + (sh.getLastRow() - 1) + ' 列，不覆蓋');
+  if (sh.getLastRow() > BLUEPRINT_HEADER_ROW) {
+    console.log('「' + BLUEPRINT_SHEET + '」已經有 ' + (sh.getLastRow() - BLUEPRINT_HEADER_ROW) + ' 列，不覆蓋');
     return 0;
   }
   if (typeof BLUEPRINT_SEED === 'undefined') {
     console.warn('找不到 BLUEPRINT_SEED（Blueprint.gs 沒推上來？），跳過灌種子');
     return 0;
   }
-  var map = colMap_(sh), width = sh.getLastColumn();
+  var map = blueprintMap_(sh), width = sh.getLastColumn();
   var rows = BLUEPRINT_SEED.map(function (seed) {
     var row = [];
     for (var j = 0; j < width; j++) row[j] = '';
     BLUEPRINT_COLS.forEach(function (c, i) { if (map[c]) row[map[c] - 1] = seed[i]; });
     return row;
   });
-  sh.getRange(2, 1, rows.length, width).setValues(rows);
+  sh.getRange(BLUEPRINT_HEADER_ROW + 1, 1, rows.length, width).setValues(rows);
   console.log('已灌入 ' + rows.length + ' 條 KR');
   return rows.length;
 }
@@ -320,6 +375,16 @@ function stateLoad_(scope, studentId) {
       continue;
     }
 
+    if (scope === 'assignment') {
+      var aid = String(r.tool_id || '');
+      if (!aid) continue;
+      try {
+        var submission = JSON.parse(String(r['學員內容'] || ''));
+        if (submission && typeof submission === 'object' && !Array.isArray(submission)) out[aid] = submission;
+      } catch (e) {}
+      continue;
+    }
+
     var fid = String(r.field_id || '');
     if (!fid) continue;
     var val = decodeValue_(r['儲存值']);
@@ -343,7 +408,36 @@ function stateLoad_(scope, studentId) {
 function stateSave_(scope, studentId, itemId, field, label, value, requestId, display) {
   if (scope === 'task') return taskSave_(studentId, itemId, field, value);
   if (scope === 'growth') return growthSave_(studentId, itemId, value);
+  if (scope === 'assignment') return assignmentSave_(studentId, itemId, value);
   return entrySave_(scope, studentId, itemId, field, label, value, requestId, display);
+}
+
+/* 通用作業：整份 submission JSON 寫進一格，用 student_id + tool_id upsert。 */
+function assignmentSave_(studentId, assignmentId, value) {
+  var submission;
+  try { submission = JSON.parse(String(value || '')); }
+  catch (e) { throw new AppError('INVALID_INPUT', '作業內容格式不正確'); }
+  if (!submission || typeof submission !== 'object' || Array.isArray(submission)) {
+    throw new AppError('INVALID_INPUT', '作業內容格式不正確');
+  }
+  var sh = skelSheet_('assignment'), map = skelMap_(sh);
+  var line = findRow_(sh, map, function (r) {
+    return String(r.student_id) === String(studentId) && String(r.tool_id) === String(assignmentId);
+  });
+  var now = now_();
+  writeRow_(sh, map, line, {
+    record_id: 'SUB-' + studentId + '-' + assignmentId,
+    student_id: studentId,
+    tool_id: assignmentId,
+    table_id: 'assignment',
+    row_id: 'v' + Math.max(1, Math.round(Number(submission.version) || 1)),
+    field_id: 'assignment.' + assignmentId,
+    '學員內容': JSON.stringify(submission),
+    '狀態': String(submission.status || 'draft'),
+    '版本': Math.max(1, Math.round(Number(submission.version) || 1)),
+    '更新時間': now
+  });
+  return now;
 }
 
 /* ── 成長紀錄 ───────────────────────────────────────

@@ -7,6 +7,8 @@
   /* 只記介面位置，不記姓名、答案、分數、報告或作業。正式資料仍只在記憶體與後端。 */
   var ROUTE_KEY = 'uc_last_route_v1';
   var S = load();
+  var LINE_PROFILE = { displayName: '', pictureUrl: '' };
+  var SYNC_STATE = { state: 'local', text: '本機模式' };
 
   /* ⚠️ 舊版只 try/catch JSON.parse —— 那只擋得住「壞掉的 JSON」，
      擋不住**合法 JSON 但形狀不對**（`[]`、`"字串"`、舊版存檔少欄位、
@@ -107,6 +109,7 @@
     }
     /* 接上後端之後，把「這次動到的那幾格」送出去（UC_STORE 自己做比對與節流）。 */
     if (window.UC_STORE) window.UC_STORE.push(S);
+    updateNavAccess();
   }
 
   /* 後端載回來之後換掉整份狀態。
@@ -125,6 +128,41 @@
     });
   }
   function el(id) { return document.getElementById(id); }
+
+  /* 右上角只顯示 LINE 公開頭像與目前同步狀態，不把 profile 寫進任何儲存空間。
+     LINE profile 是視覺身分提示；真正的登入與權限仍由後端驗證 ID Token。 */
+  function renderSession() {
+    var name = LINE_PROFILE.displayName || S.name || (ACTOR_ROLE === 'coach' ? '教練' : '學員');
+    var fallback = (name.trim().charAt(0) || 'UC').toUpperCase();
+    [].forEach.call(document.querySelectorAll('[data-uc-session]'), function (box) {
+      box.innerHTML = '<span class="uc-avatar"><img alt="" hidden><span>' + esc(fallback) + '</span></span>'
+        + '<span class="uc-session-copy"><b class="who">' + esc(name) + '</b>'
+        + '<small class="uc-sync" data-state="' + esc(SYNC_STATE.state) + '"><i></i><span>'
+        + esc(SYNC_STATE.text) + '</span></small></span>';
+      var img = box.querySelector('img'), fb = box.querySelector('.uc-avatar span');
+      if (img && LINE_PROFILE.pictureUrl) {
+        img.onload = function () { img.hidden = false; if (fb) fb.hidden = true; };
+        img.onerror = function () { img.hidden = true; if (fb) fb.hidden = false; };
+        img.src = LINE_PROFILE.pictureUrl;
+      }
+    });
+  }
+
+  function setIdentity(profile) {
+    profile = profile && typeof profile === 'object' ? profile : {};
+    LINE_PROFILE = {
+      displayName: typeof profile.displayName === 'string' ? profile.displayName : '',
+      pictureUrl: typeof profile.pictureUrl === 'string' ? profile.pictureUrl : ''
+    };
+    renderSession();
+  }
+
+  function setSyncStatus(state, text) {
+    var allowed = ['local', 'connecting', 'saving', 'saved', 'offline', 'error'];
+    SYNC_STATE.state = allowed.indexOf(state) >= 0 ? state : 'connecting';
+    SYNC_STATE.text = String(text || '連線中');
+    renderSession();
+  }
 
   /* ── 同一介面的欄位權限 ─────────────────────────────
      頁面不分教練版／學員版；每個資料欄位用 data-field-owner 表示誰能寫。
@@ -236,8 +274,41 @@
 
   function routeAllowed(hash, role) {
     if (!ROUTES[hash] || hash === '#/') return false;
-    if (role === 'coach') return hash === '#/students';
-    return ['#/assess', '#/report', '#/okr', '#/growth', '#/library', '#/tools'].indexOf(hash) >= 0;
+    if (hash === '#/students') return role === 'coach';
+    if (hash === '#/assess') return true;
+    var assessed = answeredCount() === window.UC_SCORE.questions.length;
+    if (hash === '#/report') return assessed;
+    if (['#/okr', '#/growth', '#/library', '#/tools'].indexOf(hash) >= 0) {
+      return assessed && coachReportReady();
+    }
+    return false;
+  }
+
+  function routeFallback(hash, role) {
+    if (role === 'coach' && hash === '#/students') return '#/students';
+    if (answeredCount() < window.UC_SCORE.questions.length) return '#/assess';
+    if (!coachReportReady()) return '#/report';
+    return role === 'coach' ? '#/students' : '#/okr';
+  }
+
+  /* 分頁列呈現課程流程，但真正的限制仍由 routeAllowed() 擋住直接網址。
+     鎖住時保留文字，讓學員知道後面還有哪些內容。 */
+  function updateNavAccess() {
+    var role = ACTOR_ROLE === 'coach' ? 'coach' : 'student';
+    var assessed = answeredCount() === window.UC_SCORE.questions.length;
+    [].forEach.call(document.querySelectorAll('#nav a'), function (a) {
+      var hash = a.getAttribute('href') || '';
+      if (hash === '#/' || hash === '#/students') return;
+      var allowed = routeAllowed(hash, role);
+      a.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+      if (allowed) {
+        a.removeAttribute('tabindex');
+        a.removeAttribute('title');
+      } else {
+        a.setAttribute('tabindex', '-1');
+        a.setAttribute('title', assessed ? '教練完成並送出報告後開放' : '完成所有評測題目後開放');
+      }
+    });
   }
 
   function rememberRoute(hash) {
@@ -258,6 +329,7 @@
     if (ACTOR_ROLE === 'coach') return '#/students';
     var total = window.UC_SCORE.questions.length;
     if (answeredCount() < total) return '#/assess';
+    if (!coachReportReady()) return '#/report';
     var last = savedRoute('student');
     return routeAllowed(last, 'student') ? last : '#/okr';
   }
@@ -279,6 +351,11 @@
       }
       hash = to;
     }
+    var role = ACTOR_ROLE === 'coach' ? 'coach' : 'student';
+    if (hash !== '#/' && !routeAllowed(hash, role)) {
+      hash = routeFallback(hash, role);
+      history.replaceState(null, '', location.pathname + location.search + hash);
+    }
     var r = ROUTES[hash] || ROUTES['#/'];
     [].forEach.call(document.querySelectorAll('.view'), function (v) { v.classList.remove('on'); });
     el(r.view).classList.add('on');
@@ -289,7 +366,8 @@
       if (a.getAttribute('href') === hash) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });
-    [].forEach.call(document.querySelectorAll('.who'), function (n) { n.textContent = S.name || ''; });
+    updateNavAccess();
+    renderSession();
     var ns = el('navStudents');
     if (ns) ns.hidden = !(ACTOR_ROLE === 'coach' && window.UC_STORE && window.UC_STORE.isRemote());
 
@@ -332,14 +410,34 @@
     location.replace(location.pathname);
   });
 
-  el('demoBtn').addEventListener('click', function () {
+  el('nav').addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[aria-disabled="true"]');
+    if (!a) return;
+    e.preventDefault();
+    toast(answeredCount() < window.UC_SCORE.questions.length
+      ? '完成全部評測題目後才會開放'
+      : '教練完成並送出報告後才會開放');
+  });
+
+  function enterDemo() {
+    /* Logo 是本機檢查用的隱藏入口。先切成 demo，避免尚未開始的 LINE 流程
+       繼續蓋住畫面；資料仍使用同一份 UC_SAMPLE，不另造第二套示範資料。 */
+    document.documentElement.dataset.ucBoot = 'demo';
+    document.documentElement.dataset.ucLineState = 'ready';
+    if (window.UC_STORE) {
+      window.UC_STORE.endpoint('');
+      window.UC_STORE.token('');
+    }
     /* ⚠️ 用 replaceState 就地換內容，**不要 `S = ...`** ——
        教練報告那邊有 `var cr = S.coachReport` 的閉包別名，
        換掉整個物件的話別名還指著舊的，畫面會寫到一份沒人看的資料。 */
     replaceState(window.UC_SAMPLE ? window.UC_SAMPLE() : blank());
     save();
     nav('#/report');
-  });
+  }
+
+  el('demoBtn').addEventListener('click', enterDemo);
+  el('logoDemoBtn').addEventListener('click', enterDemo);
 
   /* ── 評測頁 ───────────────────────────────────────── */
 
@@ -3055,6 +3153,21 @@
   /* ── 啟動 ─────────────────────────────────────────── */
   window.addEventListener('hashchange', function () { go(location.hash); });
 
+  /* iOS／LIFF 會把 fixed 導覽列抬到軟體鍵盤上方。只要文字欄位取得焦點，窄螢幕
+     就先把導覽列收起；離開欄位後再放回來，避免它佔掉作答空間。 */
+  function isTypingField(node) {
+    return !!(node && node.matches && node.matches(
+      'textarea,[contenteditable="true"],input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="range"])'));
+  }
+  function syncKeyboardClass() {
+    var narrow = window.matchMedia ? window.matchMedia('(max-width: 900px)').matches : innerWidth <= 900;
+    document.documentElement.classList.toggle('uc-keyboard-open', narrow && isTypingField(document.activeElement));
+  }
+  document.addEventListener('focusin', syncKeyboardClass);
+  document.addEventListener('focusout', function () { setTimeout(syncKeyboardClass, 80); });
+  window.addEventListener('resize', syncKeyboardClass);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncKeyboardClass);
+
   if (location.hash === '#selftest') { window.UC_SELFTEST && window.UC_SELFTEST(); return; }
   go(location.hash || '#/');
 
@@ -3064,6 +3177,7 @@
     S: function () { return S; }, save: save, esc: esc, reveal: reveal, nav: nav, el: el,
     setRole: setRole, role: function () { return ACTOR_ROLE; }, applyFieldAccess: applyFieldAccess,
     replaceState: replaceState, landing: landing, entryRoute: entryRoute,
+    setIdentity: setIdentity, setSyncStatus: setSyncStatus,
     toast: toast, render: function () { go(location.hash || '#/'); }
   };
   /* store.js 比 app.js 先載入（它不能依賴 UC_APP），所以在這裡回頭叫它一次。 */

@@ -461,6 +461,18 @@
         if (!idToken) {
           throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
         }
+        /* 頭像只用來讓使用者確認「現在是哪個 LINE 帳號」，不參與認證。
+           讀不到 profile 不應該卡住登入；後端驗證 ID Token 才是權限依據。 */
+        try {
+          liff.getProfile().then(function (profile) {
+            if (window.UC_APP && window.UC_APP.setIdentity) {
+              window.UC_APP.setIdentity({
+                displayName: profile && profile.displayName || '',
+                pictureUrl: profile && profile.pictureUrl || ''
+              });
+            }
+          }).catch(function () {});
+        } catch (e) {}
         step = 'EXCHANGE';
         return window.UC_STORE.call({ action: 'auth.exchange', idToken: idToken });
       })

@@ -34,6 +34,16 @@
   var timer = null;
   var sending = false;
   var failed = 0;
+  var syncState = { state: 'local', text: '本機模式' };
+
+  function notify(state, text) {
+    syncState = { state: state, text: text };
+    if (APP && APP.setSyncStatus) APP.setSyncStatus(state, text);
+  }
+
+  function queuedText(prefix) {
+    return prefix + (queue.length ? '・' + queue.length + ' 筆' : '');
+  }
 
   /* ⚠️ 「有端點」不等於「已經接上」。綁定畫面還開著的時候 api 已經設好了，
      但還沒有 studentId —— 這時候 save() 必須照舊寫 localStorage，
@@ -153,6 +163,7 @@
                 label: old.label, value: typeof old.value === 'boolean' ? false : null });
     });
     snap = now;
+    if (queue.length) notify('saving', queuedText('等待儲存'));
     schedule();
   }
 
@@ -188,22 +199,32 @@
     var i = nextPatch();
     if (i < 0) return;
     var p = queue[i];
+    var sentValue = JSON.stringify(p.value);
     sending = true;
+    notify('saving', queuedText('儲存中'));
 
     call({ action: 'state.save', scope: p.scope, itemId: p.itemId, field: p.field,
            label: p.label, display: p.display || '', value: p.value, requestId: p.requestId })
       .then(function () {
-        queue.splice(i, 1); delete pending[p.key];
+        /* 這一格送出的途中可能又被繼續輸入。只有伺服器收到的確實是目前最新版，
+           才能移出佇列；否則保留並換 requestId，再送一次最新內容。 */
+        if (JSON.stringify(p.value) === sentValue) {
+          queue.splice(i, 1); delete pending[p.key];
+        } else {
+          p.requestId = p.key + '#' + Date.now();
+        }
         sending = false; failed = 0;
         if (queue.length) run();
+        else notify('saved', '已儲存');
       })
       .catch(function (err) {
         sending = false;
         failed++;
         /* 資料本身不合法就別再重試了 —— 重試一百次還是一樣的結果。 */
-        if (err && err.code === 'INVALID_INPUT') {
+        if (err && ['INVALID_INPUT', 'FORBIDDEN_FIELD', 'FORBIDDEN_STUDENT'].indexOf(err.code) >= 0) {
           queue.splice(i, 1); delete pending[p.key];
           say('有一個欄位沒能存檔：' + (err.message || '內容不正確'));
+          notify('error', queuedText('尚未儲存'));
           if (queue.length) run();
           return;
         }
@@ -213,6 +234,8 @@
           say('目前連不上伺服器，還有 ' + queue.length + ' 筆沒存。會自動重試。');
           failed = 0;
         }
+        notify(navigator.onLine === false ? 'offline' : 'error',
+               queuedText(navigator.onLine === false ? '離線待同步' : '連線不穩'));
         setTimeout(run, Math.min(30000, 1000 * Math.pow(2, failed)));
       });
   }
@@ -284,6 +307,7 @@
     idToken = opts.idToken || '';
     studentId = opts.studentId || '';
     snap = null;
+    notify('connecting', '同步資料中');
     /* 已經有整包了就不要再打一次 —— 那是這次最佳化的重點。 */
     return opts.payload ? hydrate(opts.payload, opts.render !== false) : load_(opts.render !== false);
   }
@@ -318,6 +342,7 @@
          replaceState 會再過一次形狀檢查（補空欄位、正規化教練報告），
          拿組出來的那份當基準會讓第一次 save() 把整份資料重送一遍。 */
       snap = flatten(APP ? APP.S() : S);
+      notify('saved', '已同步');
       return data;
     });
   }
@@ -384,7 +409,10 @@
 
   /* 先告訴它端點，但還不算 remote —— auth.exchange／auth.bind 在綁定成功
      之前就要能打，而那時候還沒有學員資料可以同步。 */
-  function endpoint(url) { api = url || ''; }
+  function endpoint(url) {
+    api = url || '';
+    notify(api ? 'connecting' : 'local', api ? '準備連線' : '本機模式');
+  }
 
   /* 驗證成功之後把 Token 交給 store，之後所有請求都用它。
      呼叫端還是可以在單一 payload 裡自己帶，那個優先。 */
@@ -440,7 +468,10 @@
     perf: function () { return perf.slice(); },
     studentId: function () { return studentId; },
     demoStudentId: function () { return demoId; },
-    attach: function (app) { APP = app; }
+    attach: function (app) {
+      APP = app;
+      if (APP && APP.setSyncStatus) APP.setSyncStatus(syncState.state, syncState.text);
+    }
   };
 
   /* 分頁被切走或關掉時補送最後一筆。pagehide 在手機上比 beforeunload 可靠。 */
@@ -448,5 +479,12 @@
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') flush();
   });
-  window.addEventListener('online', function () { if (queue.length) run(); });
+  window.addEventListener('offline', function () {
+    if (isRemote()) notify('offline', queuedText('離線待同步'));
+  });
+  window.addEventListener('online', function () {
+    if (!isRemote()) return;
+    if (queue.length) { notify('saving', queuedText('重新連線')); run(); }
+    else notify('saved', '已連線');
+  });
 })();

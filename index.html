@@ -40,7 +40,7 @@ window.UC_START_LIFF = function () {
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Serif+Display&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="uc.css?v=20260913u">
+<link rel="stylesheet" href="uc.css?v=20260913x">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"
   onload="this.dataset.ready='1';window.UC_START_LIFF()" onerror="this.dataset.failed='1'"></script>
@@ -56,10 +56,12 @@ window.UC_START_LIFF = function () {
     <i class="brk brk-bl"></i><i class="brk brk-br"></i>
 
     <div class="hero-in">
-      <svg class="hero-mark" viewBox="0 0 80 80" aria-hidden="true">
-        <circle cx="40" cy="40" r="37" fill="none" stroke="currentColor" stroke-width="1.5"/>
-        <text x="40" y="46" text-anchor="middle">uc</text>
-      </svg>
+      <button class="hero-demo-mark" type="button" id="logoDemoBtn" aria-label="進入共用 Demo">
+        <svg class="hero-mark" viewBox="0 0 80 80" aria-hidden="true">
+          <circle cx="40" cy="40" r="37" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <text x="40" y="46" text-anchor="middle">uc</text>
+        </svg>
+      </button>
 
       <p class="ey hero-ey">Monger Culture ・ est. 2017</p>
 
@@ -108,14 +110,14 @@ window.UC_START_LIFF = function () {
 </section>
 
 <!-- ═══ 其餘頁面由 app.js 渲染 ═══════════════════════ -->
-<section class="view" id="v-assess"><div class="top"><span class="uc-logo">uc</span><b class="tname">情感能力評測</b><span class="who" id="who1"></span></div><div class="wrap pagepad" id="assessBody"></div></section>
-<section class="view" id="v-report"><div class="top"><span class="uc-logo">uc</span><b class="tname">評測報告書</b><span class="who" id="who2"></span></div><div class="pagepad" id="reportBody"></div></section>
-<section class="view" id="v-okr"><div class="top"><span class="uc-logo">uc</span><b class="tname">課程藍圖</b><span class="who" id="who3"></span></div><div class="pagepad" id="okrBody"></div></section>
-<section class="view" id="v-growth"><div class="top"><span class="uc-logo">uc</span><b class="tname">成長紀錄</b><span class="who" id="who6"></span></div><div class="pagepad" id="growthBody"></div></section>
-<section class="view" id="v-library"><div class="top"><span class="uc-logo">uc</span><b class="tname">資源與工具</b><span class="who" id="who4"></span></div><div class="pagepad" id="libBody"></div></section>
+<section class="view" id="v-assess"><div class="top"><span class="uc-logo">uc</span><b class="tname">情感能力評測</b><div class="uc-session" data-uc-session></div></div><div class="wrap pagepad" id="assessBody"></div></section>
+<section class="view" id="v-report"><div class="top"><span class="uc-logo">uc</span><b class="tname">評測報告書</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="reportBody"></div></section>
+<section class="view" id="v-okr"><div class="top"><span class="uc-logo">uc</span><b class="tname">課程藍圖</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="okrBody"></div></section>
+<section class="view" id="v-growth"><div class="top"><span class="uc-logo">uc</span><b class="tname">成長紀錄</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="growthBody"></div></section>
+<section class="view" id="v-library"><div class="top"><span class="uc-logo">uc</span><b class="tname">資源與工具</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="libBody"></div></section>
 
 <!-- 教練專用：所有學員的清單。只有 access_scope = manage 看得到（app.js 控制 hidden）。 -->
-<section class="view" id="v-students"><div class="top"><span class="uc-logo">uc</span><b class="tname">學員清單</b><span class="who" id="who6"></span></div><div class="pagepad" id="studentsBody"></div></section>
+<section class="view" id="v-students"><div class="top"><span class="uc-logo">uc</span><b class="tname">學員清單</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="studentsBody"></div></section>
 
 <nav class="nav" id="nav" hidden>
   <a href="#/students" id="navStudents" hidden>學員</a>
@@ -127,19 +129,19 @@ window.UC_START_LIFF = function () {
   <a href="#/" id="navOut">登出</a>
 </nav>
 
-<script defer src="data/questions.js?v=20260913u"></script>
-<script defer src="data/dimensions.js?v=20260913u"></script>
-<script defer src="data/okr.js?v=20260913u"></script>
-<script defer src="data/library.js?v=20260913u"></script>
-<script defer src="data/tools.js?v=20260913u"></script>
-<script defer src="data/coach.js?v=20260913u"></script>
-<script defer src="data/growth.js?v=20260913u"></script>
-<script defer src="score.js?v=20260913u"></script>
+<script defer src="data/questions.js?v=20260913x"></script>
+<script defer src="data/dimensions.js?v=20260913x"></script>
+<script defer src="data/okr.js?v=20260913x"></script>
+<script defer src="data/library.js?v=20260913x"></script>
+<script defer src="data/tools.js?v=20260913x"></script>
+<script defer src="data/coach.js?v=20260913x"></script>
+<script defer src="data/growth.js?v=20260913x"></script>
+<script defer src="score.js?v=20260913x"></script>
 <!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
-<script defer src="store.js?v=20260913u"></script>
-<script defer src="app.js?v=20260913u"></script>
-<script defer src="edit.js?v=20260913u"></script>
+<script defer src="store.js?v=20260913x"></script>
+<script defer src="app.js?v=20260913x"></script>
+<script defer src="edit.js?v=20260913x"></script>
 <!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
-<script defer src="boot.js?v=20260913u"></script>
+<script defer src="boot.js?v=20260913x"></script>
 </body>
 </html>
