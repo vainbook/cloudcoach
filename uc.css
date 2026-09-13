@@ -914,7 +914,7 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .assignment-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .55; }
 .assignment-guide { margin: 18px 0 24px; font-size: 13.5px; line-height: 1.95; opacity: .72; }
 .assignment-fields { display: flex; flex-direction: column; gap: 16px; }
-.assignment-field {
+#v-library .assignment-field {
   display: grid; grid-template-columns: 42px minmax(0, 1fr); column-gap: 12px;
   padding: 20px; border: 1px solid var(--beige-12); background: rgba(232,228,220,.025);
 }
@@ -923,10 +923,15 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .assignment-copy h3 { margin: 0; font-family: var(--serif); font-size: 19px; font-weight: 500; }
 .assignment-sub { margin: 4px 0 10px; color: var(--salmon); font-size: 13px; }
 .assignment-scope { margin: 0; font-size: 12.5px; line-height: 1.85; opacity: .58; }
-.assignment-field textarea {
-  grid-column: 1 / -1; width: 100%; min-height: 178px; margin-top: 17px; padding: 14px 15px;
-  border-color: var(--beige-18); background: rgba(19,27,46,.55); line-height: 1.85;
+.assignment-answer {
+  grid-column: 1 / -1; margin: 17px -20px 0; padding: 18px 20px;
+  background: var(--beige); color: var(--navy);
 }
+.assignment-field textarea {
+  width: 100%; min-height: 178px; margin: 0; padding: 14px 15px;
+  color: var(--navy); border-color: var(--navy-18); background: rgba(255,255,255,.55); line-height: 1.85;
+}
+.assignment-field textarea::placeholder { color: var(--navy-40); }
 .assignment-example { grid-column: 1 / -1; margin-top: 12px; font-size: 12px; }
 .assignment-example summary { width: max-content; max-width: 100%; color: var(--salmon); cursor: pointer; opacity: .78; }
 .assignment-example p { margin: 11px 0 0; padding: 13px 15px; border-left: 1px solid var(--beige-18); line-height: 1.9; opacity: .58; }
@@ -937,7 +942,8 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   .assignment { margin-top: 24px; }
   .assignment-head { align-items: flex-start; }
   .assignment-meta { padding-top: 3px; }
-  .assignment-field { padding: 17px 15px; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; }
+  #v-library .assignment-field { padding: 17px 15px; grid-template-columns: 34px minmax(0, 1fr); gap: 9px; }
+  .assignment-answer { margin: 15px -15px 0; padding: 15px; }
   .assignment-field textarea { min-height: 210px; padding: 13px; }
   .assignment-actions { align-items: stretch; flex-direction: column; }
   .assignment-actions .btn { width: 100%; }

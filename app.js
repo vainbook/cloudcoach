@@ -3037,8 +3037,8 @@
           + '<div class="assignment-number num">' + ('0' + (i + 1)).slice(-2) + '</div>'
           + '<div class="assignment-copy"><h3>' + esc(f.t) + '</h3><p class="assignment-sub">' + esc(f.sub) + '</p>'
           + '<p class="assignment-scope">' + esc(f.scope) + '</p></div>'
-          + '<textarea rows="7" data-assignment-answer="' + esc(f.id) + '" placeholder="請依序寫下：現況、目標、如何實踐、為什麼想要。">'
-          + esc(saved.answers[f.id] || '') + '</textarea>'
+          + '<div class="assignment-answer"><textarea rows="7" data-assignment-answer="' + esc(f.id) + '" placeholder="請依序寫下：現況、目標、如何實踐、為什麼想要。">'
+          + esc(saved.answers[f.id] || '') + '</textarea></div>'
           + '<details class="assignment-example"><summary>看一個填寫範例</summary><p>'
           + esc(f.example).replace(/\n/g, '<br>') + '</p></details></section>';
       }).join('') + '</div>'

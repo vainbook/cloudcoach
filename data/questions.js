@@ -56,7 +56,7 @@ window.UC_QUESTIONS = (function () {
       { k: 'circle',  no: '05', name: '人際關係',     en: 'Circle',
         lead: '你會遇到誰、你跟誰講話，決定了你有多少機會。' },
       { k: 'ability', no: '06', name: '情感能力',     en: 'Ability',
-        lead: '這一區是唯一計分的。問的都是已經發生的事——照實際狀況選，不要選你希望的那個。' }
+        lead: '請根據實際發生過的狀況回答，不要選你希望自己做到的那個。' }
     ],
 
     items: [
