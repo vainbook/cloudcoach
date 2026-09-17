@@ -25,7 +25,7 @@
   --serif: 'Noto Serif TC', serif;
   --sans: 'Noto Sans TC', system-ui, sans-serif;
   --mono: 'Space Grotesk', 'Noto Sans TC', sans-serif;
-  --display: 'DM Serif Display', 'Noto Serif TC', serif;
+  /* --display 已移除：uc.css 全檔引用 0 次，卻讓字型連結多要一個字族。 */
 
   --pad: 20px;
   --maxw: 880px;

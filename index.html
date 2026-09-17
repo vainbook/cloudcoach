@@ -39,7 +39,17 @@ window.UC_START_LIFF = function () {
 <link rel="preconnect" href="https://static.line-scdn.net" crossorigin>
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Serif+Display&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- ⚠️ 這條**曾經擋住第一次繪製**。實測（iPhone UA、壓縮後）這份 CSS 是
+     237,491 bytes、766 個 @font-face 切片（中文字型要切成上百片）——
+     比我們自己全部的程式碼（index＋app＋css＋store＋boot＋score 約 100 KB）還大兩倍多。
+     `display=swap` 只讓**字型檔**不擋繪製，CSS 本身照擋。
+
+     media="print" ＋ onload 換回 all：照樣下載，但不列入繪製的必要條件。
+     ⚠️ 關 JS 的話 onload 不會跑，所以留 noscript 的退路。
+
+     順帶刪掉 DM+Serif+Display：`--display` 變數在 uc.css 裡被引用 0 次。 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="uc.css?v=20260913y">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"

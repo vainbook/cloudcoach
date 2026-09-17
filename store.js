@@ -228,11 +228,15 @@
           if (queue.length) run();
           return;
         }
-        if (failed >= MAX_RETRY) {
+        /* ⚠️ **不可以把 failed 歸零** —— 歸零之後退避永遠回到第一格，
+           實際行為是 2 秒→1 秒→2 秒→1 秒的無限熱迴圈（踩過）。
+           單筆存檔本來就要三秒，每秒重試只是把後端擠得更慢。
+           提示只在剛好跨過門檻那一次講一次，之後安靜地退避：
+           2 → 4 → 8 → 16 → 30 → 30…秒 */
+        if (failed === MAX_RETRY) {
           /* ⚠️ **不可以靜靜失敗。** 舊的 save() 是空 catch，
              存瀏覽器失敗無所謂，網路寫入失敗沒聲音就是資料不見了。 */
           say('目前連不上伺服器，還有 ' + queue.length + ' 筆沒存。會自動重試。');
-          failed = 0;
         }
         notify(navigator.onLine === false ? 'offline' : 'error',
                queuedText(navigator.onLine === false ? '離線待同步' : '連線不穩'));
