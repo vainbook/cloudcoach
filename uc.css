@@ -2259,7 +2259,6 @@ html.task-open, html.task-open body { overflow: hidden; }
 }
 .bpctaskempty p { margin: 0; color: var(--beige); font: 700 18px/1.5 var(--serif); }
 .bpctaskempty span { font-size: 12px; }
-.bpctaskempty .btn { margin-top: 8px; }
 
 @media (max-width: 780px) {
   .bpctasklayout { grid-template-columns: 1fr; gap: 18px; min-height: 0; }

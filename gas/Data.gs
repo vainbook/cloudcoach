@@ -49,6 +49,25 @@ var BLUEPRINT_NOTES = {
   '教練備註': '可選。教練查看任務時的補充說明，不是學員的作答欄位。'
 };
 
+/* ═══ 課程連結 ═══════════════════════════════════════
+   使用者 2026-09-17：「目前有一些課程連結都沒有實際連動，我需要插入超連結。
+   把設定做在 sheet 上，目前是 google drive 連結，但不用在這個網頁中瀏覽，
+   就讓他轉跳出去。」
+
+   ⚠️ **課程代號是永久的鍵**（分類-編號，例如 req-01）。改了等於把你貼好的
+   連結變成孤兒 —— 跟 kr_id 同一個道理。日常只要編輯「連結」那一欄。
+   跟藍圖一樣是全體共用、幾乎不變，所以同樣進快取。 */
+var LINKS_SHEET = '課程連結';
+var LINKS_HEADER_ROW = 5;
+var LINKS_COLS = ['課程代號', '分類', '編號', '名稱', '連結'];
+var LINKS_NOTES = {
+  '課程代號': '永久識別碼，網站靠它對應到課程。**不要修改**，改了那一列的連結就失效。',
+  '分類': '必修課程／選修課程／電子書與書單。只是給人看的，網站不讀這一欄。',
+  '編號': '同上，給人看的。',
+  '名稱': '同上，給人看的。改課程名稱要改 site/data/library.js，不是這裡。',
+  '連結': '**你要填的就是這一欄。** 貼 Google Drive 或任何網址，學員點課程卡就會開新分頁過去。留空的話點下去會顯示「內容待補」。'
+};
+
 /* 骨架分頁的表頭在第 5 列，不是第 1 列。 */
 var SKEL_HEADER_ROW = 5;
 
@@ -274,6 +293,89 @@ function blueprintLoad_() {
     }
   } catch (e) {}
   return out;
+}
+
+/** 課程代號 → 連結。全體共用、幾乎不變，所以跟藍圖一樣進快取。 */
+function linksLoad_() {
+  var cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    var hit = cache.get('links');
+    if (hit) return JSON.parse(hit);
+  } catch (e) { cache = null; }
+
+  var out = {};
+  try {
+    var sh = sheetByName_(LINKS_SHEET);
+    if (sh) {
+      var all = sh.getDataRange().getValues();
+      var head = all.length >= LINKS_HEADER_ROW ? all[LINKS_HEADER_ROW - 1] : [];
+      var map = {};
+      for (var i = 0; i < head.length; i++) {
+        var k = String(head[i] || '');
+        if (k && !map[k]) map[k] = i + 1;
+      }
+      if (map['課程代號'] && map['連結']) {
+        all.slice(LINKS_HEADER_ROW).forEach(function (row) {
+          var id = String(row[map['課程代號'] - 1] || '').trim();
+          var url = String(row[map['連結'] - 1] || '').trim();
+          /* ⚠️ 只收 http(s)。試算表上可能被貼成純文字備註，
+             那種東西丟給 openWindow 沒有意義，還可能變成注入面。 */
+          if (id && /^https?:\/\//i.test(url)) out[id] = url;
+        });
+      }
+    }
+  } catch (e) { console.warn('讀課程連結失敗（不影響其他資料）：' + e); }
+
+  try { if (cache) cache.put('links', JSON.stringify(out), 900); } catch (e) {}
+  return out;
+}
+
+/** setup() 用：分頁不存在或空的時候建一次，之後不覆蓋。 */
+function seedLinks_() {
+  var ss = sheet_();
+  var sh = ss.getSheetByName(LINKS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(LINKS_SHEET);
+    sh.getRange(LINKS_HEADER_ROW, 1, 1, LINKS_COLS.length).setValues([LINKS_COLS]);
+  }
+  decorateLinks_(sh);
+  if (sh.getLastRow() > LINKS_HEADER_ROW) {
+    console.log('「' + LINKS_SHEET + '」已經有 ' + (sh.getLastRow() - LINKS_HEADER_ROW)
+                + ' 列，不覆蓋（你貼的連結不會被蓋掉）');
+    return 0;
+  }
+  if (typeof LINK_SEED === 'undefined') {
+    console.warn('找不到 LINK_SEED（Links.gs 沒推上來？）');
+    return 0;
+  }
+  sh.getRange(LINKS_HEADER_ROW + 1, 1, LINK_SEED.length, LINKS_COLS.length).setValues(LINK_SEED);
+  console.log('已灌入 ' + LINK_SEED.length + ' 筆課程，請在「連結」欄貼網址');
+  return LINK_SEED.length;
+}
+
+function decorateLinks_(sh) {
+  var NAVY = '#131B2E', BEIGE = '#E8E4DC', SALMON = '#E8A898';
+  sh.getRange(2, 1).setValue('課程連結')
+    .setFontSize(16).setFontWeight('bold').setFontColor(NAVY);
+  sh.getRange(3, 1).setValue(
+    '學員在「資源與工具」點課程卡時要開啟的網址。你只需要編輯「連結」那一欄，'
+    + '貼上 Google Drive 或任何網址即可；留空的話點下去會顯示「內容待補」。'
+    + '　⚠️ 課程代號是永久的鍵，改了連結就失效。')
+    .setFontSize(10).setFontStyle('italic').setFontColor('#6B7280');
+  sh.setFrozenRows(LINKS_HEADER_ROW);
+  var w = Math.max(sh.getLastColumn(), LINKS_COLS.length);
+  sh.getRange(LINKS_HEADER_ROW, 1, 1, w)
+    .setBackground(NAVY).setFontColor(BEIGE).setFontWeight('bold');
+  var map = mapAt_(sh, LINKS_HEADER_ROW);
+  for (var col in LINKS_NOTES) {
+    if (map[col]) sh.getRange(LINKS_HEADER_ROW, map[col]).setNote(LINKS_NOTES[col]);
+  }
+  /* 你真的要改的那一欄標鮭粉底，其餘是給人看的。 */
+  if (map['連結']) {
+    sh.getRange(LINKS_HEADER_ROW, map['連結']).setBackground(SALMON).setFontColor(NAVY);
+    sh.setColumnWidth(map['連結'], 320);
+  }
 }
 
 function blueprintLoadRaw_() {

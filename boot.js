@@ -459,43 +459,64 @@
     .then(function () { step = 'INIT'; return initReady(); })
     .catch(function (e) { initError = e; });
 
+  /* ── 先跑，不要等按鈕 ──────────────────────────────
+     使用者 2026-09-17：「從按登入按鈕前就在跑登入資訊了，體感上就會更短。」
+
+     auth.exchange 要 5 秒上下（平台地板約 2.1 秒改不掉），而使用者按下按鈕之前
+     還要讀首頁、找到按鈕、抬手 —— 那幾秒本來就是空的，拿來跑剛好。
+
+     ⚠️ **只有已經登入才能先跑。** 沒登入的話下一步是 liff.login()，
+     那會把整頁導去 LINE —— 絕對不可以在使用者沒有動作的時候做。
+     所以未登入就什麼都不做，等按鈕。
+
+     ⚠️ 這支要**冪等**：按鈕、自動回訪、重試都可能叫到它，只能真的跑一次。 */
+  var warmPromise = null;
+
+  function warmup() {
+    if (warmPromise) return warmPromise;
+    warmPromise = initPromise.then(function () {
+      if (initError) throw initError;
+      step = 'LOGIN';
+      if (!liff.isLoggedIn()) return { needsLogin: true };
+      step = 'TOKEN';
+      idToken = liff.getIDToken();
+      window.UC_STORE.token(idToken);          /* 之後每個請求都用它 */
+      clearRetried();                          /* 這次拿到了，下次過期還能再救一次 */
+      if (!idToken) {
+        throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
+      }
+      /* 頭像只用來讓使用者確認「現在是哪個 LINE 帳號」，不參與認證。
+         讀不到 profile 不應該卡住登入；後端驗證 ID Token 才是權限依據。 */
+      try {
+        liff.getProfile().then(function (profile) {
+          if (window.UC_APP && window.UC_APP.setIdentity) {
+            window.UC_APP.setIdentity({
+              displayName: profile && profile.displayName || '',
+              pictureUrl: profile && profile.pictureUrl || ''
+            });
+          }
+        }).catch(function () {});
+      } catch (e) {}
+      step = 'EXCHANGE';
+      return window.UC_STORE.call({ action: 'auth.exchange', idToken: idToken });
+    });
+    return warmPromise;
+  }
+
   function beginLogin() {
     if (started) return;
     started = true;
     startWaiting('login');
-    initPromise
-      .then(function () {
-        if (initError) throw initError;
-        step = 'LOGIN';
-        if (!liff.isLoggedIn()) {
-          /* 外部瀏覽器需要先導去 LINE 登入；LINE 內建瀏覽器會直接是已登入。
-             redirectUri 必須落在 LIFF 設定的 Endpoint URL 底下。 */
+    warmup()
+      .then(function (data) {
+        /* 沒登入才走這條 —— 導頁一定要在使用者按下之後。 */
+        if (data && data.needsLogin) {
           storageSet(sessionStorage, PENDING_KEY);
           liff.login({ redirectUri: location.href });
           return null;
         }
         lineStage('sync');
-        step = 'TOKEN';
-        idToken = liff.getIDToken();
-        window.UC_STORE.token(idToken);          /* 之後每個請求都用它 */
-        clearRetried();                          /* 這次拿到了，下次過期還能再救一次 */
-        if (!idToken) {
-          throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
-        }
-        /* 頭像只用來讓使用者確認「現在是哪個 LINE 帳號」，不參與認證。
-           讀不到 profile 不應該卡住登入；後端驗證 ID Token 才是權限依據。 */
-        try {
-          liff.getProfile().then(function (profile) {
-            if (window.UC_APP && window.UC_APP.setIdentity) {
-              window.UC_APP.setIdentity({
-                displayName: profile && profile.displayName || '',
-                pictureUrl: profile && profile.pictureUrl || ''
-              });
-            }
-          }).catch(function () {});
-        } catch (e) {}
-        step = 'EXCHANGE';
-        return window.UC_STORE.call({ action: 'auth.exchange', idToken: idToken });
+        return data;
       })
       .then(function (data) {
         if (!data) return;
@@ -523,6 +544,12 @@
      外部 LINE 登入導回來時用 sessionStorage 接續，不必再按第二次。 */
   if (storageGet(localStorage, RETURNING_KEY) || storageGet(sessionStorage, PENDING_KEY)) {
     setTimeout(beginLogin, 0);
+  } else {
+    /* 第一次進來（還沒按按鈕）也先把 auth.exchange 跑掉。
+       ⚠️ warmup 在未登入時只會回 { needsLogin: true }，不會導頁。
+       失敗先收著 —— 使用者按下去時 beginLogin 會接到同一個 promise 的錯誤，
+       那裡才有完整的錯誤畫面。這裡不接的話是未捕捉的 rejection。 */
+    setTimeout(function () { warmup().catch(function () {}); }, 0);
   }
 
   var RETRY_KEY = 'uc_liff_retry';

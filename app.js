@@ -1444,7 +1444,10 @@
 
     var total = window.UC_SCORE.questions.length;
     var cur = window.UC_STORE.studentId();
-    var rows = STUDENTS.map(function (x) {
+    /* 範例學員只用下面那顆按鈕開，不在清單裡再出現一次（使用者 2026-09-17）。 */
+    var demo = window.UC_STORE.demoStudentId();
+    var list = STUDENTS.filter(function (x) { return x.id !== demo; });
+    var rows = list.map(function (x) {
       var pct = total ? Math.round(x.answered / total * 100) : 0;
       var stage = x.reportComplete ? '報告已開放'
                 : (x.answered >= total ? '等你評測' : '填答中');
@@ -1459,14 +1462,13 @@
 
     /* 範例學員：所有教練共用同一位，拿來練手或給人看都不會動到真學員。
        id 由後端給（只有 manage 拿得到），前端不寫死。 */
-    var demo = window.UC_STORE.demoStudentId();
     var demoBtn = demo
       ? '<button type="button" class="stdemo' + (demo === cur ? ' is-cur' : '') + '"'
-        + ' data-student="' + esc(demo) + '">開啟範例學員'
+        + ' data-student="' + esc(demo) + '">開啟示範學員'
         + '<s>' + esc(demo) + '　所有教練共用，可以隨便改</s></button>'
       : '';
 
-    body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + STUDENTS.length + ' 位</p>'
+    body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + list.length + ' 位</p>'
       + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
       + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
       + wrap('<div class="stlist">' + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>'
@@ -1718,9 +1720,6 @@
                    quick ? 0 : (figToTop() ? FIG_LEAD + 180 : FIG_LEAD));
       });
     });
-    [].forEach.call(pane.querySelectorAll('[data-task-empty-edit]'), function (b) {
-      b.addEventListener('click', function () { okrTo('list'); });
-    });
     bindFigure(pane);
     /* 總覽頁：平常設定「當前任務」與「完成」；需要時才開啟隱藏管理。
        ⚠️ 這裡**不 renderOkr()** —— 勾一條就重建整頁會讓捲動歸零，
@@ -1858,9 +1857,10 @@
         + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '')
         + '<i aria-hidden="true">↗</i></button>';
     }).join('');
+    /* 空狀態不放按鈕：學員沒有權限安排，教練自己會去總覽（使用者 2026-09-17）。 */
     var empty = '<div class="bpctaskempty"><p>目前還沒有安排任務。</p>'
-      + (ACTOR_ROLE === 'student' ? '<span>教練安排後，任務卡會出現在這裡。</span>'
-        : '<button type="button" class="btn gh" data-task-empty-edit>前往總覽安排</button>') + '</div>';
+      + '<span>' + (ACTOR_ROLE === 'student' ? '教練安排後，任務卡會出現在這裡。'
+        : '在總覽勾選「當前任務」就會出現在這裡。') + '</span></div>';
 
     return wrap('<div class="bpcover bpcover-task"><p class="bpctag">Current Missions</p>'
       + '<div class="bpctasklayout">' + figureHTML()
@@ -2602,9 +2602,27 @@
     });
     [].forEach.call(root.querySelectorAll('.tile[data-t]'), function (b) {
       b.addEventListener('click', function () {
-        toast(b.dataset.src ? '開啟：' + b.dataset.t : '「' + b.dataset.t + '」的內容待補');
+        var url = b.dataset.src || '';
+        if (!url) { toast('「' + b.dataset.t + '」的內容待補'); return; }
+        openExternal(url);
       });
     });
+  }
+
+  /* 課程連結一律**開到外面**，不要在這個網頁裡瀏覽（使用者 2026-09-17）。
+     ⚠️ 在 LINE 裡要用 liff.openWindow({ external: true })，把它交給系統瀏覽器 ——
+     window.open 在 LINE 的內建瀏覽器裡常常被擋，而且 Google Drive 在 webview
+     裡本來就不好用（要登入、有些格式開不起來）。
+     沒有 LIFF 的環境（demo、桌機）退回 window.open。 */
+  function openExternal(url) {
+    try {
+      if (window.liff && liff.openWindow && liff.isInClient && liff.isInClient()) {
+        liff.openWindow({ url: url, external: true });
+        return;
+      }
+    } catch (e) {}
+    var w = window.open(url, '_blank', 'noopener');
+    if (!w) toast('瀏覽器擋住了新分頁，請允許彈出視窗');
   }
 
   function tile(i) {

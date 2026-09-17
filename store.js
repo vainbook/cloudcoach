@@ -427,6 +427,7 @@
       if (!data.log && Array.isArray(prev.log)) S.log = prev.log;
       unpackTasks(data.tasks || {}, S);
       if (data.blueprint && data.blueprint.length) applyBlueprint(data.blueprint);
+      if (data.links) applyLinks(data.links);
       if (APP) APP.replaceState(S, shouldRender !== false);
       /* ⚠️ 基準要取「app 實際拿到的那一份」，不是這裡組出來的那一份 ——
          replaceState 會再過一次形狀檢查（補空欄位、正規化教練報告），
@@ -547,6 +548,18 @@
         run();
         setTimeout(tick, 300);
       })();
+    });
+  }
+
+  /* 課程連結由試算表決定（教練自己貼 Google Drive 網址）。
+     ⚠️ 只認 http(s)，而且**只填 src，不動其他欄位** ——
+     課程名稱、封面、分類都還是 data/library.js 說了算。 */
+  function applyLinks(map) {
+    var L = window.UC_LIBRARY;
+    if (!L || !L.items) return;
+    L.items.forEach(function (i) {
+      var url = map[i.tab + '-' + i.no];
+      if (typeof url === 'string' && /^https?:\/\//i.test(url)) i.src = url;
     });
   }
 

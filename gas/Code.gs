@@ -420,6 +420,9 @@ function studentPayload_(b, sid, part) {
     lap_('讀任務');
     out.blueprint = blueprintLoad_();
     lap_('讀藍圖');
+    /* 課程連結跟藍圖一樣是全體共用、有快取，所以放在 boot 幾乎不花時間。 */
+    out.links = linksLoad_();
+    lap_('讀連結');
   }
 
   if (wantRest) {
@@ -1159,6 +1162,7 @@ function setup() {
   blueprintSheet_();
   decorateBlueprint_(blueprintSheet_());
   seedBlueprint_();
+  seedLinks_();
   /* 三張骨架分頁本來就存在，只補缺的欄位，既有版面一格不動。 */
   for (var scope in SKEL) skelSheet_(scope);
 
@@ -1258,7 +1262,7 @@ function onOpen() {
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('修復「帳號綁定」的排版', 'menuDecorate')
     .addItem('整理並檢查「藍圖內容」', 'menuBlueprintSetup')
-    .addItem('清掉藍圖快取（改完藍圖想立刻生效）', 'menuClearBlueprintCache')
+    .addItem('清掉藍圖與連結快取（改完想立刻生效）', 'menuClearBlueprintCache')
     .addItem('查這份表的狀態', 'menuStatus')
     .addSeparator()
     .addItem('改善「總覽」的公式…', 'menuUpgradeOverview')
@@ -1359,8 +1363,8 @@ function menuBlueprintSetup() {
 /* 藍圖有 15 分鐘的快取（那一段實測 497ms，是登入時間裡很大一塊）。
    改完藍圖不想等就按這個。 */
 function menuClearBlueprintCache() {
-  try { CacheService.getScriptCache().remove('bp'); } catch (e) {}
-  SpreadsheetApp.getUi().alert('藍圖快取已清除，下一次載入會重新讀試算表。');
+  try { CacheService.getScriptCache().removeAll(['bp', 'links']); } catch (e) {}
+  SpreadsheetApp.getUi().alert('藍圖與課程連結的快取已清除，下一次載入會重新讀試算表。');
 }
 
 function menuStatus() {
@@ -1541,6 +1545,16 @@ function runSelftest_() {
     String(stateLoad_.toString()).indexOf('skelRead_') >= 0
     && String(growthLoad_.toString()).indexOf('skelRead_') >= 0);
   t('藍圖有走快取', String(blueprintLoad_.toString()).indexOf('CacheService') >= 0);
+
+  /* 課程連結：分頁在不在、只收 http(s)、有沒有進快取。 */
+  t('有「' + LINKS_SHEET + '」分頁', !!(ss && ss.getSheetByName(LINKS_SHEET)));
+  t('課程連結有走快取', String(linksLoad_.toString()).indexOf('CacheService') >= 0);
+  t('課程連結只收 http(s)', String(linksLoad_.toString()).indexOf('^https?:') >= 0);
+  var lk = null;
+  try { lk = linksLoad_(); } catch (e) {}
+  t('課程連結讀得出來（目前填了 ' + (lk ? Object.keys(lk).length : 0) + ' 筆）', !!lk);
+  t('課程連結的值都是網址',
+    !!lk && Object.keys(lk).every(function (k) { return /^https?:\/\//i.test(lk[k]); }));
   /* ⚠️ getSheets() 是淨損失（實測多付約 470ms），不要再放回來。 */
   t('取分頁不用 getSheets（那會載入全部分頁）',
     String(sheetByName_.toString()).indexOf('getSheets()') < 0);
