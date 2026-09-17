@@ -438,7 +438,6 @@
     e.preventDefault();
     if (!confirm('登出後要重新從 LINE 進來。確定嗎？')) return;
     window.UC_STORE.flush();                 /* 佇列裡的東西不能跟著消失 */
-    try { localStorage.removeItem('uc_line_returning_v1'); } catch (err) {}
     try { sessionStorage.removeItem('uc_line_pending_v1'); } catch (err) {}
     try { if (window.liff && liff.isLoggedIn()) liff.logout(); } catch (err) {}
     /* replace 而不是 assign —— 不要讓上一頁按回去又回到已登出的畫面。 */

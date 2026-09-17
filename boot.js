@@ -373,7 +373,6 @@
      step 會隨著流程往前推，出錯時直接顯示。 */
   var step = 'SDK', started = false, initError = null;
   var slowTimer = null, retryTimer = null;
-  var RETURNING_KEY = 'uc_line_returning_v1';
   var PENDING_KEY = 'uc_line_pending_v1';
 
   function storageGet(store, key) {
@@ -440,13 +439,15 @@
     var destination = window.UC_APP && window.UC_APP.entryRoute
       ? window.UC_APP.entryRoute(requestedRoute) : '#/okr';
     lineStage('route', routeLabel(destination));
-    storageSet(localStorage, RETURNING_KEY);
     storageClear(sessionStorage, PENDING_KEY);
     setTimeout(function () {
       lineStage('done');
       clearWaiting();
       if (window.UC_APP && window.UC_APP.nav) window.UC_APP.nav(destination);
-      if (/[?&]perf=1/.test(location.search)) {
+      /* ⚠️ 從 LINE 開 liff.line.me/...?perf=1 時，網址有機會先變成
+         `?liff.state=%3Fperf%3D1`。SDK 通常會在 init 之後還原，
+         但解碼後再比對一次比較保險，兩種寫法都認得。 */
+      if (/[?&]perf=1/.test(decodeURIComponent(location.search))) {
         setTimeout(function () {
           try { showPerf(); } catch (e) { console.warn('perf 面板失敗', e); }
         }, 0);
@@ -485,6 +486,11 @@
       if (!idToken) {
         throw new Error('LINE 沒有給 ID Token —— LIFF 的 scope 要開 openid。');
       }
+      /* ⚠️ ID Token 大約一小時就過期，但 isLoggedIn() 還是 true。
+         過期的話 auth.exchange 一定被後端退回 —— 那趟來回是純浪費，
+         而且失敗後才重新登入，使用者會在莫名其妙的時間點看到頁面重整。
+         先在本機看 exp，過期就直接回旗標，等按下去再一次導頁。 */
+      if (tokenExpired()) return { needsLogin: true, expired: true };
       /* 頭像只用來讓使用者確認「現在是哪個 LINE 帳號」，不參與認證。
          讀不到 profile 不應該卡住登入；後端驗證 ID Token 才是權限依據。 */
       try {
@@ -512,6 +518,11 @@
         /* 沒登入才走這條 —— 導頁一定要在使用者按下之後。 */
         if (data && data.needsLogin) {
           storageSet(sessionStorage, PENDING_KEY);
+          /* 過期的憑證要先登出，不然 LINE 會把同一張舊的再發回來。 */
+          if (data.expired && !retried()) {
+            markRetried();
+            try { liff.logout(); } catch (e) {}
+          }
           liff.login({ redirectUri: location.href });
           return null;
         }
@@ -540,9 +551,11 @@
   if (enterButton) enterButton.addEventListener('click', beginLogin);
   if (retryButton) retryButton.addEventListener('click', function () { location.reload(); });
 
-  /* 成功用過的裝置自動回去；第一次仍看見並按下原本的登入主畫面。
-     外部 LINE 登入導回來時用 sessionStorage 接續，不必再按第二次。 */
-  if (storageGet(localStorage, RETURNING_KEY) || storageGet(sessionStorage, PENDING_KEY)) {
+  /* ⚠️ 只有「剛從 LINE 授權頁導回來」才自動接續 —— 那一下使用者已經按過了。
+     用過的裝置**不再自動進去**：使用者 2026-09-17 要的就是「先看到按鈕再按」。
+     自動進去的話，畫面會卡在載入中乾等整趟 auth.exchange；
+     留著按鈕，那幾秒會跟「讀畫面、抬手按下去」重疊，按下時多半已經跑完了。 */
+  if (storageGet(sessionStorage, PENDING_KEY)) {
     setTimeout(beginLogin, 0);
   } else {
     /* 第一次進來（還沒按按鈕）也先把 auth.exchange 跑掉。
@@ -550,6 +563,16 @@
        失敗先收著 —— 使用者按下去時 beginLogin 會接到同一個 promise 的錯誤，
        那裡才有完整的錯誤畫面。這裡不接的話是未捕捉的 rejection。 */
     setTimeout(function () { warmup().catch(function () {}); }, 0);
+  }
+
+  /* 只看有沒有過期，不拿裡面的任何欄位當身分 ——
+     解出來的內容沒有驗過簽章，身分一律以後端驗證的結果為準。 */
+  function tokenExpired() {
+    try {
+      var d = liff.getDecodedIDToken();
+      if (!d || !d.exp) return false;          /* 讀不到就照舊送出去讓後端判斷 */
+      return (d.exp * 1000) - Date.now() < 30000;   /* 30 秒內到期也算過期 */
+    } catch (e) { return false; }
   }
 
   var RETRY_KEY = 'uc_liff_retry';
