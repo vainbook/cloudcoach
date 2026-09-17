@@ -201,7 +201,8 @@ function authExchange_(body) {
   }
 
   lap_('查綁定');
-  touchLastLogin_(b.row);
+  /* 從快取來的列號不可信（見 findBindingByLine_）。兩分鐘內本來就記過了。 */
+  if (!b.fromCache) touchLastLogin_(b.row);
   lap_('記登入時間');
 
   var out = {
@@ -226,9 +227,11 @@ function authExchange_(body) {
      登入能不能成功不該取決於這個最佳化。 */
   try {
     /* 只帶登入要用的那幾包；成長與作業由前端畫完之後在背景補。
-       ⚠️ 教練例外 —— 他會在學員清單、報告、藍圖之間跳，一次載齊比較好。 */
-    out.payload = studentPayload_(b, String(b.student_id || ''),
-                                  b.access_scope === 'manage' ? null : 'boot');
+       ⚠️ **教練也一樣。** 原本教練一次載齊，理由是他會到處跳 ——
+       但 2026-09-17 量到「讀作業 ＋ 讀成長」在登入路徑上是 1.3～2.4 秒
+       （每次 getDataRange 本身就要 300～2000ms 而且會抖），
+       而前端本來就會在畫完之後自己補。多等的是背景，不是使用者。 */
+    out.payload = studentPayload_(b, String(b.student_id || ''), 'boot');
   } catch (e) {
     console.warn('auth.exchange 順帶載入失敗，前端會自己再打一次：' + e);
   }
@@ -325,6 +328,7 @@ function authBind_(body) {
       SpreadsheetApp.flush();
 
       console.log('綁定成功 student=' + r.student_id + ' sub=' + maskSub_(v.sub));
+      bindingCacheClear_();      /* 綁定關係變了，舊的世代一次全部作廢 */
       return { bound: true, studentId: r.student_id,
                accessScope: r.access_scope || 'self', linkedAt: now.toISOString() };
     }
@@ -409,6 +413,11 @@ function studentPayload_(b, sid, part) {
   };
 
   if (wantBoot) {
+    /* 三張表一個請求抓完（見 Data.gs 的 skelPreload_）。
+       失敗的話 skelRead_ 自己會逐張讀，行為不變、只是慢回原本的樣子。 */
+    skelPreload_(['assessment', 'report', 'task']);
+    lap_('批次讀三表');
+
     var answers = {}, raw = stateLoad_('assessment', sid);
     for (var q in raw) answers[q] = raw[q].answer;
     out.answers = answers;
@@ -888,7 +897,59 @@ function setCell_(sh, line, col, value) {
   sh.getRange(line, c).setValue(value);
 }
 
+/* ⚠️ 每一次請求都要查一次綁定表，實測 700～1135ms —— 那是一整趟 getDataRange。
+   而「這個 LINE 對應哪位學員」平常根本不會變，所以放快取。
+
+   ⚠️ **TTL 長，但要有開關。** 一天登入一次的學員，兩分鐘的 TTL 等於永遠沒命中，
+   每次都付那 1.1 秒。所以拉到 6 小時（CacheService 上限），
+   代價是「解除綁定」不會立刻生效 —— 用 epoch 解決：
+   鍵裡帶一個世代號，把世代號清掉，所有舊鍵就一次全部作廢。
+   綁定、升級教練、選單清快取都會清它。
+   ⚠️ 鍵用 sub 的雜湊，不存原始 LINE user id。 */
+var BINDING_TTL = 21600;
+
+function bindingEpoch_() {
+  try {
+    var c = CacheService.getScriptCache();
+    var e = c.get('bepoch');
+    if (!e) { e = String(Date.now()); c.put('bepoch', e, BINDING_TTL); }
+    return e;
+  } catch (err) { return '0'; }
+}
+
+/* 一次作廢所有綁定快取。世代號沒了，舊鍵就再也拼不出來。 */
+function bindingCacheClear_() {
+  try { CacheService.getScriptCache().remove('bepoch'); } catch (e) {}
+}
+
+function bindingCacheKey_(sub) {
+  return 'b:' + bindingEpoch_() + ':'
+    + Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(sub))
+      .map(function (x) { return ('0' + (x & 0xFF).toString(16)).slice(-2); }).join('');
+}
+
 function findBindingByLine_(sub) {
+  var cache = null, key = '';
+  try {
+    cache = CacheService.getScriptCache();
+    key = bindingCacheKey_(sub);
+    var hit = cache.get(key);
+    if (hit) {
+      var cached = JSON.parse(hit);
+      /* ⚠️ 標記來源。快取裡的 row 是「兩分鐘前的列號」——
+         中間有人在試算表刪過列的話它就指錯地方，所以寫入一律不准用它。 */
+      if (cached && cached.student_id) { cached.fromCache = true; return cached; }
+    }
+  } catch (e) { cache = null; }
+
+  var found = findBindingByLineFresh_(sub);
+  try {
+    if (cache && found) cache.put(key, JSON.stringify(found), BINDING_TTL);
+  } catch (e) {}
+  return found;
+}
+
+function findBindingByLineFresh_(sub) {
   var b = bindingBody_();
   for (var i = 0; i < b.rows.length; i++) {
     var r = rowObj_(b.rows[i], b.map);
@@ -1330,6 +1391,7 @@ function menuMakeCoach() {
 
   setCell_(sh, line, 'access_scope', 'manage');
   SpreadsheetApp.flush();
+  bindingCacheClear_();          /* 不清的話那個帳號最多 6 小時還是學員身分 */
   ui.alert('已升級：' + id + ' → 教練（manage）\n\n'
     + '請那個 LINE 帳號重新開一次網站，就會看到「學員」分頁與所有學員清單。\n'
     + '要降回學員的話，把那一列的 access_scope 改回 self。');
@@ -1364,7 +1426,10 @@ function menuBlueprintSetup() {
    改完藍圖不想等就按這個。 */
 function menuClearBlueprintCache() {
   try { CacheService.getScriptCache().removeAll(['bp', 'links']); } catch (e) {}
-  SpreadsheetApp.getUi().alert('藍圖與課程連結的快取已清除，下一次載入會重新讀試算表。');
+  bindingCacheClear_();
+  SpreadsheetApp.getUi().alert('快取已清除：藍圖、課程連結、帳號綁定。\n\n'
+    + '下一次載入會重新讀試算表（那一次會比較慢，之後恢復）。\n'
+    + '改過連結、藍圖內容，或在「帳號綁定」動過列，就跑這個。');
 }
 
 function menuStatus() {
@@ -1381,6 +1446,14 @@ function menuStatus() {
     + '\n已發出的啟用碼：' + issued
     + '\n　已綁定：' + used
     + '\n　還沒用：' + pending);
+}
+
+/* 把原始碼裡的註解拿掉再比對。護欄是要看「有沒有真的呼叫」，
+   不是「有沒有提到這個名字」—— 提到它的往往正是說明為什麼不該呼叫的那行註解。 */
+function srcNoComments_(fn) {
+  return String(fn.toString())
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ');
 }
 
 /* ── 本機自我檢查 ──────────────────────────────────
@@ -1511,12 +1584,46 @@ function runSelftest_() {
   /* ⚠️ 效能回歸的護欄：排版**不可以**再被放回熱路徑。
      bindingSheet_() 一次 student.load 會被呼叫兩次，每次 38 個格式寫入 ——
      那是登入 10 秒裡最大的一塊（2026-09-13 量到並移除）。 */
-  var hot = String(bindingSheet_.toString());
+  /* ⚠️ 這兩項本來是純文字搜尋，連**註解**跟「分頁不存在才會跑」的分支都算進去，
+     所以一直在誤報（2026-09-17 發現）。護欄誤報比沒有護欄更糟 ——
+     會讓人習慣性忽略 FAIL。先把註解拿掉，再只看真正的熱路徑。 */
+  var hot = srcNoComments_(bindingSheet_).split('migrateBindingLayout_')[1] || '';
   t('排版沒有被放回 bindingSheet_ 的熱路徑', hot.indexOf('decorateBinding_') < 0);
   t('student.load 不再寫 last_login_at',
-    String(studentLoad_.toString()).indexOf('touchLastLogin_') < 0);
+    srcNoComments_(studentLoad_).indexOf('touchLastLogin_') < 0);
   t('auth.exchange 會順手帶回資料（省一次往返）',
     String(authExchange_.toString()).indexOf('studentPayload_') >= 0);
+
+  /* ⚠️ 2026-09-17 實測：登入的腳本時間 4.2～5.3 秒，全部是讀表，
+     而且同一段來回可以差六倍。能砍的只有次數。 */
+  t('登入不分角色都只帶 boot（教練也不例外）',
+    String(authExchange_.toString()).indexOf("'boot'") >= 0
+    && String(authExchange_.toString()).indexOf("access_scope === 'manage' ? null") < 0);
+  t('綁定查詢有走快取（每次 700～900ms）',
+    String(findBindingByLine_.toString()).indexOf('CacheService') >= 0);
+  t('登入的三張表是一個請求抓完',
+    String(studentPayload_.toString()).indexOf('skelPreload_') >= 0);
+  t('batchGet 失敗會自己退回逐張讀',
+    String(skelPreload_.toString()).indexOf('catch') >= 0
+    && String(skelRead_.toString()).indexOf('getDataRange') >= 0);
+  t('batchGet 的短列有補齊（不然會取到 undefined）',
+    String(skelRead_.toString()).indexOf('body[r].push') >= 0);
+  t('成長紀錄不走 batchGet（日期型別會變）',
+    String(studentPayload_.toString()).indexOf("skelPreload_(['assessment', 'report', 'task'])") >= 0);
+  t('綁定快取的鍵是雜湊，不存原始 LINE id',
+    String(bindingCacheKey_.toString()).indexOf('computeDigest') >= 0);
+  /* ⚠️ 快取 6 小時，所以「一次全部作廢」的開關必須真的接上去。
+     沒接的話解除綁定要等到明天才生效 —— 那是權限問題，不是效能問題。 */
+  t('綁定快取有世代號（可以一次全部作廢）',
+    String(bindingCacheKey_.toString()).indexOf('bindingEpoch_') >= 0);
+  t('寫完會丟掉讀取快取（不然同一次執行裡寫完再讀是舊值）',
+    srcNoComments_(stateSave_).indexOf('skelDrop_') >= 0);
+  t('綁定變動會清掉快取',
+    String(authBind_.toString()).indexOf('bindingCacheClear_') >= 0
+    && String(menuMakeCoach.toString()).indexOf('bindingCacheClear_') >= 0
+    && String(menuClearBlueprintCache.toString()).indexOf('bindingCacheClear_') >= 0);
+  t('快取來的綁定不會拿去寫（列號可能已經移位）',
+    String(authExchange_.toString()).indexOf('!b.fromCache') >= 0);
 
   /* ⚠️ 登入只讀第一眼要用的四包。成長與作業由前端畫完之後背景補 ——
      一次試算表讀取約 300ms，少讀兩張就是少 0.6 秒，而那兩包第一眼一定用不到。 */
@@ -1696,6 +1803,11 @@ function runSelftest_() {
         wsh.deleteRow(SKEL_HEADER_ROW + 1 + w);
       }
     }
+    /* ⚠️ 這裡是**直接動試算表**（deleteRow），沒有經過 stateSave_，
+       所以那邊的快取失效蓋不到 —— 不自己丟的話這一行讀到的是刪之前的快取，
+       資料明明清乾淨了卻回報 FAIL（2026-09-17 踩到）。
+       規則很簡單：**繞過 stateSave_ 動資料的人，自己負責 skelDrop_。** */
+    skelDrop_('assessment');
     var left = stateLoad_('assessment', SENTINEL);
     t('哨兵資料已經清乾淨', Object.keys(left).length === 0);
   } catch (e) {

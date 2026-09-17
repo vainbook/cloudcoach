@@ -57,6 +57,12 @@ var BLUEPRINT_NOTES = {
    ⚠️ **課程代號是永久的鍵**（分類-編號，例如 req-01）。改了等於把你貼好的
    連結變成孤兒 —— 跟 kr_id 同一個道理。日常只要編輯「連結」那一欄。
    跟藍圖一樣是全體共用、幾乎不變，所以同樣進快取。 */
+/* ⚠️ 藍圖 1004 列、課程連結 31 列，都是**全體共用、幾乎不變**的資料。
+   原本 900 秒，實測一旦過期就是 讀藍圖 1155ms ＋ 讀連結 290ms 的尖刺，
+   而一天登入一次的學員每次都會撞到。拉到 CacheService 上限的 6 小時，
+   改完內容就跑選單的「清除快取」—— 那個選單會連帳號綁定一起清。 */
+var CACHE_TTL = 21600;
+
 var LINKS_SHEET = '課程連結';
 var LINKS_HEADER_ROW = 5;
 var LINKS_COLS = ['課程代號', '分類', '編號', '名稱', '連結'];
@@ -234,26 +240,85 @@ function sheetByName_(name) {
 
 var _skel = {};
 
+/* skelPreload_ 先塞好的原始值。跟 _skel 一樣只活在這一次執行裡。
+   ⚠️ 兩個都只給讀用，所以不需要在寫入之後失效 —— 寫走的是 skelSheet_。 */
+var _pre = {};
+
+/**
+ * 一個 HTTPS 請求抓多張分頁（Sheets 進階服務）。
+ *
+ * ⚠️ **省的是來回次數，不是資料量。** 2026-09-17 實測：
+ * 藍圖內容 11044 格讀 219ms，學員填寫 2178 格讀 241ms —— 五倍資料、一樣的時間。
+ * 真正貴的是「每張分頁在這次執行裡第一次被碰到」（380～2072ms），
+ * 而正式請求每張表剛好只碰一次，所以每次都在付那筆錢。
+ * 分開讀三張 380+334+726 = 1440ms，batchGet 一次 437ms。
+ *
+ * ⚠️ 只給 assessment／report／task 用。成長紀錄有「日期」欄，
+ * batchGet 回的是序號不是 Date 物件，fmtDate_ 認不得 —— 要用得先改那裡。
+ * ⚠️ 失敗一律退回逐張讀。登入能不能成功不該取決於這個最佳化。
+ */
+function skelPreload_(scopes) {
+  var want = [];
+  for (var i = 0; i < scopes.length; i++) {
+    var sc = scopes[i];
+    if (!SKEL[sc] || _skel[sc] || _pre[sc]) continue;
+    want.push(sc);
+  }
+  if (want.length < 2) return;                      /* 一張表不值得繞路 */
+  try {
+    var res = Sheets.Spreadsheets.Values.batchGet(sheet_().getId(), {
+      ranges: want.map(function (sc) {
+        return "'" + String(SKEL[sc].sheet).replace(/'/g, "''") + "'";
+      }),
+      valueRenderOption: 'UNFORMATTED_VALUE',
+      dateTimeRenderOption: 'SERIAL_NUMBER'
+    });
+    var vr = (res && res.valueRanges) || [];
+    for (var j = 0; j < want.length; j++) {
+      var v = vr[j] && vr[j].values;
+      if (v && v.length) _pre[want[j]] = v;
+    }
+  } catch (e) {
+    console.warn('batchGet 失敗，改用逐張讀：' + e);
+  }
+}
+
 /**
  * 讀路徑的唯一入口：一次 getDataRange 拿到表頭與資料。
  * 回 { sh, map, body, first }。body[0] 在試算表上的列號就是 first。
  * ⚠️ **只給讀用。** 要寫的話還是走 skelSheet_，那裡會補缺的欄位。
+ * ⚠️ 走 skelPreload_ 進來的時候 sh 是 null（batchGet 沒有 Sheet 物件）。
+ *    目前沒有人讀這個欄位；要用它之前先自己 sheetByName_。
  */
 function skelRead_(scope) {
   if (_skel[scope]) return _skel[scope];
   var def = SKEL[scope];
   if (!def) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
-  var sh = sheetByName_(def.sheet);
-  if (!sh) throw new AppError('INTERNAL_ERROR', '找不到「' + def.sheet + '」分頁');
 
-  var all = sh.getDataRange().getValues();          /* ← 這一整段就這一次呼叫 */
+  var all = _pre[scope] || null, sh = null;
+  if (!all) {
+    sh = sheetByName_(def.sheet);
+    if (!sh) throw new AppError('INTERNAL_ERROR', '找不到「' + def.sheet + '」分頁');
+    all = sh.getDataRange().getValues();            /* ← 這一整段就這一次呼叫 */
+  }
+
   var head = all.length >= SKEL_HEADER_ROW ? all[SKEL_HEADER_ROW - 1] : [];
   var map = {};
   for (var i = 0; i < head.length; i++) {
     var k = String(head[i] || '');
     if (k && !map[k]) map[k] = i + 1;
   }
-  var out = { sh: sh, map: map, body: all.slice(SKEL_HEADER_ROW), first: SKEL_HEADER_ROW + 1 };
+  var body = all.slice(SKEL_HEADER_ROW);
+  /* ⚠️ batchGet 會省略每一列尾端的空格，列長會參差不齊。
+     不補的話 rowObj_ 取到 undefined，而 String(undefined) 是 "undefined"
+     —— 那會變成一個看起來很像資料的字串，無聲地混進比對裡。 */
+  if (_pre[scope]) {
+    for (var r = 0; r < body.length; r++) {
+      if (!body[r]) { body[r] = []; }
+      while (body[r].length < head.length) body[r].push('');
+    }
+  }
+  var out = { sh: sh, map: map, body: body, first: SKEL_HEADER_ROW + 1 };
   _skel[scope] = out;
   return out;
 }
@@ -289,7 +354,7 @@ function blueprintLoad_() {
   try {
     if (cache) {
       var j = JSON.stringify(out);
-      if (j.length < 95000) cache.put('bp', j, 900);   /* 單值上限 100KB */
+      if (j.length < 95000) cache.put('bp', j, CACHE_TTL);   /* 單值上限 100KB */
     }
   } catch (e) {}
   return out;
@@ -327,7 +392,7 @@ function linksLoad_() {
     }
   } catch (e) { console.warn('讀課程連結失敗（不影響其他資料）：' + e); }
 
-  try { if (cache) cache.put('links', JSON.stringify(out), 900); } catch (e) {}
+  try { if (cache) cache.put('links', JSON.stringify(out), CACHE_TTL); } catch (e) {}
   return out;
 }
 
@@ -508,10 +573,25 @@ function stateLoad_(scope, studentId) {
  * 回傳更新時間（字串）。
  */
 function stateSave_(scope, studentId, itemId, field, label, value, requestId, display) {
-  if (scope === 'task') return taskSave_(studentId, itemId, field, value);
-  if (scope === 'growth') return growthSave_(studentId, itemId, value);
-  if (scope === 'assignment') return assignmentSave_(studentId, itemId, value);
-  return entrySave_(scope, studentId, itemId, field, label, value, requestId, display);
+  try {
+    if (scope === 'task') return taskSave_(studentId, itemId, field, value);
+    if (scope === 'growth') return growthSave_(studentId, itemId, value);
+    if (scope === 'assignment') return assignmentSave_(studentId, itemId, value);
+    return entrySave_(scope, studentId, itemId, field, label, value, requestId, display);
+  } finally {
+    /* ⚠️ **寫完一定要把讀取快取丟掉。** `_skel` 只在第一次讀的時候填，
+       寫入走的是另一條路（skelSheet_），兩邊不通。
+       不丟的話同一次執行裡「寫完再讀」會拿到寫之前的資料 —— 無聲的錯誤。
+       目前正式流程剛好沒有寫完接著讀，所以一直沒爆；
+       2026-09-17 是 selftest 的寫入檢查把它抓出來的（那支就是寫完馬上讀）。 */
+    skelDrop_(scope);
+  }
+}
+
+/* 丟掉某個 scope 這一次執行的讀取快取。失敗的寫入也要丟 —— 寧可多讀一次。 */
+function skelDrop_(scope) {
+  if (_skel[scope]) delete _skel[scope];
+  if (_pre[scope]) delete _pre[scope];
 }
 
 /* 通用作業：整份 submission JSON 寫進一格，用 student_id + tool_id upsert。 */
