@@ -225,7 +225,10 @@ function authExchange_(body) {
      ⚠️ 失敗**不要讓整個登入跟著失敗** —— 拿不到就退回舊流程（前端自己再打一次），
      登入能不能成功不該取決於這個最佳化。 */
   try {
-    out.payload = studentPayload_(b, String(b.student_id || ''));
+    /* 只帶登入要用的那幾包；成長與作業由前端畫完之後在背景補。
+       ⚠️ 教練例外 —— 他會在學員清單、報告、藍圖之間跳，一次載齊比較好。 */
+    out.payload = studentPayload_(b, String(b.student_id || ''),
+                                  b.access_scope === 'manage' ? null : 'boot');
   } catch (e) {
     console.warn('auth.exchange 順帶載入失敗，前端會自己再打一次：' + e);
   }
@@ -368,41 +371,64 @@ function studentLoad_(body) {
   /* ⚠️ **不要在這裡 touchLastLogin_。** auth.exchange 已經記過了（同一次登入），
      而這一行會再開一次 bindingSheet_ → 又一輪寫入。
      而且教練用 switchStudent 切換學員也走這條路，那更不該把「最後登入時間」往後推。 */
-  return studentPayload_(b, sid);
+  var part = String(body.part || '');
+  return studentPayload_(b, sid, part === 'boot' || part === 'rest' ? part : null);
 }
 
 /** 組一位學員的整包資料。auth.exchange 與 student.load 共用同一份實作。 */
-function studentPayload_(b, sid) {
-  var answers = {}, raw = stateLoad_('assessment', sid);
-  for (var q in raw) answers[q] = raw[q].answer;
-  lap_('讀答案');
+/**
+ * 組一位學員的資料。
+ *
+ * ⚠️ **不要一次讀六張表。** 實測一次試算表讀取約 300ms，六次就是 1.8 秒，
+ * 而那是 5.5 秒總時間裡最大的一塊。
+ *
+ * 但登入後第一眼落地的頁面（評測／報告／藍圖）**一定用不到成長紀錄與作業** ——
+ * 那兩包只有 #/growth 與作業頁會碰。所以分成兩段：
+ *
+ *   part = 'boot'  登入要的：答案、報告、任務、藍圖（藍圖有快取，約 36ms）
+ *   part = 'rest'  背景補的：成長紀錄、作業
+ *   不給 part      全部（教練那條路照舊一次載齊，他本來就會到處看）
+ *
+ * 前端畫完第一頁之後才去要 'rest'，所以使用者完全等不到它。
+ * ⚠️ 'rest' 回來只能**填空的那幾格**，不可以整包蓋掉 ——
+ * 中間那兩秒使用者可能已經在填東西了（見 store.js 的 mergeRest）。
+ */
+function studentPayload_(b, sid, part) {
+  var wantBoot = part !== 'rest';
+  var wantRest = part !== 'boot';
 
-  var report = (stateLoad_('report', sid).report || {});
-  lap_('讀報告');
-  var tasks = stateLoad_('task', sid);
-  lap_('讀任務');
-  var assignments = stateLoad_('assignment', sid);
-  lap_('讀作業');
-  var log = growthLoad_(sid);
-  lap_('讀成長');
-  var blueprint = blueprintLoad_();
-  lap_('讀藍圖');
-
-  return {
+  var out = {
     studentId: sid,
+    part: part || 'all',
     /* 所有教練共用的範例學員。前端據此顯示「開啟範例學員」那顆按鈕。
        ⚠️ 回傳 id 不等於給權限 —— 真正能不能開，還是 targetStudent_() 說了算。 */
     demoStudentId: b.access_scope === 'manage' ? DEMO_STUDENT_ID : '',
     studentName: String(b.student_name || ''),
     lineDisplayName: String(b.line_display_name || ''),
-    accessScope: b.access_scope || 'self',
-    answers: answers,
-    report: report,
-    tasks: tasks,
-    assignments: assignments,
-    log: log,
-    blueprint: blueprint
+    accessScope: b.access_scope || 'self'
   };
+
+  if (wantBoot) {
+    var answers = {}, raw = stateLoad_('assessment', sid);
+    for (var q in raw) answers[q] = raw[q].answer;
+    out.answers = answers;
+    lap_('讀答案');
+
+    out.report = (stateLoad_('report', sid).report || {});
+    lap_('讀報告');
+    out.tasks = stateLoad_('task', sid);
+    lap_('讀任務');
+    out.blueprint = blueprintLoad_();
+    lap_('讀藍圖');
+  }
+
+  if (wantRest) {
+    out.assignments = stateLoad_('assignment', sid);
+    lap_('讀作業');
+    out.log = growthLoad_(sid);
+    lap_('讀成長');
+  }
+  return out;
 }
 
 /* student.list —— 只有教練（access_scope === 'manage'）叫得動。
@@ -1485,8 +1511,29 @@ function runSelftest_() {
   t('排版沒有被放回 bindingSheet_ 的熱路徑', hot.indexOf('decorateBinding_') < 0);
   t('student.load 不再寫 last_login_at',
     String(studentLoad_.toString()).indexOf('touchLastLogin_') < 0);
-  t('auth.exchange 會順手帶回整包資料（省一次往返）',
+  t('auth.exchange 會順手帶回資料（省一次往返）',
     String(authExchange_.toString()).indexOf('studentPayload_') >= 0);
+
+  /* ⚠️ 登入只讀第一眼要用的四包。成長與作業由前端畫完之後背景補 ——
+     一次試算表讀取約 300ms，少讀兩張就是少 0.6 秒，而那兩包第一眼一定用不到。 */
+  var bootKeys = null, restKeys = null, allKeys = null;
+  try {
+    var fakeB = { student_name: '', line_display_name: '', access_scope: 'self' };
+    bootKeys = Object.keys(studentPayload_(fakeB, '__selftest_part__', 'boot'));
+    restKeys = Object.keys(studentPayload_(fakeB, '__selftest_part__', 'rest'));
+    allKeys = Object.keys(studentPayload_(fakeB, '__selftest_part__', null));
+  } catch (e) {}
+  t('boot 不含成長與作業',
+    !!bootKeys && bootKeys.indexOf('log') < 0 && bootKeys.indexOf('assignments') < 0);
+  t('boot 含答案／報告／任務／藍圖',
+    !!bootKeys && ['answers', 'report', 'tasks', 'blueprint']
+      .every(function (k) { return bootKeys.indexOf(k) >= 0; }));
+  t('rest 只有成長與作業',
+    !!restKeys && restKeys.indexOf('log') >= 0 && restKeys.indexOf('assignments') >= 0
+    && restKeys.indexOf('answers') < 0 && restKeys.indexOf('tasks') < 0);
+  t('不給 part 時仍然是全部',
+    !!allKeys && ['answers', 'report', 'tasks', 'blueprint', 'log', 'assignments']
+      .every(function (k) { return allKeys.indexOf(k) >= 0; }));
   t('LINE 驗證有走快取', String(verifyToken_.toString()).indexOf('CacheService') >= 0);
   t('快取的 key 不是 Token 原文',
     String(verifyToken_.toString()).indexOf('computeDigest') >= 0);
@@ -1498,6 +1545,30 @@ function runSelftest_() {
   t('取分頁不用 getSheets（那會載入全部分頁）',
     String(sheetByName_.toString()).indexOf('getSheets()') < 0);
   t('last_login_at 有節流', String(touchLastLogin_.toString()).indexOf('CacheService') >= 0);
+
+  /* ⚠️ 鎖握得越久，別的學員排得越久。writeRow_ 更新既有列時**不可以**
+     退回逐格 setValue —— 一次評測存檔要寫 7 格就是 7 次呼叫。 */
+  t('writeRow_ 更新既有列是整段寫回，不是逐格',
+    String(writeRow_.toString()).indexOf('span.setValues') >= 0);
+
+  /* 真的跑一次「只改兩欄、其餘不動」，這是批次寫回最容易弄壞的語意。 */
+  var wsh2 = skelSheet_('assessment'), wmap2 = skelMap_(wsh2);
+  var SENT2 = '__selftest_row__';
+  var before2 = wsh2.getLastRow();
+  writeRow_(wsh2, wmap2, 0, { student_id: SENT2, field_id: 'assessment.X',
+                              '欄位名稱': '原本', '儲存值': '"a"', '已填': 1 });
+  var ln2 = findRow_(wsh2, wmap2, function (r) { return String(r.student_id) === SENT2; });
+  t('批次寫回：新增列成功', !!ln2);
+  if (ln2) {
+    writeRow_(wsh2, wmap2, ln2, { '儲存值': '"b"', '已填': 0 });
+    var back2 = rowObj_(wsh2.getRange(ln2, 1, 1, wsh2.getLastColumn()).getValues()[0], wmap2);
+    t('批次寫回：指定的欄位有改到',
+      String(back2['儲存值']) === '"b"' && Number(back2['已填']) === 0);
+    t('批次寫回：沒指定的欄位一格不動',
+      String(back2['欄位名稱']) === '原本' && String(back2.field_id) === 'assessment.X');
+    wsh2.deleteRow(ln2);
+  }
+  t('批次寫回：測試列已清掉', wsh2.getLastRow() === before2);
 
   /* 讀路徑重構最容易壞的地方：表頭列對錯、body 多切或少切一列。
      直接驗一次真實讀取的形狀。 */

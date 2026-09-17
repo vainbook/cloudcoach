@@ -157,7 +157,21 @@ window.UC_SAMPLE = function () {
   return {
     name: '示範學員 ・ 阿睿', answers: answers, picked: [], key: {},
     taskNow: {}, hidden: {}, done: {},
-    coachReport: { scores: {}, notes: {}, letter: '', complete: false }, log: []
+    /* Logo 的共用 Demo 要能直接瀏覽全站，不讓每位檢查者都先填六格。
+       這些只是範例資料，正式學員的報告仍必須由教練完成。 */
+    coachReport: {
+      adjust: {}, scores: {},
+      notes: {
+        values: '你目前最需要先補的是內在方向：把想成為的人、想過的生活和關係判準說清楚，後面的練習才有骨架。',
+        emo: '你已經能接住一部分情緒，但還需要練習把自己的感受放進對話，讓別人不只覺得你會聽，也真正認識你。',
+        image: '你的外在整理與場合感已經很成熟，接下來重點不是繼續加配件，而是讓形象和真實生活一致。',
+        circle: '目前最大的限制不是聊天技巧，而是缺少穩定認識新朋友的場域，先建立每週可重複參與的生活圈。',
+        flirt: '你掌握互動節奏與升溫訊號，下一步要把技巧放回真誠與尊重裡，確認彼此都自在且願意靠近。'
+      },
+      letter: '阿睿，你已經具備很好的形象與互動能力，接下來三個月我們會先建立內在方向與穩定生活圈，讓你不只會開始一段互動，也能走進真正想要的關係。',
+      coachName: 'UC Coach', complete: true
+    },
+    log: []
   };
 };
 
@@ -324,11 +338,7 @@ window.UC_SELFTEST = function () {
   t('當前任務有關閉與執行按鈕文案', O.taskUI.closeAction === '關閉' && O.taskUI.runAction === '執行任務');
   t('沒有工具時有聯絡教練提示', O.taskUI.contactTitle && O.taskUI.contactBody);
   t('總覽有當前任務與隱藏管理文案', O.editUI.currentCount && O.editUI.manageHidden && O.editUI.hideLabel);
-  t('總覽有完成任務與能力值文案', O.editUI.doneCount && O.editUI.doneLabel && O.editUI.abilityLabel);
-  t('任務完成預設能力值為非負數', O.taskProgress && O.taskProgress.defaultGain >= 0);
-  O.items.forEach(function (it) {
-    if (it.gain != null) t('藍圖 ' + it.id + ' 的能力加值為非負數', typeof it.gain === 'number' && it.gain >= 0);
-  });
+  t('總覽有當前與完成任務文案', O.editUI.currentCount && O.editUI.doneCount && O.editUI.doneLabel);
   /* 憑證與本名不得進公開檔案（工作區 AGENTS.md） */
   var leak = JSON.stringify(O).match(/兌換碼[：:]\s*\S+/);
   t('藍圖沒有夾帶課程兌換碼', !leak);
@@ -355,16 +365,47 @@ window.UC_SELFTEST = function () {
     t('工具「' + x.t + '」有狀態標記', ['active', 'preview', 'soon'].indexOf(x.status) >= 0);
     if (x.assignment) {
       t('作業「' + x.t + '」有穩定 id', /^[a-z0-9-]+$/.test(x.assignment.id || ''));
-      t('作業「' + x.t + '」有題目', Array.isArray(x.assignment.fields) && x.assignment.fields.length > 0);
+      var fields = x.assignment.kind === 'belief-cycle' && x.assignment.belief
+        ? [].concat(x.assignment.belief.stage1 && x.assignment.belief.stage1.fields || [],
+          x.assignment.belief.stage2 && x.assignment.belief.stage2.loopFields || [],
+          x.assignment.belief.stage2 && x.assignment.belief.stage2.exitFields || [])
+        : Array.isArray(x.assignment.groups)
+          ? x.assignment.groups.reduce(function (out, g) { return out.concat(g.fields || []); }, [])
+          : (x.assignment.fields || []);
+      t('作業「' + x.t + '」有題目', fields.length > 0);
       var assignmentFields = {};
-      (x.assignment.fields || []).forEach(function (f) {
+      fields.forEach(function (f) {
         t('作業「' + x.t + '」題目 ' + f.id + ' 的 id 不重複', !!f.id && !assignmentFields[f.id]);
         assignmentFields[f.id] = 1;
-        t('作業「' + x.t + '」題目 ' + f.id + ' 有範例', typeof f.example === 'string' && f.example.length > 0);
+        t('作業「' + x.t + '」題目 ' + f.id + ' 的 id 符合後端規格', /^[a-z0-9-]{1,40}$/.test(f.id || ''));
+        if (Array.isArray(x.assignment.groups) || x.assignment.kind === 'belief-cycle') {
+          t('作業「' + x.t + '」題目 ' + f.id + ' 有填寫引導', !!f.help && !!f.ph);
+        } else {
+          t('作業「' + x.t + '」題目 ' + f.id + ' 有範例', typeof f.example === 'string' && f.example.length > 0);
+        }
+      });
+      (x.assignment.groups || []).forEach(function (g) {
+        t('作業「' + x.t + '」故事組 ' + g.id + ' 有四個欄位', (g.fields || []).length === 4);
       });
     }
     t('工具「' + x.t + '」有說明', x.lead && x.body);
   });
+  var chatAssignment = T.items.filter(function (x) { return x.k === 'chattopics'; })[0];
+  t('聊天話題庫已開放填寫', !!chatAssignment && chatAssignment.status === 'active' && !!chatAssignment.assignment);
+  t('聊天話題庫有三大主軸', !!chatAssignment && !!chatAssignment.assignment
+    && chatAssignment.assignment.sections.length === 3);
+  t('聊天話題庫有十二個故事題目', !!chatAssignment && !!chatAssignment.assignment
+    && chatAssignment.assignment.groups.length === 12);
+  var beliefAssignment = T.items.filter(function (x) { return x.k === 'beliefs'; })[0];
+  var belief = beliefAssignment && beliefAssignment.assignment && beliefAssignment.assignment.belief;
+  var beliefExamples = belief && belief.stage1 && (belief.stage1.categories || []).reduce(function (n, category) {
+    return n + (category.items || []).length;
+  }, 0);
+  t('信念系統已開放填寫', !!beliefAssignment && beliefAssignment.status === 'active'
+    && beliefAssignment.assignment && beliefAssignment.assignment.kind === 'belief-cycle');
+  t('信念系統第一階段有 20 個常見句子', beliefExamples === 20);
+  t('信念系統第二階段含舊迴圈與新經驗', !!belief && belief.stage2
+    && (belief.stage2.loopFields || []).length === 5 && (belief.stage2.exitFields || []).length >= 5);
   var toolKeys = {};
   T.items.forEach(function (x) { toolKeys[x.k] = 1; });
   Object.keys(O.taskToolMap || {}).forEach(function (sheet) {
@@ -483,6 +524,12 @@ window.UC_SELFTEST = function () {
   var sm = window.UC_SAMPLE(), sr = E.score(sm.answers);
   t('範例學員答完所有計分題', sr.complete);
   t('範例學員有名字', !!sm.name);
+  t('範例學員的教練報告已完成', !!(sm.coachReport && sm.coachReport.complete));
+  t('範例學員的五維說明已填寫', D.dims.every(function (d) {
+    return sm.coachReport.notes && typeof sm.coachReport.notes[d.k] === 'string'
+      && sm.coachReport.notes[d.k].trim();
+  }));
+  t('範例學員的教練信已填寫', !!(sm.coachReport.letter && sm.coachReport.letter.trim()));
   var hits = D.crosses.filter(function (c) {
     return (c.hi || []).every(function (k) { return sr.band[k] === 2; })
         && (c.lo || []).every(function (k) { return sr.band[k] === 0; });

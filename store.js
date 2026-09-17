@@ -51,7 +51,7 @@
   function isRemote() { return !!api && !!studentId; }
 
   /* ── S 的哪一格對到後端的哪一格 ────────────────────
-     item_id 全部是穩定 ID（question_id / kr_id / 維度 key），
+     item_id 全部是穩定 ID（question_id / kr_id），
      不是顯示文字 —— 改文案不會影響資料。 */
 
   function flatten(S) {
@@ -68,6 +68,10 @@
         display: answerText(byId[qid], S.answers[qid])
       };
     });
+    out['assessment|activity_days|answer'] = {
+      scope: 'assessment', itemId: 'activity_days', field: 'answer',
+      label: '90 天編輯簽到', value: (S.activityDays || []).join(','), display: ''
+    };
 
     var cr = S.coachReport || {};
     var D = window.UC_DIMENSIONS ? window.UC_DIMENSIONS.dims : [];
@@ -77,6 +81,9 @@
       push('note.' + d.k, d.label + '／說明', str(cr.notes && cr.notes[d.k]));
     });
     push('letter', '寫給學員的一封信', str(cr.letter));
+    push('coachName', '教練中文署名', str(cr.coachName));
+    push('coachEnglishName', '教練英文署名', str(cr.coachEnglishName));
+    push('growthStart', '90 天起始日期', str(cr.growthStart));
     push('complete', '報告完成', cr.complete === true);
 
     function push(field, label, value) {
@@ -84,9 +91,9 @@
                                         field: field, label: label, value: value };
     }
 
-    /* 任務狀態。taskNow 的 key 是維度，其餘三個的 key 是 kr_id。 */
-    Object.keys(S.taskNow || {}).forEach(function (dim) {
-      add('task', dim, 'current', dim + '／當前任務', S.taskNow[dim]);
+    /* 任務狀態全部以 kr_id 為 key；每一條都能獨立成為當前任務。 */
+    Object.keys(S.taskNow || {}).forEach(function (kr) {
+      if (S.taskNow[kr]) add('task', kr, 'current', kr + '／當前任務', true);
     });
     Object.keys(S.done || {}).forEach(function (kr) {
       add('task', kr, 'done', kr + '／完成', !!S.done[kr]);
@@ -228,18 +235,19 @@
           if (queue.length) run();
           return;
         }
-        /* ⚠️ **不可以把 failed 歸零** —— 歸零之後退避永遠回到第一格，
-           實際行為是 2 秒→1 秒→2 秒→1 秒的無限熱迴圈（踩過）。
-           單筆存檔本來就要三秒，每秒重試只是把後端擠得更慢。
-           提示只在剛好跨過門檻那一次講一次，之後安靜地退避：
-           2 → 4 → 8 → 16 → 30 → 30…秒 */
+        /* ⚠️ **不可以靜靜失敗。** 舊的 save() 是空 catch，
+           存瀏覽器失敗無所謂，網路寫入失敗沒聲音就是資料不見了。
+           ⚠️ 但也**不可以把 failed 歸零** —— 歸零之後退避就永遠回到第一格，
+           實際行為變成 2 秒→1 秒→2 秒→1 秒的無限熱迴圈（踩過）。
+           而單筆存檔本來就要三秒，每秒重試只是把後端擠得更慢。
+           提示只在剛好跨過門檻那一次講一次，之後安靜地退避。 */
         if (failed === MAX_RETRY) {
-          /* ⚠️ **不可以靜靜失敗。** 舊的 save() 是空 catch，
-             存瀏覽器失敗無所謂，網路寫入失敗沒聲音就是資料不見了。 */
           say('目前連不上伺服器，還有 ' + queue.length + ' 筆沒存。會自動重試。');
         }
         notify(navigator.onLine === false ? 'offline' : 'error',
                queuedText(navigator.onLine === false ? '離線待同步' : '連線不穩'));
+        /* 上限 30 秒。指數從 failed 算，而 failed 不再歸零，所以真的會退避：
+           2 → 4 → 8 → 16 → 30 → 30…（斷線時不要一直敲門） */
         setTimeout(run, Math.min(30000, 1000 * Math.pow(2, failed)));
       });
   }
@@ -313,7 +321,76 @@
     snap = null;
     notify('connecting', '同步資料中');
     /* 已經有整包了就不要再打一次 —— 那是這次最佳化的重點。 */
-    return opts.payload ? hydrate(opts.payload, opts.render !== false) : load_(opts.render !== false);
+    var first = opts.payload ? hydrate(opts.payload, opts.render !== false)
+                             : load_(opts.render !== false);
+    return first.then(function (data) {
+      /* 畫面已經出來了，剩下的在背景補。使用者等不到它。
+         ⚠️ 只有拿到 'boot' 那一包才需要補；教練或完整載入不必。 */
+      if (data && data.part === 'boot') prefetchRest();
+      return data;
+    });
+  }
+
+  /* ── 背景補齊 ─────────────────────────────────────
+     登入只讀第一眼要用的四包（答案／報告／任務／藍圖），
+     成長紀錄與作業等畫完之後才抓 —— 它們只有 #/growth 與作業頁會用到，
+     而使用者走到那裡至少要幾秒，補得完。
+     ⚠️ 失敗不吵使用者：那兩頁進去時本來就會是空的，
+     跟「還沒填」長得一樣，不是錯誤狀態。下次登入會再補一次。 */
+  var restDone = false;
+
+  function prefetchRest() {
+    if (restDone || !isRemote()) return;
+    restDone = true;
+    call({ action: 'student.load', part: 'rest' })
+      .then(mergeRest)
+      .catch(function (e) {
+        restDone = false;                /* 讓下一次切換學員還能再試 */
+        console.warn('背景補資料失敗（不影響現在這一頁）', e && e.message);
+      });
+  }
+
+  /**
+   * ⚠️ **只填，不蓋。**
+   * 從發出請求到回來大約兩秒，使用者可能已經在那兩頁裡寫東西了。
+   * 走 replaceState 會把他寫的蓋掉，而且 snap 會跟著重設 ——
+   * 那個「蓋回去」還會被 push() 當成一筆新修改送進試算表。
+   */
+  function mergeRest(data) {
+    if (!data || !APP) return data;
+    var S = APP.S();
+    if (!S) return data;
+    var touched = false;
+
+    /* 逐筆合併，不是「空的才填」。
+       ⚠️ 「空的才填」會反過來吃掉伺服器的資料：使用者在這兩秒內加了一筆成長紀錄，
+       S.log 就不是空的，於是伺服器上原有的五筆全部被跳過，畫面上看起來像消失了。
+       以 id 為準做聯集，本機那一份優先（那是還沒送出去的最新版）。 */
+    if (data.log && data.log.length) {
+      var mine = S.log || [], have = {};
+      mine.forEach(function (e) { if (e && e.id) have[e.id] = 1; });
+      var add = data.log.filter(function (e) { return e && e.id && !have[e.id]; });
+      if (add.length) {
+        /* 依日期排回去，不要讓補進來的全部黏在尾巴。 */
+        S.log = mine.concat(add).sort(function (a, b) {
+          return String(a.d || '') < String(b.d || '') ? -1 : 1;
+        });
+        touched = true;
+      }
+    }
+    if (data.assignments) {
+      S.assignments = S.assignments || {};
+      Object.keys(data.assignments).forEach(function (k) {
+        if (!S.assignments[k]) { S.assignments[k] = data.assignments[k]; touched = true; }
+      });
+    }
+    if (touched) {
+      /* 補進來的是伺服器上本來就有的東西，不是新的修改 ——
+         要一起算進基準，否則下一次 save() 會把它們整包再送回去一次。 */
+      snap = flatten(S);
+      if (APP.render) APP.render();
+    }
+    return data;
   }
 
   var demoId = '';
@@ -331,14 +408,23 @@
     return Promise.resolve().then(function () {
       studentId = data.studentId || studentId;
       if (data.demoStudentId) demoId = data.demoStudentId;
+      var rawAnswers = data.answers || {};
+      var activityDays = String(rawAnswers.activity_days || '').split(',').filter(Boolean);
+      delete rawAnswers.activity_days;
+      /* ⚠️ data 可能只是 'boot' 那一包（沒有 log／assignments）——
+         缺的就給空值，等 prefetchRest 補。不要因此把已經有的清掉。 */
+      var prev = (APP && APP.S()) || {};
       var S = {
         name: data.studentName || data.lineDisplayName || '',
-        answers: data.answers || {},
+        answers: rawAnswers,
         coachReport: unpackReport(data.report || {}),
         picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
         assignments: data.assignments || {},
-        log: Array.isArray(data.log) ? data.log : []
+        log: Array.isArray(data.log) ? data.log : [],
+        activityDays: activityDays
       };
+      if (!data.assignments && prev.assignments) S.assignments = prev.assignments;
+      if (!data.log && Array.isArray(prev.log)) S.log = prev.log;
       unpackTasks(data.tasks || {}, S);
       if (data.blueprint && data.blueprint.length) applyBlueprint(data.blueprint);
       if (APP) APP.replaceState(S, shouldRender !== false);
@@ -352,10 +438,14 @@
   }
 
   function unpackReport(flat) {
-    var cr = { adjust: {}, scores: {}, notes: {}, letter: '', complete: false };
+    var cr = { adjust: {}, scores: {}, notes: {}, letter: '', coachName: '',
+               coachEnglishName: '', growthStart: '', complete: false };
     Object.keys(flat).forEach(function (f) {
       var v = flat[f];
       if (f === 'letter') cr.letter = typeof v === 'string' ? v : '';
+      else if (f === 'coachName') cr.coachName = typeof v === 'string' ? v : '';
+      else if (f === 'coachEnglishName') cr.coachEnglishName = typeof v === 'string' ? v : '';
+      else if (f === 'growthStart') cr.growthStart = typeof v === 'string' ? v : '';
       else if (f === 'complete') cr.complete = v === true;
       else {
         var parts = f.split('.');
@@ -370,7 +460,7 @@
   function unpackTasks(tasks, S) {
     Object.keys(tasks).forEach(function (item) {
       var f = tasks[item];
-      if (f.current) S.taskNow[item] = f.current;
+      if (f.current === true) S.taskNow[item] = 1;
       if (f.done === true) S.done[item] = 1;
       if (f.hidden === true) S.hidden[item] = 1;
       if (f.picked === true) S.picked.push(item);
@@ -439,6 +529,7 @@
       var prev = studentId;
       studentId = id;
       snap = null;
+      restDone = false;            /* 換人了，那一份要重補 */
       return load_().catch(function (e) {
         studentId = prev;               /* 換失敗就換回去，不要停在半空中 */
         throw e;

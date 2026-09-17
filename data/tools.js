@@ -1,6 +1,6 @@
-/* 課程工具區。這一版只記錄已確認的十種工具與預計表格，
-   不做假的輸入、勾選或儲存功能。每張表先標出穩定 id、rowIds 與各欄 owner，
-   讓前端和後端能辨認欄位，不必拿顯示文字當資料鍵。
+/* 課程工具區。已建立的作業使用通用作業引擎；尚未建立的工具保留資料結構預覽。
+   每張表與作業先標出穩定 id、rowIds 與各欄 owner，讓前端和後端能辨認欄位，
+   不必拿顯示文字當資料鍵。
    owner: system 固定內容／coach 教練填寫／student 學員填寫。 */
 (function () {
   var Q36 = [
@@ -48,6 +48,68 @@
     });
   }
 
+  var STORY_SECTIONS = [
+    { id: 'encounter', no: '01', t: '邂逅吸引', en: 'Encounter & Attraction',
+      topics: [
+        { id: 'interest', t: '興趣' }, { id: 'life', t: '生活' },
+        { id: 'education', t: '學涯' }, { id: 'career', t: '職涯' }
+      ] },
+    { id: 'heart', no: '02', t: '走入心房', en: 'Into the Heart',
+      topics: [
+        { id: 'relationships', t: '人際' }, { id: 'family', t: '家庭' },
+        { id: 'vulnerability', t: '脆弱' }, { id: 'childhood', t: '童年' }
+      ] },
+    { id: 'intimacy', no: '03', t: '親密關係', en: 'Intimate Relationship',
+      topics: [
+        { id: 'first-love', t: '初戀' }, { id: 'romance', t: '浪漫' },
+        { id: 'heartbreak', t: '情傷' }, { id: 'sensuality', t: '情趣' }
+      ] }
+  ];
+
+  var STORY_FIELDS = [
+    { id: 'headline', t: '頭條式標題', rows: 3,
+      help: '用 1–3 句話表達故事核心，要讓人想繼續聽下去。',
+      ph: '用 1–3 句寫出這個故事的核心' },
+    { id: 'event', t: '具體事件與劇情', rows: 7,
+      help: '先做減法，拿掉不影響因果的內容；再做加法，補上有助於理解的內心小聲音與個人感受。',
+      ph: '事情怎麼開始、發生了什麼、最後留下什麼？' },
+    { id: 'value', t: '故事傳遞的價值', rows: 4,
+      help: '聽完這個故事，對方會對故事裡的你多一個什麼認識？',
+      ph: '寫下對方會認識到的能力、個性或生活狀態' },
+    { id: 'context', t: '對話脈絡與引導問句', rows: 4,
+      help: '前面可以聊什麼？用哪一個問句，能自然延伸到分享這個故事？',
+      ph: '先寫前面的話題，再寫一句可以接到故事的問句' }
+  ];
+
+  function storyGroups() {
+    var out = [];
+    STORY_SECTIONS.forEach(function (section) {
+      section.topics.forEach(function (topic) {
+        var group = {
+          id: section.id + '-' + topic.id,
+          section: section.id,
+          t: topic.t,
+          fields: STORY_FIELDS.map(function (field) {
+            return {
+              id: section.id + '-' + topic.id + '-' + field.id,
+              key: field.id, t: field.t, rows: field.rows, help: field.help, ph: field.ph
+            };
+          })
+        };
+        if (section.id === 'encounter' && topic.id === 'interest') {
+          group.example = {
+            headline: '去宿霧看鯨鯊',
+            event: '有一陣子在玩自由潛水，常常會和別人一起去玩。有一次跟了一個團去菲律賓宿霧潛水，看見世界上最大的魚類——鯨鯊，印象很深刻。',
+            value: '會潛水、有朋友、喜歡動物的個性。',
+            context: '聊興趣、聊潛水。可以問：「你有沒有一個玩到現在，還會想一直精進的興趣？」'
+          };
+        }
+        out.push(group);
+      });
+    });
+    return out;
+  }
+
   window.UC_TOOLS = {
     review: false,
 
@@ -73,26 +135,21 @@
           ]
         } },
 
-      { k: 'chattopics', t: '聊天話題庫', en: 'Conversation Library', status: 'preview',
+      { k: 'chattopics', t: '聊天話題庫', en: 'Conversation Library', status: 'active',
         cover: 'assets/course-covers/tool-02-conversation-library-v1.webp',
         lead: '認識自己的故事，再把故事整理成可以自然展開的聊天素材。',
-        body: '整合「人生重大話題」與「對話脈絡」：先整理事件與感受，再為每個故事補上能引導對方分享的問題。',
-        tables: [
-          { id: 'life-stories', t: '人生重大話題',
-            cols: ['面向', '故事主題', '重大事件', '感受', '我的故事'],
-            colIds: ['aspect', 'theme', 'event', 'feeling', 'story'],
-            owners: ['system', 'system', 'student', 'student', 'student'],
-            rowIds: ['attraction', 'connection', 'intimacy'], rows: [
-            ['吸引', '興趣／生活／專業', '', '', ''],
-            ['談心', '人際／家庭／脆弱', '', '', ''],
-            ['曖昧親密', '初戀／浪漫／情傷', '', '', '']
-          ] },
-          { id: 'conversation-context', t: '對話脈絡',
-            cols: ['故事標題', '情緒', '人格特質', '故事中的價值', '引導問題'],
-            colIds: ['title', 'emotion', 'trait', 'value', 'prompt'],
-            owners: ['student', 'student', 'student', 'student', 'student'],
-            rowIds: ['entry-01'], rows: [['', '', '', '', '']] }
-        ] },
+        body: '這份作業同時對應〈戀愛三步驟〉與〈說故事〉課。先為十二個題目各找出一件人生重大事件，再把故事整理成有核心、有價值，也能從對話自然延伸的素材。',
+        assignment: {
+          id: 'chattopics', version: 1, title: '建立你的聊天話題庫', progressUnit: '個故事',
+          note: '先完成第一輪，再回來補第二輪。〈戀愛三步驟〉先替十二個題目各選一件重大事件；上完〈說故事〉後，再補齊劇情細節、想傳遞的價值與對話脈絡。',
+          prompt: '三大主軸共十二個題目。每個題目都要完成「頭條式標題、具體事件與劇情、故事傳遞的價值、對話脈絡與引導問句」四欄。',
+          steps: [
+            { no: '01', t: '戀愛三步驟', body: '先找出每個題目中最想分享的重大事件，寫下標題與事件骨架。' },
+            { no: '02', t: '說故事', body: '回來做減法與加法，補足感受、價值和能自然帶出故事的引導問句。' }
+          ],
+          sections: STORY_SECTIONS,
+          groups: storyGroups()
+        } },
 
       { k: 'datemap', t: '約會地圖', en: 'Date Map', status: 'preview',
         cover: 'assets/course-covers/tool-03-date-map-v1.webp',
@@ -108,17 +165,84 @@
           ] }
         ] },
 
-      { k: 'beliefs', t: '信念系統', en: 'Belief System', status: 'preview',
+      { k: 'beliefs', t: '信念系統', en: 'Belief System', status: 'active',
         cover: 'assets/course-covers/tool-04-belief-system-v1.webp',
-        lead: '從負面標籤與不自信，找出正在影響自己的信念。',
-        body: '記下自己怎麼看女生、怎麼看自己，再回到形成這些看法的經驗，整理信念如何影響行為與結果。',
-        tables: [
-          { id: 'belief-review', t: '信念整理',
-            cols: ['負面標籤／不自信', '形成經驗', '我的信念', '帶來的行為', '造成的結果'],
-            colIds: ['label', 'origin', 'belief', 'behavior', 'result'],
-            owners: ['student', 'student', 'student', 'student', 'student'],
-            rowIds: ['entry-01'], rows: [['', '', '', '', '']] }
-        ] },
+        lead: '看見自己在感情裡反覆默念的話，再用一個新行動驗證別的可能。',
+        body: '信念會影響我們怎麼解讀一件事，也會影響接下來的行為與結果。這份作業不是要你用正面口號說服自己，而是先找到那句常自動出現的話，再透過一個小而具體的行動，給自己一次新體驗。',
+        assignment: {
+          id: 'beliefs', version: 1, kind: 'belief-cycle', title: '找到你在感情裡的負面信念', progressUnit: '個階段',
+          note: '下面列的句子是常見的自動想法，不是對任何性別或關係的事實判斷。先誠實看見它曾經出現，才有機會不再被它牽著走。',
+          prompt: '先完成「看見標籤」，再用一件具體的感情事件完成「跳出信念」。不用一次把所有想法處理完，這次只挑一句最有影響的話。',
+          steps: [
+            { no: '01', t: '看見標籤', body: '從常見想法中辨認自己的句子，找到它形成的來源。' },
+            { no: '02', t: '跳出信念', body: '用一件事看懂舊迴圈，選擇新信念與一個可執行的小行動。' }
+          ],
+          belief: {
+            stage1: {
+              no: '01', t: '看見標籤', en: 'Notice the Label',
+              body: '請勾選曾經在腦中出現過的句子。你不需要認同它，只要判斷它有沒有在感情不順時自動跑出來。',
+              categories: [
+                { id: 'relationship', t: '對女生與關係的標籤', items: [
+                  { id: 'belief-label-r01', text: '女生只看外表。' },
+                  { id: 'belief-label-r02', text: '女生只在意收入與條件。' },
+                  { id: 'belief-label-r03', text: '女生只喜歡很會說話或看起來很壞的男生。' },
+                  { id: 'belief-label-r04', text: '對一個人太好，反而不會被珍惜。' },
+                  { id: 'belief-label-r05', text: '女生說想要穩定，其實只想要刺激。' },
+                  { id: 'belief-label-r06', text: '感情裡先主動的人總是比較吃虧。' },
+                  { id: 'belief-label-r07', text: '感情裡比較認真的人，最後一定會受傷。' },
+                  { id: 'belief-label-r08', text: '女生有太多選擇，不會真心看見我。' },
+                  { id: 'belief-label-r09', text: '只要表現出脆弱，就會失去吸引力。' },
+                  { id: 'belief-label-r10', text: '對方沒有馬上回應，就代表她對我沒興趣。' }
+                ] },
+                { id: 'self', t: '對自己的不自信標籤', items: [
+                  { id: 'belief-label-s01', text: '我不夠帥或不夠高，所以不會被喜歡。' },
+                  { id: 'belief-label-s02', text: '我的收入或成就不夠好，沒有競爭力。' },
+                  { id: 'belief-label-s03', text: '我不會聊天，跟我相處會很無聊。' },
+                  { id: 'belief-label-s04', text: '我太內向、太老實，所以不會被選擇。' },
+                  { id: 'belief-label-s05', text: '我沒有戀愛經驗，被知道後會被看不起。' },
+                  { id: 'belief-label-s06', text: '我不會調情或製造氣氛，所以只能當朋友。' },
+                  { id: 'belief-label-s07', text: '只要我先主動，就一定會被拒絕。' },
+                  { id: 'belief-label-s08', text: '真實的我不值得被喜歡。' },
+                  { id: 'belief-label-s09', text: '我要先變得更好，才有資格談感情。' },
+                  { id: 'belief-label-s10', text: '只要關係開始靠近，我最後就會把它搞砸。' }
+                ] }
+              ],
+              fields: [
+                { id: 'stage1-other', t: '還有其他常出現的句子嗎？', rows: 3, required: false,
+                  help: '如果上面沒有寫到，請用你平常在心裡說話的方式寫下來。', ph: '例如：只要我太認真，對方就會想逃。' },
+                { id: 'stage1-core', t: '這次最想處理的一句話', rows: 3,
+                  help: '從勾選的句子中選一句最常出現、或最影響你行動的。', ph: '直接抄下那句話，不用先修飾它。' },
+                { id: 'stage1-origin', t: '你認為它是怎麼形成的？', rows: 6,
+                  help: '可以回想最早或最強烈的一次經驗，也可以是多次被拒絕、家庭、朋友或網路言論的累積。', ph: '那時發生了什麼？你從中學到了什麼？' }
+              ]
+            },
+            stage2: {
+              no: '02', t: '跳出信念', en: 'Create a New Experience',
+              body: '選一件具體的感情事件，寫下當時的負面信念如何影響你。接著不急著否定它，先設計一個小行動，讓新經驗替你提供新證據。',
+              loopTitle: '先看懂舊迴圈',
+              loopLead: '把當時的過程拆開，看見信念如何影響行為，又如何用結果證明自己。',
+              loopFields: [
+                { id: 'stage2-event', t: '具體事件', rows: 5, help: '選一次最近或印象深刻的感情經驗，只寫得到的事實。', ph: '在哪裡、跟誰、發生了什麼？' },
+                { id: 'stage2-belief', t: '當時出現的負面信念', rows: 4, help: '寫下那一刻你對自己、對女生或對關係下的結論。可以直接沿用第一階段的句子。', ph: '例如：她沒有馬上回應，一定是我很無聊。' },
+                { id: 'stage2-feeling', t: '情緒與身體反應', rows: 4, help: '不只寫「不開心」，也回想胸口、肩膀、胃或呼吸發生了什麼。', ph: '例如：焦慮，胸口很緊，一直重看對話。' },
+                { id: 'stage2-behavior', t: '你接著做了什麼？', rows: 4, help: '也可以寫你因此沒做什麼，例如沒邀約、沒說真話或刻意拉開距離。', ph: '你做了什麼，或避開了什麼？' },
+                { id: 'stage2-result', t: '最後得到什麼結果？', rows: 4, help: '這個結果又怎麼讓你更相信原本那句話？', ph: '寫下結果，以及它怎麼把信念變得更真。' }
+              ],
+              pivotTitle: '在這裡停一下',
+              pivotBody: '不再證明舊信念，開始設計一次新體驗。',
+              exitTitle: '再創造一次新經驗',
+              exitLead: '新信念不需要很正面，只要比舊信念多一點空間，並且能帶你做出不同選擇。',
+              exitFields: [
+                { id: 'stage2-protection', t: '這個舊信念想保護你避開什麼？', rows: 4, help: '例如被拒絕、丟臉、失望，或讓別人看見自己的不安。', ph: '如果繼續相信它，你就不用面對什麼？' },
+                { id: 'stage2-exception', t: '有沒有不符合它的例外？', rows: 4, help: '回想自己或身邊的真實經驗。只要有一個例外，這句話就不是全部的事實。', ph: '哪一次經驗曾經與這句話不一樣？' },
+                { id: 'stage2-new-belief', t: '你想試著相信的新說法', rows: 4, help: '不用寫「我很棒」。寫一句真實、有彈性，而且會帶來新行動的話。', ph: '例如：一次回應不代表我的全部，我可以清楚表達好感，也尊重對方的選擇。' },
+                { id: 'stage2-action', t: '一個可執行的簡易動作', rows: 4, help: '設計一個七天內做得到、也能清楚判斷有沒有完成的動作。', ph: '什麼時間、在哪裡、你會做哪一個小動作？' },
+                { id: 'stage2-imagine', t: '先想像自己真的去做', rows: 4, help: '你可能還是緊張。請想像行動當下的畫面、身體感受，以及做完後想怎麼看待自己。', ph: '我可能會感到……當我做完，我希望自己記得……' },
+                { id: 'stage2-review', t: '行動後的新證據', rows: 5, required: false, help: '行動後再回來填。結果不一定要成功，重點是你做了與過去不同的選擇。', ph: '實際發生了什麼？這次經驗讓你多看見了什麼？' }
+              ]
+            }
+          }
+        } },
 
       { k: 'responsible', t: '負責任版本', en: 'Responsible Version', status: 'preview',
         cover: 'assets/course-covers/tool-05-responsible-version-v1.webp',

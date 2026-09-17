@@ -25,10 +25,11 @@ window.UC_OKR = {
 
   taskUI: {
     label: '當前任務',
+    themeLabel: '大主題',
     unsetShort: '尚未安排',
-    coverHint: '選一項能力，查看專責教練安排的當前任務。',
-    emptyTitle: '這項能力還沒有當前任務',
-    emptyBody: '專責教練可以到「總覽」頁，從這項能力的關鍵結果中選出一條當前任務。',
+    coverHint: '選一張任務卡，查看專責教練安排的行動。',
+    emptyTitle: '目前還沒有安排任務',
+    emptyBody: '專責教練可以到「總覽」頁，勾選一條或多條當前任務。',
     defaultDetail: '依照這項關鍵結果執行，並在下一次教練對談時回看進度。',
     editAction: '前往總覽',
     runAction: '執行任務',
@@ -45,19 +46,12 @@ window.UC_OKR = {
     doneCount: '已完成',
     manageHidden: '管理隱藏任務',
     finishHidden: '完成隱藏設定',
-    workHint: '每列依序：當前／完成',
+    workHint: '當前任務可複選，數量不限；完成後可個別取消',
     hideHint: '勾選這位學員不需要看到的任務',
     hideLabel: '隱藏任務',
     hiddenMark: '已隱藏',
     doneLabel: '完成任務',
-    doneMark: '已完成',
-    abilityLabel: '能力值'
-  },
-
-  /* 每項任務預設增加 1 點所屬能力值；個別 item 可用 gain 覆寫。
-     這是任務成長值，不會改動原始評測分數與星等。 */
-  taskProgress: {
-    defaultGain: 1
+    doneMark: '已完成'
   },
 
   /* 當前任務的執行入口。工作表有對應課程工具時直接打開工具；

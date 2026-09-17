@@ -44,13 +44,16 @@ window.UC_START_LIFF = function () {
      比我們自己全部的程式碼（index＋app＋css＋store＋boot＋score 約 100 KB）還大兩倍多。
      `display=swap` 只讓**字型檔**不擋繪製，CSS 本身照擋。
 
-     media="print" ＋ onload 換回 all：照樣下載，但不列入繪製的必要條件。
-     ⚠️ 關 JS 的話 onload 不會跑，所以留 noscript 的退路。
+     media="print" ＋ onload 換回 all：瀏覽器仍然會下載，但不列入繪製的必要條件。
+     配上 display=swap，行為是「先用系統字畫出來，字型到了再換」——
+     跟原本一樣，只是提早開始畫。
+     ⚠️ 關 JS 的話 onload 不會跑，所以要留 noscript 的退路。
 
-     順帶刪掉 DM+Serif+Display：`--display` 變數在 uc.css 裡被引用 0 次。 -->
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&display=swap"></noscript>
-<link rel="stylesheet" href="uc.css?v=20260913y">
+     順帶刪掉 DM+Serif+Display：`--display` 變數在 uc.css 裡**被引用 0 次**。 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"></noscript>
+<link rel="stylesheet" href="uc.css?v=20260917c">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"
   onload="this.dataset.ready='1';window.UC_START_LIFF()" onerror="this.dataset.failed='1'"></script>
@@ -73,7 +76,7 @@ window.UC_START_LIFF = function () {
         </svg>
       </button>
 
-      <p class="ey hero-ey">Monger Culture ・ est. 2017</p>
+      <p class="ey hero-ey">Munger Culture ・ est. 2017</p>
 
       <h1 class="hero-h">
         <span class="mask"><span>UC Training</span></span>
@@ -85,12 +88,12 @@ window.UC_START_LIFF = function () {
       <div class="divider hero-div"><i></i><s></s></div>
 
       <p class="hero-lead" id="heroLead">歡迎回來。<br>
-        準備好，就回到你的成長路徑。</p>
+        先使自己完整，再學習愛與被愛。</p>
 
       <form class="hero-form" id="loginForm" autocomplete="off">
         <input type="text" id="loginName" placeholder="你的名字或代號" aria-label="你的名字或代號"
           data-field-id="student.profile.name" data-field-owner="student" data-field-label="學員稱呼" required>
-        <button class="btn pri" type="submit">進入我的教練室</button>
+        <button class="btn pri" type="submit">雲端教練陪跑</button>
       </form>
 
       <p class="hero-alt">
@@ -99,7 +102,7 @@ window.UC_START_LIFF = function () {
       </p>
 
       <div class="line-entry" id="lineEntry">
-        <button class="btn pri" type="button" id="lineEnterBtn">進入我的教練室</button>
+        <button class="btn pri" type="button" id="lineEnterBtn">雲端教練陪跑</button>
         <small>登入後會前往你的課程進度</small>
       </div>
 
@@ -139,19 +142,19 @@ window.UC_START_LIFF = function () {
   <a href="#/" id="navOut">登出</a>
 </nav>
 
-<script defer src="data/questions.js?v=20260913y"></script>
-<script defer src="data/dimensions.js?v=20260913y"></script>
-<script defer src="data/okr.js?v=20260913y"></script>
-<script defer src="data/library.js?v=20260913y"></script>
-<script defer src="data/tools.js?v=20260913y"></script>
-<script defer src="data/coach.js?v=20260913y"></script>
-<script defer src="data/growth.js?v=20260913y"></script>
-<script defer src="score.js?v=20260913y"></script>
+<script defer src="data/questions.js?v=20260917c"></script>
+<script defer src="data/dimensions.js?v=20260917c"></script>
+<script defer src="data/okr.js?v=20260917c"></script>
+<script defer src="data/library.js?v=20260917c"></script>
+<script defer src="data/tools.js?v=20260917c"></script>
+<script defer src="data/coach.js?v=20260917c"></script>
+<script defer src="data/growth.js?v=20260917c"></script>
+<script defer src="score.js?v=20260917c"></script>
 <!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
-<script defer src="store.js?v=20260913y"></script>
-<script defer src="app.js?v=20260913y"></script>
-<script defer src="edit.js?v=20260913y"></script>
+<script defer src="store.js?v=20260917c"></script>
+<script defer src="app.js?v=20260917c"></script>
+<script defer src="edit.js?v=20260917c"></script>
 <!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
-<script defer src="boot.js?v=20260913y"></script>
+<script defer src="boot.js?v=20260917c"></script>
 </body>
 </html>

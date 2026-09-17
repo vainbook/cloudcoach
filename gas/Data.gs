@@ -676,7 +676,26 @@ function writeRow_(sh, map, line, set) {
     sh.getRange(sh.getLastRow() + 1, 1, 1, width).setValues([row]);
     return;
   }
-  for (var c in set) if (map[c]) sh.getRange(line, map[c]).setValue(set[c]);
+  /* ⚠️ **逐格 setValue 是一格一次呼叫。**
+     一次評測存檔要寫 7 格 → 7 次呼叫，而這整段包在**全站唯一的那把鎖**裡
+     （Code.gs 的 stateSaveAction_）。鎖握得越久，別的學員就排得越久。
+
+     改成「整列讀一次 → 在記憶體改 → 整列寫一次」＝ 2 次呼叫。
+     ⚠️ 讀回來的其他欄位原樣寫回去，所以**仍然是「其他欄位一格不動」** ——
+     這是原本逐格寫的用意，不能弄丟。而且讀與寫都在同一把鎖裡，
+     中間沒有別人插得進來。 */
+  var cols = [];
+  for (var c in set) if (map[c]) cols.push(map[c]);
+  if (!cols.length) return;
+  if (cols.length === 1) {                 /* 只寫一格就不必來回讀 */
+    sh.getRange(line, cols[0]).setValue(set[Object.keys(set)[0]]);
+    return;
+  }
+  var lo = Math.min.apply(null, cols), hi = Math.max.apply(null, cols);
+  var span = sh.getRange(line, lo, 1, hi - lo + 1);
+  var vals = span.getValues()[0];
+  for (var c2 in set) if (map[c2]) vals[map[c2] - lo] = set[c2];
+  span.setValues([vals]);
 }
 
 /** 沒有 display 的時候，把值翻成還算能看的文字。 */

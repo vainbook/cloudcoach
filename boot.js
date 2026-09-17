@@ -149,10 +149,30 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text)
           .then(function () { return 'copy'; })
-          .catch(function () { return 'fail'; });
+          .catch(function () { return fallbackCopyText(text); });
       }
     } catch (e) {}
-    return Promise.resolve('fail');
+    return fallbackCopyText(text);
+  }
+
+  /* 舊版 WebView／file:// 預覽可能沒有 Clipboard API；保留一次同步複製的退路。
+     這條路仍由使用者按下「儲存紀錄」觸發，不在背景任意碰剪貼簿。 */
+  function fallbackCopyText(text) {
+    var input;
+    try {
+      input = document.createElement('textarea');
+      input.value = String(text == null ? '' : text);
+      input.setAttribute('readonly', '');
+      input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(input);
+      input.focus(); input.select();
+      var ok = document.execCommand && document.execCommand('copy');
+      input.remove();
+      return Promise.resolve(ok ? 'copy' : 'fail');
+    } catch (e) {
+      if (input && input.parentNode) input.parentNode.removeChild(input);
+      return Promise.resolve('fail');
+    }
   }
 
   /* 對外。⚠️ 即使沒有 LINE 也要掛上去 —— 呼叫端只要 UC_SHARE 在就能用，
@@ -213,6 +233,7 @@
 
   window.UC_SHARE = {
     text: shareText,
+    copy: copyText,
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
     canSend: function () { return hasPicker() || hasSend() || !!navigator.share; },

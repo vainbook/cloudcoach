@@ -9,6 +9,8 @@
   var S = load();
   var LINE_PROFILE = { displayName: '', pictureUrl: '' };
   var SYNC_STATE = { state: 'local', text: '本機模式' };
+  /* 只記當前正在編輯哪則故事，不寫入存檔。 */
+  var ASSIGNMENT_OPEN = {};
 
   /* ⚠️ 舊版只 try/catch JSON.parse —— 那只擋得住「壞掉的 JSON」，
      擋不住**合法 JSON 但形狀不對**（`[]`、`"字串"`、舊版存檔少欄位、
@@ -43,23 +45,45 @@
       picked:  Array.isArray(raw.picked) ? raw.picked.filter(function (x) {
                  return typeof x === 'string'; }) : b.picked,
       key:     obj(raw.key),
-      taskNow: obj(raw.taskNow),
+      taskNow: normalizeTaskNow(raw.taskNow),
       hidden:  obj(raw.hidden),
       done:    obj(raw.done),
       assignments: normalizeAssignments(raw.assignments),
       coachReport: normalizeCoachReport(raw.coachReport),
-      log:     Array.isArray(raw.log) ? raw.log : b.log
+      log:     Array.isArray(raw.log) ? raw.log : b.log,
+      activityDays: normalizeActivityDays(raw.activityDays)
     };
     function obj(v) {
       return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
     }
   }
-  /* picked／key 是暫時保留的書本狀態；taskNow ＝各能力的當前任務；hidden ＝不給學員看的任務。 */
+  /* picked／key 是暫時保留的書本狀態；taskNow 以 KR id 為 key，可同時勾選多條；
+     hidden ＝不給學員看的任務。 */
   function blank() {
     return {
       name: '', answers: {}, picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
-      assignments: {}, coachReport: normalizeCoachReport(), log: []
+      assignments: {}, coachReport: normalizeCoachReport(), log: [], activityDays: []
     };
+  }
+  function normalizeActivityDays(v) {
+    if (typeof v === 'string') v = v.split(',');
+    if (!Array.isArray(v)) return [];
+    var seen = {};
+    return v.filter(function (x) {
+      x = String(x || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(x) || seen[x]) return false;
+      seen[x] = 1; return true;
+    }).sort();
+  }
+  function normalizeTaskNow(v) {
+    var out = {};
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+    Object.keys(v).forEach(function (k) {
+      /* 新格式：{ "V-01": true }。舊格式：{ values: "V-01" }。 */
+      if (v[k] === true || v[k] === 1) out[k] = 1;
+      else if (typeof v[k] === 'string' && v[k]) out[v[k]] = 1;
+    });
+    return out;
   }
   function normalizeAssignments(v) {
     var out = {};
@@ -96,6 +120,10 @@
       scores: scores,
       notes: notes,
       letter: typeof v.letter === 'string' ? v.letter : '',
+      coachName: typeof v.coachName === 'string' ? v.coachName : ((window.UC_COACH && window.UC_COACH.name) || ''),
+      coachEnglishName: typeof v.coachEnglishName === 'string' ? v.coachEnglishName : '',
+      growthStart: /^\d{4}-\d{2}-\d{2}$/.test(String(v.growthStart || ''))
+        ? String(v.growthStart) : ((window.UC_GROWTH && window.UC_GROWTH.start) || ''),
       complete: v.complete === true
     };
   }
@@ -103,6 +131,13 @@
      呼叫 save()，所以要接後端只要接這一個出口 —— 不必去改那 21 個地方，
      也不會漏掉 cr 那種閉包別名（app.js 的教練報告寫的是 cr.xxx 不是 S.coachReport.xxx）。 */
   function save() {
+    /* 學員每次真的修改資料時，只留下日期，不記錄改了哪份文件。 */
+    if (ACTOR_ROLE === 'student') {
+      var today = new Date();
+      var iso = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2)
+        + '-' + ('0' + today.getDate()).slice(-2);
+      S.activityDays = normalizeActivityDays((S.activityDays || []).concat([iso]));
+    }
     /* demo／離線照舊寫瀏覽器。配額爆掉不影響使用，所以這個 catch 是故意空的。 */
     if (!(window.UC_STORE && window.UC_STORE.isRemote())) {
       try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
@@ -452,7 +487,7 @@
   }
 
   /* ── 評測（一頁式）───────────────────────────────────
-     六區全部攤在同一頁往下捲，最上面那排是**跳躍錨點不是分頁**。
+     五區全部攤在同一頁往下捲，最上面那排是**跳躍錨點不是分頁**。
      每一題預設收合，只露出「短標題 ＋ 你的答案」；點開才出現題目與選項。
      這樣教練讀到的和學員填的是同一塊 —— 不需要另外做一份訪談摘要。
      ⚠️ 收合狀態不存進 S.answers，重整就全部收回去。那是刻意的：
@@ -479,8 +514,7 @@
       return '<section class="assec" id="sec-' + g.sec.k + '">'
         + '<header class="sechead"><p class="ey">' + g.sec.no + ' ・ ' + g.sec.en + '</p>'
         + '<h2>' + esc(g.sec.name) + '</h2>'
-        + '<div class="divider"><i></i><s></s></div>'
-        + '<p class="lead">' + esc(g.sec.lead) + '</p></header>'
+        + '<div class="divider"><i></i><s></s></div></header>'
         + '<div class="qlist">' + g.items.map(qRow).join('') + '</div>'
         + '</section>';
     }).join('');
@@ -621,7 +655,7 @@
   }
 
   /* 收合時的答案格。
-     `ladder: true`（06 情感能力那 25 題）畫五顆菱形標出級數，**再接上選到的那句話** ——
+     `ladder: true`（05 情感能力那 25 題）畫五顆菱形標出級數，**再接上選到的那句話** ——
      只有菱形的話教練得回頭點開才知道他選了什麼，那就違背「收合狀態就是一份摘要」。
      ⚠️ **沒有 ladder 的選擇題不要畫菱形**。菱形是刻度，只有選項真的由低到高排的題目
      才能用；其他題的選項沒有順序，畫成刻度會騙人。 */
@@ -1167,6 +1201,14 @@
     })[0].k;
   }
 
+  /* 舊資料曾把中英文署名拆成兩欄；畫面改成單欄後仍先合併顯示，
+     等教練下一次編輯時再收斂成 coachName，避免既有英文署名消失。 */
+  function coachSignature(cr) {
+    return [cr.coachName, cr.coachEnglishName].map(function (v) {
+      return String(v || '').trim();
+    }).filter(Boolean).join(' ');
+  }
+
   /* 一列的星等顯示：題目測出來的基準、教練的加減、最終結果。
      **只重畫這一小塊**，不動 textarea（重畫會讓游標跳掉）。 */
   function crRowScoreHTML(d, r, cr) {
@@ -1222,6 +1264,12 @@
       + ' data-field-id="report.letter" data-field-owner="coach"'
       + ' placeholder="請寫下你對這位學員整體狀況的理解，以及接下來最重要的一步。">'
       + esc(cr.letter) + '</textarea></label>'
+      + '<section class="crsignature"><div><p class="ey">Coach Signature</p><h3>教練署名</h3>'
+      + '<p>中文或英文都填在同一格，會以同一款手寫簽名字體呈現。</p></div>'
+      + '<label>署名<input type="text" data-report-coach-name'
+      + ' data-field-id="report.coachName" data-field-owner="coach" placeholder="例如：王大明 Daniel" value="'
+      + esc(coachSignature(cr)) + '"></label>'
+      + '<div class="sigpreview"><span>' + esc(coachSignature(cr) || 'Coach Signature') + '</span></div></section>'
       + '<div class="crfoot"><p>未完成前，學員不會看到任何評測內容。</p>'
       + '<button type="button" class="btn pri" id="finishReport">完成評測並開放報告</button></div>'
       + '</div></section></div>';
@@ -1280,6 +1328,17 @@
         cr.letter = letter.value; cr.complete = false; save(); grow(letter); syncReview();
       });
     }
+    var coachName = body.querySelector('[data-report-coach-name]');
+    function syncSignature() {
+      var preview = body.querySelector('.sigpreview');
+      if (!preview) return;
+      preview.querySelector('span').textContent = coachSignature(cr) || 'Coach Signature';
+    }
+    if (coachName) coachName.addEventListener('input', function () {
+      cr.coachName = coachName.value;
+      cr.coachEnglishName = '';
+      cr.complete = false; save(); syncSignature();
+    });
     el('finishReport').addEventListener('click', function () {
       if (!coachReportValid()) return;
       cr.complete = true; REPORT_EDIT = false; save(); renderReport();
@@ -1330,10 +1389,8 @@
       + '<p class="ey">Assessment Report ・ 教練評測完成</p>'
       + '<h1>' + esc(S.name || '學員') + '　情感能力評測</h1>'
       + '<div class="divider"><i></i><s></s></div>'
-      + '<div class="rhact">'
-      + (ACTOR_ROLE === 'student' ? '' : '<button type="button" class="btn" id="editReport">編輯評測</button>')
-      + '<button type="button" class="btn gh" id="shareReport">' + esc(shareLabel()) + '</button>'
-      + '</div></header>');
+      + (ACTOR_ROLE === 'student' ? '' : '<div class="rhact"><button type="button" class="btn" id="editReport">編輯評測</button></div>')
+      + '</header>');
 
     h += wrap(head('01', 'Ability Map', '情感能力')
       + '<div class="chart" id="chart"></div>'
@@ -1343,7 +1400,8 @@
       + '<div class="letter">'
       + '<p class="lsalu">' + esc(S.name || '學員') + '，你好：</p>'
       + '<div class="lbody"><p class="lpara">' + esc(cr.letter) + '</p></div>'
-      + '<p class="lsign">' + esc(CO.title) + '　' + esc(CO.name) + '</p>'
+      + '<div class="lsign"><span>' + esc(coachSignature(cr) || CO.name) + '</span>'
+      + '<small>' + esc(CO.title) + '</small></div>'
       + (CO.signedOn ? '<p class="ldate">' + esc(CO.signedOn) + '</p>' : '')
       + '</div>', 'rv');
 
@@ -1353,7 +1411,6 @@
     drawRadar(el('chart'), vals, { comment: true, comments: cr.notes, lead: low });
     var edit = el('editReport');
     if (edit) edit.addEventListener('click', function () { REPORT_EDIT = true; renderReport(); });
-    bindShare(el('shareReport'), function () { return reportAsText(cr, r); });
     reveal(body);
   }
 
@@ -1432,79 +1489,28 @@
     reveal(body);
   }
 
-  /* ── 傳到 LINE ─────────────────────────────────────
-     UC_SHARE 在 boot.js，三段降級（選對象 → 送進當前聊天室 → 複製）。
-     這裡只負責「按鈕長什麼樣」與「要送什麼字」。
-     ⚠️ 內容**在按下去的當下才組**，不要在 render 時先組好 ——
-     教練可能剛改完評語，先組好的會是舊的。 */
-
-  /* 按鈕的字要說出**實際會發生什麼事**。
-     使用者 2026-09-13：「我只是要確認好。」—— 按鈕寫「傳到 LINE」卻跳出複製，
-     那不是功能不足，是介面在說謊。 */
-  function shareLabel() {
-    if (!window.UC_SHARE || !window.UC_SHARE.how) return '複製內容';
-    return { picker: '傳到 LINE', send: '傳回這個對話',
-             system: '分享', copy: '複製內容' }[window.UC_SHARE.how()] || '複製內容';
-  }
-
-  function bindShare(btn, build) {
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      if (!window.UC_SHARE) { toast('這個環境沒辦法分享'); return; }
-      btn.disabled = true;
-      window.UC_SHARE.text(build()).then(function (how) {
-        btn.disabled = false;
-        var why = window.UC_SHARE.lastError && window.UC_SHARE.lastError();
-        /* ⚠️ 退回複製的時候**要講為什麼**。只說「已複製」的話，
-           按鈕明明寫「傳到 LINE」卻複製給你，看起來就是壞了（踩過）。 */
-        toast({ share: '已經送出去了', send: '已經送進聊天室',
-                system: '已交給手機的分享選單',
-                copy: why ? '傳不出去（' + why + '），已改成複製' : '已複製，貼到聊天室就好',
-                cancel: '取消了',
-                /* 連複製都失敗時也要講理由 —— 「這個環境沒辦法分享」等於沒說。 */
-                fail: why ? '傳不出去：' + why : '這個環境沒辦法分享'
-              }[how] || '完成');
-      });
-    });
-  }
-
-  /* 報告的純文字版。LINE 訊息沒有排版，所以用空行與破折號分段。 */
-  function reportAsText(cr, r) {
-    var D = window.UC_DIMENSIONS.dims, CO = window.UC_COACH;
-    var lines = ['【' + (S.name || '學員') + '　情感能力評測】', ''];
-    D.forEach(function (d) {
-      lines.push('・' + d.label + '　' + reportStar(d.k, r, cr) + '／5');
-    });
-    lines.push('', '—— 教練的信 ——', '', cr.letter || '', '', CO.title + '　' + CO.name);
-    return lines.join('\n');
-  }
-
   /* ── 課程藍圖 ─────────────────────────────────────────
-     入口是代表學員自己的成長人物；點能力卡會先看該能力的當前任務。
+     主畫面把人物與當前任務合在一起；任務卡可超過五張，卡片區自行捲動。
      「書」仍保留完整藍圖；人物不會帶進書頁，也不在這裡放週次或成長縮圖。 */
-  var OKRVIEW = 'cover', OKRSEL = null;
+  var OKRVIEW = 'tasks', OKRSEL = null;
   var BKLEVEL = 'idx', BKOPEN = null;   /* 書：左頁在哪一層／看哪一維 */
   var TASKMODAL = null, TASKRETURN = null;
 
-  function taskItem(dim) {
-    var id = S.taskNow && S.taskNow[dim];
-    if (!id || isHidden(id) || (S.done && S.done[id])) return null;
-    return window.UC_OKR.items.filter(function (it) { return it.id === id && it.dim === dim; })[0] || null;
+  function isCurrentTask(id) {
+    return !!(S.taskNow && S.taskNow[id]) && !isHidden(id) && !(S.done && S.done[id]);
+  }
+
+  function currentTaskItems() {
+    return window.UC_OKR.items.filter(function (it) { return isCurrentTask(it.id); });
+  }
+
+  function taskItem(id) {
+    if (!isCurrentTask(id)) return null;
+    return window.UC_OKR.items.filter(function (it) { return it.id === id; })[0] || null;
   }
 
   function isHidden(id) {
     return !!(S.hidden && S.hidden[id]);
-  }
-
-  function taskGain(it) {
-    var n = it && it.gain != null ? Number(it.gain) : Number(window.UC_OKR.taskProgress.defaultGain);
-    return isFinite(n) && n >= 0 ? n : 0;
-  }
-
-  function abilityGain(dim) {
-    return window.UC_OKR.items.filter(function (it) {
-      return it.dim === dim && S.done && S.done[it.id];
-    }).reduce(function (sum, it) { return sum + taskGain(it); }, 0);
   }
 
   function completedCount() {
@@ -1522,10 +1528,7 @@
   }
 
   function clearCurrentId(id) {
-    if (!S.taskNow) return;
-    Object.keys(S.taskNow).forEach(function (k) {
-      if (S.taskNow[k] === id) delete S.taskNow[k];
-    });
+    if (S.taskNow) delete S.taskNow[id];
   }
 
   function ensureTaskModal() {
@@ -1546,11 +1549,11 @@
       }
       var run = e.target.closest('[data-task-run]');
       if (!run) return;
-      var dim = run.dataset.taskDim;
-      var it = taskItem(dim);
+      var id = run.dataset.taskId;
+      var it = taskItem(id);
       var toolKey = taskToolKey(it);
       if (!toolKey) {
-        openTaskContact(dim, it);
+        openTaskContact(id, it);
         return;
       }
       closeTaskModal(false);
@@ -1564,11 +1567,13 @@
     return TASKMODAL;
   }
 
-  function openTaskModal(dim, trigger) {
+  function openTaskModal(id, trigger) {
     var O = window.UC_OKR, D = window.UC_DIMENSIONS, ui = O.taskUI;
+    var it = taskItem(id);
+    var dim = it && it.dim;
     var d = D.dims.filter(function (x) { return x.k === dim; })[0];
     if (!d) return;
-    var it = taskItem(dim), m = ensureTaskModal();
+    var m = ensureTaskModal();
     TASKRETURN = trigger || document.activeElement;
     var meta = '';
     if (it) {
@@ -1585,13 +1590,13 @@
       + '<span class="taskscan" aria-hidden="true"></span>'
       + '<button type="button" class="taskx" data-task-close="1" aria-label="' + esc(ui.closeAction) + '">×</button>'
       + '<p class="taskey">Current Mission · ' + esc(d.en) + '</p>'
-      + '<div class="taskhead"><span>' + esc(ui.label) + '</span><b>' + esc(d.label) + '</b></div>'
+      + '<div class="taskhead"><span>' + esc(ui.themeLabel) + '</span><b>' + esc(d.label) + '</b></div>'
       + '<h2 id="taskTitle">' + esc(it ? it.kr : ui.emptyTitle) + '</h2>'
       + '<div class="taskrule"><i></i><s></s></div>'
       + '<p class="taskbody">' + esc(it ? taskDetail(it) : ui.emptyBody) + '</p>'
       + meta
       + '<div class="taskactions"><button type="button" class="btn gh" data-task-close="1">' + esc(ui.closeAction) + '</button>'
-      + '<button type="button" class="btn pri" ' + (it ? 'data-task-run="1" data-task-dim="' + dim + '"'
+      + '<button type="button" class="btn pri" ' + (it ? 'data-task-run="1" data-task-id="' + esc(it.id) + '"'
         : 'data-task-edit="1"') + '>' + esc(it ? ui.runAction : ui.editAction) + '</button></div>'
       + '<span class="taskfolio num">' + esc(it ? it.id : dim.toUpperCase()) + '</span></section>';
     m.hidden = false;
@@ -1602,8 +1607,9 @@
     if (panel) panel.focus();
   }
 
-  function openTaskContact(dim, it) {
+  function openTaskContact(id, it) {
     var O = window.UC_OKR, D = window.UC_DIMENSIONS, ui = O.taskUI;
+    var dim = it && it.dim;
     var d = D.dims.filter(function (x) { return x.k === dim; })[0];
     var m = ensureTaskModal();
     if (!d || !it) return;
@@ -1613,7 +1619,7 @@
       + '<span class="taskscan" aria-hidden="true"></span>'
       + '<button type="button" class="taskx" data-task-close="1" aria-label="' + esc(ui.closeAction) + '">×</button>'
       + '<p class="taskey">' + esc(ui.contactEyebrow) + ' · ' + esc(d.en) + '</p>'
-      + '<div class="taskhead"><span>' + esc(ui.label) + '</span><b>' + esc(d.label) + '</b></div>'
+      + '<div class="taskhead"><span>' + esc(ui.themeLabel) + '</span><b>' + esc(d.label) + '</b></div>'
       + '<h2 id="taskTitle">' + esc(ui.contactTitle) + '</h2>'
       + '<div class="taskrule"><i></i><s></s></div>'
       + '<p class="taskbody">' + esc(ui.contactBody) + '</p>'
@@ -1635,14 +1641,14 @@
   }
 
   function okrViewHTML(view, O, D, r, hasScore, byK) {
-    if (view === 'cover') return okrCover(O, D, r, hasScore, byK);
+    if (view === 'cover' || view === 'tasks') return okrTasks(O, D, byK);
     if (view === 'book') return okrBook(O, D, byK);
     return okrList(O, D, r, hasScore, byK);
   }
 
   function renderOkr() {
-    /* 每次從主導覽進入都先回人物封面；封面內的切換才保留當次閱讀狀態。 */
-    OKRVIEW = 'cover'; BKLEVEL = 'idx'; BKOPEN = null; OKRSEL = null;
+    /* 每次從主導覽進入都先回「人物＋任務」主畫面。 */
+    OKRVIEW = 'tasks'; BKLEVEL = 'idx'; BKOPEN = null; OKRSEL = null;
     var O = window.UC_OKR, E = window.UC_SCORE, D = window.UC_DIMENSIONS;
     var r = E.score(S.answers), byK = {};
     D.dims.forEach(function (d) { byK[d.k] = d; });
@@ -1653,7 +1659,7 @@
       /* 頁首只有標題；操作說明貼在人物或書本旁邊。 */
       /* ⚠️ 「書」**不放在這裡**。使用者 2026-09-12：書暫時不用但不刪，
          入口收進「總覽」右下角的小按鈕（okrList 最後那顆 .bkcorner）。 */
-      + '<div class="vsw"><button class="vb' + (OKRVIEW === 'cover' ? ' on' : '') + '" data-view="cover">藍圖</button>'
+      + '<div class="vsw"><button class="vb' + (OKRVIEW === 'tasks' ? ' on' : '') + '" data-view="tasks">任務</button>'
       + '<button class="vb' + (OKRVIEW === 'list' || OKRVIEW === 'book' ? ' on' : '') + '" data-view="list">總覽</button></div>'
       + '</header>');
 
@@ -1700,17 +1706,20 @@
     [].forEach.call(pane.querySelectorAll('[data-openbook]'), function (b) {
       b.addEventListener('click', function () { okrTo('book'); });
     });
-    [].forEach.call(pane.querySelectorAll('[data-cover-dim]'), function (b) {
+    [].forEach.call(pane.querySelectorAll('[data-task-id]'), function (b) {
       b.addEventListener('click', function () {
-        var k = b.dataset.coverDim;
+        var id = b.dataset.taskId, k = b.dataset.figureDim;
         /* ⚠️ 手機沒有 hover，人物那組動畫**從來沒有機會播**（使用者 2026-09-13）。
            所以點下去先亮人物，等它跑完再開面板 —— 面板一開就蓋住人物的話，
            那組動畫等於白做。 */
         figLit(k);
         var quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
-        setTimeout(function () { openTaskModal(k, b); },
+        setTimeout(function () { openTaskModal(id, b); },
                    quick ? 0 : (figToTop() ? FIG_LEAD + 180 : FIG_LEAD));
       });
+    });
+    [].forEach.call(pane.querySelectorAll('[data-task-empty-edit]'), function (b) {
+      b.addEventListener('click', function () { okrTo('list'); });
     });
     bindFigure(pane);
     /* 總覽頁：平常設定「當前任務」與「完成」；需要時才開啟隱藏管理。
@@ -1741,18 +1750,14 @@
     });
     [].forEach.call(pane.querySelectorAll('[data-current]'), function (c) {
       c.addEventListener('change', function () {
-        var dim = c.dataset.currentDim, id = c.dataset.current;
+        var id = c.dataset.current;
         if (isHidden(id) || (S.done && S.done[id])) { c.checked = false; return; }
         if (c.checked) {
-          S.taskNow[dim] = id;
-          [].forEach.call(pane.querySelectorAll('[data-current-dim="' + dim + '"]'), function (x) {
-            var on = x === c;
-            x.checked = on;
-            x.closest('.edtr').classList.toggle('is-current', on);
-          });
+          S.taskNow[id] = 1;
+          c.closest('.edtr').classList.add('is-current');
           c.closest('.edtr').classList.remove('is-hidden');
-        } else if (S.taskNow[dim] === id) {
-          delete S.taskNow[dim];
+        } else {
+          delete S.taskNow[id];
           c.closest('.edtr').classList.remove('is-current');
         }
         save(); edtCount(pane);
@@ -1761,7 +1766,6 @@
     [].forEach.call(pane.querySelectorAll('[data-done]'), function (c) {
       c.addEventListener('change', function () {
         var id = c.dataset.done, row = c.closest('.edtr');
-        var it = window.UC_OKR.items.filter(function (x) { return x.id === id; })[0];
         var now = row.querySelector('[data-current]');
         if (c.checked) {
           S.done[id] = 1;
@@ -1775,8 +1779,8 @@
           now.disabled = isHidden(id);
           row.classList.remove('is-done');
         }
-        var gain = pane.querySelector('[data-dim-gain="' + it.dim + '"]');
-        if (gain) gain.textContent = window.UC_OKR.editUI.abilityLabel + ' +' + abilityGain(it.dim);
+        var doneText = c.closest('.donecheck');
+        if (doneText) doneText.querySelector('span').textContent = '完成';
         save(); edtCount(pane);
       });
     });
@@ -1801,9 +1805,7 @@
     var b = body.querySelectorAll('.edth b');
     if (b.length < 3) return;
     b[0].textContent = Object.keys(S.hidden || {}).length;
-    b[1].textContent = Object.keys(S.taskNow || {}).filter(function (k) {
-      return !isHidden(S.taskNow[k]) && !(S.done && S.done[S.taskNow[k]]);
-    }).length;
+    b[1].textContent = currentTaskItems().length;
     b[2].textContent = completedCount();
   }
 
@@ -1839,39 +1841,33 @@
     bkMarkScroll();
   }
 
-  /* ── 課程藍圖：人物總覽封面 ─────────────────────────
-     五個能力取自真實評測結果；菱形只顯示粗略程度，不公開百分位。
-     點能力會打開該能力的半透明任務框；完整藍圖仍從上方「書」進入。 */
-  function okrCover(O, D, r, hasScore, byK) {
-    var pos = ['values', 'circle', 'emo', 'image', 'flirt'];
-    var order = {};
-    D.dims.forEach(function (d, i) { order[d.k] = i + 1; });
-
-    var abilities = pos.map(function (k) {
-      var d = byK[k], n = hasScore ? window.UC_SCORE.starOf(r.show[k]) : 0;
-      var marks = hasScore ? degreeText(r.show[k]) : '◇◇◇◇◇';
-      var gain = abilityGain(k);
-      var current = taskItem(k), ui = O.taskUI;
-      return '<button class="bpcdim bpc-' + k + (current ? ' has-task' : '')
-        + '" data-cover-dim="' + k + '" aria-haspopup="dialog" aria-controls="taskModal"'
-        + ' aria-label="查看' + esc(d.label) + '的當前任務，'
-        + (hasScore ? '目前程度 ' + n + '／5' : '尚未完成評測') + '">'
-        + '<span class="bpcey">' + ('0' + order[k]).slice(-2) + ' · ' + esc(d.en) + '</span>'
-        + '<b>' + esc(d.label) + '</b>'
-        + '<span class="bpclv" aria-hidden="true">' + marks + '</span>'
-        + (gain ? '<span class="bpcgain">' + esc(O.editUI.abilityLabel) + ' +' + gain + '</span>' : '')
-        + '<span class="bpccur"><small>' + esc(ui.label) + '</small>'
-        + '<span>' + esc(current ? current.short : ui.unsetShort) + '</span></span>'
-        + '<i aria-hidden="true">' + (k === 'image' || k === 'circle' ? '←' : '→') + '</i>'
-        + '</button>';
+  /* ── 課程藍圖：人物＋任務 ───────────────────────────
+     能力卡已取消；右側只放教練勾選的任務卡，而且數量不限。
+     卡片區有固定高度，超過範圍時自己捲動，不把人物與整頁一起拉長。 */
+  function okrTasks(O, D, byK) {
+    var items = currentTaskItems();
+    var cards = items.map(function (it, i) {
+      var d = byK[it.dim];
+      return '<button class="bpcdim bpctask has-task" data-task-id="' + esc(it.id)
+        + '" data-figure-dim="' + esc(it.dim) + '" aria-haspopup="dialog" aria-controls="taskModal">'
+        + '<span class="bpcey">' + ('0' + (i + 1)).slice(-2) + ' · ' + esc(it.id) + '</span>'
+        + '<span class="bpctheme"><em>' + esc(O.taskUI.themeLabel) + '</em>'
+        + '<span>' + esc(d ? d.label : it.dim) + '</span></span>'
+        + '<span class="bpctaskstate">當前任務</span>'
+        + '<strong>' + esc(it.kr) + '</strong>'
+        + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '')
+        + '<i aria-hidden="true">↗</i></button>';
     }).join('');
+    var empty = '<div class="bpctaskempty"><p>目前還沒有安排任務。</p>'
+      + (ACTOR_ROLE === 'student' ? '<span>教練安排後，任務卡會出現在這裡。</span>'
+        : '<button type="button" class="btn gh" data-task-empty-edit>前往總覽安排</button>') + '</div>';
 
-    return wrap('<div class="bpcover">'
-      + '<p class="bpctag">My Growth Image</p>'
-      + '<div class="bpcgrid">' + abilities
-      + figureHTML() + '</div>'
-      + '<p class="cap bpccap">' + esc(O.taskUI.coverHint) + '</p>'
-      + '</div>', 'bpcover-sec');
+    return wrap('<div class="bpcover bpcover-task"><p class="bpctag">Current Missions</p>'
+      + '<div class="bpctasklayout">' + figureHTML()
+      + '<section class="bpctaskdeck"><header><div><p class="ey">Mission Deck</p><h2>目前任務</h2></div>'
+      + '<strong class="num">' + items.length + '</strong></header>'
+      + '<div class="bpctaskscroll">' + (cards || empty) + '</div></section></div>'
+      + '<p class="cap bpccap">人物代表正在前進的你；右側卡片是教練目前安排、可以立即執行的任務。</p></div>', 'bpcover-sec');
   }
 
   /* 人物：**一張手繪線稿**（`assets/figure/line-front.webp`，242×698、48KB）。
@@ -2017,8 +2013,8 @@
   function bindFigure(pane) {
     if (!pane.querySelector('#bpcFig')) return;
     /* 桌機有 hover，滑過去就亮；手機沒有，所以另外靠點擊（見 bindOkrPane）。 */
-    [].forEach.call(pane.querySelectorAll('[data-cover-dim]'), function (b) {
-      var k = b.dataset.coverDim;
+    [].forEach.call(pane.querySelectorAll('[data-cover-dim], [data-figure-dim]'), function (b) {
+      var k = b.dataset.coverDim || b.dataset.figureDim;
       b.addEventListener('mouseenter', function () { figLit(k); });
       b.addEventListener('focus',      function () { figLit(k); });
       /* ⚠️ 面板開著的時候不要把燈關掉 —— 那盞燈正在說明面板講的是哪一塊。 */
@@ -2266,10 +2262,26 @@
     O.items.forEach(function (i) { (by[i.dim] = by[i.dim] || []).push(i); });
     var dims = D.dims.map(function (d) { return d.k; }).filter(function (k) { return by[k]; });
     var ui = O.editUI;
+    if (ACTOR_ROLE === 'student') {
+      return wrap('<div class="studenttasks"><div class="studenttasks-head">'
+        + '<p class="ey">Your Full Journey</p><h2>這裡就是你的全部任務</h2>'
+        + '<p>任務會依教練安排逐步展開；這裡就是目前完整的任務清單。</p></div>'
+        + dims.map(function (k) {
+          var rows = by[k].filter(function (it) { return !isHidden(it.id); });
+          if (!rows.length) return '';
+          return '<section class="studenttask-dim"><h3>' + esc(byK[k].label) + '</h3>'
+            + rows.map(function (it) {
+              var done = !!(S.done && S.done[it.id]);
+              var current = !done && isCurrentTask(it.id);
+              return '<div class="studenttask' + (current ? ' is-current' : '') + (done ? ' is-done' : '') + '">'
+                + '<span class="num">' + esc(it.id) + '</span><b>' + esc(it.kr) + '</b>'
+                + (current ? '<em>目前</em>' : (done ? '<em>完成</em>' : ''))
+                + (it.n ? '<i class="num">×' + it.n + '</i>' : '') + '</div>';
+            }).join('') + '</section>';
+        }).join('') + '</div>', 'rv');
+    }
     var nHidden = Object.keys(S.hidden || {}).length;
-    var nNow = Object.keys(S.taskNow || {}).filter(function (k) {
-      return !isHidden(S.taskNow[k]) && !(S.done && S.done[S.taskNow[k]]);
-    }).length;
+    var nNow = currentTaskItems().length;
     var nDone = completedCount();
 
     /* 書的入口。收在右下角、不佔版面 —— 平常沒人用，需要時找得到就好。 */
@@ -2291,7 +2303,7 @@
           return '<section class="edtdim' + (dimHidden ? ' is-all-hidden' : '') + '">'
             + '<p class="edtd">' + esc(byK[k].label)
             + '<s>' + k + ' · ' + by[k].length + '</s>'
-            + '<em class="edtdgain" data-dim-gain="' + k + '">' + esc(ui.abilityLabel) + ' +' + abilityGain(k) + '</em></p>'
+            + '</p>'
             + byObjective(by[k]).map(function (g) {
                 var groupHidden = g.items.every(function (it) { return isHidden(it.id); });
                 return '<div class="edtgrp' + (groupHidden ? ' is-all-hidden' : '') + '">'
@@ -2299,21 +2311,20 @@
                   + g.items.map(function (it) {
                       var hidden = isHidden(it.id);
                       var done = !!(S.done && S.done[it.id]);
-                      var current = !hidden && !done && S.taskNow && S.taskNow[k] === it.id;
-                      var gain = taskGain(it);
+                      var current = !hidden && !done && isCurrentTask(it.id);
                       return '<div class="edtr' + (hidden ? ' is-hidden' : '') + (current ? ' is-current' : '')
                         + (done ? ' is-done' : '')
                         + '" data-dim="' + k + '">'
-                        + '<input type="checkbox" class="now" data-current="' + it.id
-                        + '" data-current-dim="' + k + '" aria-label="設為' + esc(byK[k].label) + '的當前任務"'
-                        + ' data-field-id="blueprint.current.' + k + '" data-field-owner="coach"'
-                        + ' data-field-label="' + esc(byK[k].label) + '當前任務"'
-                        + (current ? ' checked' : '') + (hidden || done ? ' disabled' : '') + '>'
-                        + '<input type="checkbox" class="done" data-done="' + it.id
+                        + '<label class="edtcheck nowcheck"><input type="checkbox" class="now" data-current="' + it.id
+                        + '" aria-label="設為當前任務：' + esc(it.kr) + '"'
+                        + ' data-field-id="blueprint.current.' + it.id + '" data-field-owner="coach"'
+                        + ' data-field-label="當前任務：' + esc(it.kr) + '"'
+                        + (current ? ' checked' : '') + (hidden || done ? ' disabled' : '') + '><span>當前</span></label>'
+                        + '<label class="edtcheck donecheck"><input type="checkbox" class="done" data-done="' + it.id
                         + '" aria-label="' + esc(ui.doneLabel) + '：' + esc(it.kr) + '"'
                         + ' data-field-id="blueprint.done.' + it.id + '" data-field-owner="coach"'
                         + ' data-field-label="' + esc(ui.doneLabel) + '：' + esc(it.kr) + '"'
-                        + (done ? ' checked' : '') + '>'
+                        + (done ? ' checked' : '') + '><span>完成</span></label>'
                         + '<input type="checkbox" class="hide" data-hidden="' + it.id
                         + '" aria-label="' + esc(ui.hideLabel) + '：' + esc(it.kr) + '"'
                         + ' data-field-id="blueprint.hidden.' + it.id + '" data-field-owner="coach"'
@@ -2322,7 +2333,6 @@
                         + '<b>' + esc(it.kr) + '</b>'
                         + '<em class="edthidden">' + esc(ui.hiddenMark) + '</em>'
                         + '<em class="edtdone">' + esc(ui.doneMark) + '</em>'
-                        + '<span class="edtgain num">+' + gain + '</span>'
                         + (it.n ? '<i class="num">×' + it.n + '</i>' : '')
                         + '<s>' + esc(it.id) + '</s></div>';
                     }).join('') + '</div>';
@@ -2331,590 +2341,205 @@
   }
 
 
-  /* ── 成長紀錄：三條時間帶 ─────────────────────────────
-     使用者定調（第五版）：x 軸是時間推進，**y 的起伏純屬美術**，
-     紀錄是時間帶上的獨立標記，而且每一種事件走自己那一條線。
-
-     前四版死在兩件事：一條線扛全部標記（第 9 週擠了四種東西），
-     以及用 SVG 線稿假裝插畫。三軌解掉前者；後者靠「標記就是小圖案、
-     視覺重量交給線與排版」解掉 —— 不再賭圖案。
-
-     切週次不重建 DOM，改篩選或新增紀錄只重畫 paintBands()。 */
-  /* GFORM 現在存的是**要記哪一種**（'call'／'social'／'date'），null 代表沒開。
-     舊版是布林值，因為類型是在表單裡的下拉選的。 */
-  var GW = 1, GEL = null, GSEL = null, GFORM = null;
-  var GKIND = 'all';  // 下方紀錄要回看哪一種
-  /* 成就的概念已移除（使用者：「沒有成就」）—— 每一筆都是一樣的紀錄 */
-  var GPOS = {};                          // 週次色帶的幾何（x0／每週寬），供就地更新
-
-  /* 三軌。順序由使用者指定：通話記錄在上，社交第二，約會第三。 */
-  var GLANE = [
-    { k: 'call',   label: '通話記錄', who: 'coach',   glyph: 'phone' },
-    { k: 'social', label: '外出社交', who: 'student', glyph: 'trio' },
-    { k: 'date',   label: '實際約會', who: 'student', glyph: 'heart' }
+  /* ── 成長紀錄：90 天回顧日曆 ─────────────────────── */
+  var GCALMODE = 'number', GSELECT = null, GFORM = null;
+  var GTYPES = [
+    { k: 'call', label: '通話記錄', short: '通話' },
+    { k: 'social', label: '外出社交', short: '社交' },
+    { k: 'date', label: '實際約會', short: '約會' }
   ];
 
-  /* 狀況的三個程度。**電平段的段數就是 lv 本身** —— 所以這裡不再帶高度。
-     軌與軌之間不能互相比較，只在同一軌內比。 */
-  var GLV = { 1: { t: '差' }, 2: { t: '好' }, 3: { t: '優' } };
-  function lvOf(e) { return GLV[e.lv] || GLV[2]; }
-
-  function gEvents() { return window.UC_GROWTH.events.concat(S.log || []); }
-
-  /* ── 日期 ────────────────────────────────────────────
-     事件的 x 位置由實際日期算，不是靠週次對齊。12 週 = 84 天，所以刻度細到「天」。
-     w 仍然存在（既有程式全部照用），但它是 d 推出來的，#selftest 會交叉比對。 */
-  var GDAYS = window.UC_GROWTH.weeks * 7;
-  function gDay(iso) {
+  function isoToday() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)
+      + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function isoAdd(iso, n) {
     var a = String(iso).split('-');
-    return Math.round(
-      (Date.UTC(+a[0], +a[1] - 1, +a[2]) - Date.UTC.apply(null, (function (b) {
-        return [+b[0], +b[1] - 1, +b[2]];
-      })(window.UC_GROWTH.start.split('-')))) / 86400000);
+    var d = new Date(Date.UTC(+a[0], +a[1] - 1, +a[2]) + n * 86400000);
+    return d.toISOString().slice(0, 10);
   }
-  function gWeekOf(day) { return Math.floor(day / 7) + 1; }
-  function gIso(day) {
-    var a = window.UC_GROWTH.start.split('-');
-    var t = new Date(Date.UTC(+a[0], +a[1] - 1, +a[2]) + day * 86400000);
-    return t.toISOString().slice(0, 10);
+  function isoDiff(a, b) {
+    function utc(x) { var p = String(x).split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
+    return Math.round((utc(a) - utc(b)) / 86400000);
   }
-  var G0 = window.UC_GROWTH.start, G1 = gIso(GDAYS - 1);   // 課程起訖，夾住 <input type=date>
-  /* 事件沒寫日期時（舊資料或手動新增）退回那一週的第三天，位置仍然合理 */
-  function dayOf(e) { return e.d ? gDay(e.d) : (e.w - 1) * 7 + 3; }
-  function gDateStr(e) {
-    if (!e.d) return '';
-    var a = e.d.split('-'), wd = '日一二三四五六'[new Date(e.d + 'T00:00:00').getDay()];
+  function growthStart() {
+    var v = S.coachReport && S.coachReport.growthStart;
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : window.UC_GROWTH.start;
+  }
+  function growthRecords() {
+    var base = (window.UC_STORE && window.UC_STORE.isRemote()) ? [] : (window.UC_GROWTH.events || []);
+    return base.concat(S.log || []).filter(function (e) {
+      return e && GTYPES.some(function (t) { return t.k === e.kind; });
+    }).map(function (e) {
+      if (e.d) return e;
+      var copy = {}; Object.keys(e).forEach(function (k) { copy[k] = e[k]; });
+      copy.d = isoAdd(growthStart(), Math.max(0, ((Number(e.w) || 1) - 1) * 7 + 2));
+      return copy;
+    });
+  }
+  function growthType(kind) {
+    return GTYPES.filter(function (t) { return t.k === kind; })[0] || GTYPES[0];
+  }
+  function growthIcon(kind) {
+    var body;
+    if (kind === 'call') {
+      body = '<path class="gy bubble" d="M5.2 5.2h13.6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7.1L7.2 21v-3.8h-2a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"/>'
+        + '<circle class="gy pk" cx="8" cy="11.2" r="1"/>'
+        + '<circle class="gy pk" cx="12" cy="11.2" r="1"/>'
+        + '<circle class="gy pk" cx="16" cy="11.2" r="1"/>';
+    } else if (kind === 'social') {
+      body = '<circle class="gy tr" cx="12" cy="8.16" r="2.72"/>'
+        + '<circle class="gy tr" cx="7.68" cy="15.2" r="2.72"/>'
+        + '<circle class="gy tr" cx="16.32" cy="15.2" r="2.72"/>';
+    } else {
+      body = '<path class="gy h" style="stroke-width:2.16px" d="M12,18.56C-.4,10 5.76,0 12,8.64C18.24,0 24.4,10 12,18.56Z"/>';
+    }
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' + body + '</svg>';
+  }
+  function growthDateLabel(iso) {
+    var a = String(iso).split('-');
+    var wd = '日一二三四五六'[new Date(iso + 'T00:00:00').getDay()];
     return (+a[1]) + '/' + (+a[2]) + '（' + wd + '）';
   }
-
-  /* ── 標記圖案 ─────────────────────────────────────────
-     電話＝話筒　社交＝三個小圓（一群人）　約會＝愛心（使用者指定）。
-
-     三個要像同一家人：都是簡單的封閉形狀、9px 下讀得出來、語意直白。
-     舊版的 ★ 與 ◉ 被換掉的原因：星星跟「外出社交」沒有語意連結，而且 ★ 在報告頁
-     已經是能力星等的單位；雙圈圈跟「電話」也沒有連結。愛心成立是因為它同時
-     語意直白、又跟這張圖的隱喻互相加強。 */
-  function glyphSvg(kind, cx, cy, r) {
-    var g = GLANE.filter(function (l) { return l.k === kind; })[0];
-    var t = (g && g.glyph) || 'phone';
-    /* 線寬也要跟 r 成比例，而且得用 inline style —— CSS 規則會蓋掉 presentation
-       attribute，寫成 stroke-width="…" 會被 .gy 的固定值吃掉（踩過）。 */
-    var w = function (k) { return ' style="stroke-width:' + (r * k).toFixed(2) + 'px"'; };
-
-    if (t === 'phone') {
-      /* 話筒：一道弓 ＋ 兩端各一顆聽筒。兩端約 2.2 倍寬是話筒的辨識特徵；
-         弓身寫死成絕對線寬、聽筒卻隨 r 放大，大尺寸下會變成啞鈴（踩過）。 */
-      var x1 = cx - r * 0.6, y1 = cy - r * 0.6, x2 = cx + r * 0.6, y2 = cy + r * 0.6;
-      var pk = (r * 0.33).toFixed(2);
-      return '<path class="gy ph"' + w(0.3) + ' d="M' + x1.toFixed(1) + ',' + y1.toFixed(1)
-          + 'A' + (r * 0.95).toFixed(1) + ',' + (r * 0.95).toFixed(1) + ' 0 0 0 '
-          + x2.toFixed(1) + ',' + y2.toFixed(1) + '"/>'
-        + '<circle class="gy pk" cx="' + x1.toFixed(1) + '" cy="' + y1.toFixed(1) + '" r="' + pk + '"/>'
-        + '<circle class="gy pk" cx="' + x2.toFixed(1) + '" cy="' + y2.toFixed(1) + '" r="' + pk + '"/>';
-    }
-
-    if (t === 'trio') {
-      /* 三個小圓排成三角＝一群人。最小尺寸下辨識度最好的「群」表示法 */
-      var tr = (r * 0.34).toFixed(2), sw = w(0.26);
-      return '<circle class="gy tr"' + sw + ' cx="' + cx.toFixed(1) + '" cy="' + (cy - r * 0.48).toFixed(1) + '" r="' + tr + '"/>'
-        + '<circle class="gy tr"' + sw + ' cx="' + (cx - r * 0.54).toFixed(1) + '" cy="' + (cy + r * 0.4).toFixed(1) + '" r="' + tr + '"/>'
-        + '<circle class="gy tr"' + sw + ' cx="' + (cx + r * 0.54).toFixed(1) + '" cy="' + (cy + r * 0.4).toFixed(1) + '" r="' + tr + '"/>';
-    }
-
-    /* heart */
-    var bt = cy + r * 0.82, tp = cy - r * 0.42;
-    return '<path class="gy h"' + w(0.27) + ' d="M' + cx.toFixed(1) + ',' + bt.toFixed(1)
-      + 'C' + (cx - r * 1.55).toFixed(1) + ',' + (cy - r * 0.25).toFixed(1)
-      + ' ' + (cx - r * 0.78).toFixed(1) + ',' + (cy - r * 1.5).toFixed(1)
-      + ' ' + cx.toFixed(1) + ',' + tp.toFixed(1)
-      + 'C' + (cx + r * 0.78).toFixed(1) + ',' + (cy - r * 1.5).toFixed(1)
-      + ' ' + (cx + r * 1.55).toFixed(1) + ',' + (cy - r * 0.25).toFixed(1)
-      + ' ' + cx.toFixed(1) + ',' + bt.toFixed(1) + 'Z"/>';
+  function growthText(records) {
+    var lines = ['【' + (S.name || '學員') + '的 90 天成長日誌】',
+      '起始日期：' + growthStart(), ''];
+    records.slice().sort(function (a, b) { return String(a.d).localeCompare(String(b.d)); })
+      .forEach(function (e) {
+        lines.push(growthDateLabel(e.d) + '｜' + growthType(e.kind).label);
+        if (e.t) lines.push('發生了什麼：' + e.t);
+        if (e.outcome) lines.push('留下的觀察：' + e.outcome);
+        if (e.note) lines.push('補充：' + e.note);
+        lines.push('');
+      });
+    if (!records.length) lines.push('目前還沒有紀錄。');
+    return lines.join('\n');
+  }
+  function growthEntryText(e) {
+    var lines = ['【' + (S.name || '學員') + '的成長紀錄】',
+      growthDateLabel(e.d) + '｜' + growthType(e.kind).label,
+      '發生了什麼：' + (e.t || '')];
+    if (e.outcome) lines.push('想留下的觀察：' + e.outcome);
+    if (e.note) lines.push('補充：' + e.note);
+    return lines.join('\n');
+  }
+  function downloadGrowth(records) {
+    var blob = new Blob([growthText(records)], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = (S.name || '學員') + '-90天成長日誌.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('日誌已輸出');
   }
 
   function renderGrowth() {
-    var G = window.UC_GROWTH;
+    var body = el('growthBody'), start = growthStart(), end = isoAdd(start, 89);
+    var today = isoToday(), records = growthRecords();
+    if (!GSELECT || isoDiff(GSELECT, start) < 0 || isoDiff(GSELECT, start) > 89) {
+      GSELECT = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : start;
+    }
+    var byDate = {};
+    records.forEach(function (e) { (byDate[e.d] = byDate[e.d] || []).push(e); });
+    var startDow = new Date(start + 'T00:00:00').getDay();
+    var lead = (startDow + 6) % 7, cells = '';
+    for (var z = 0; z < lead; z++) cells += '<span class="gblank" aria-hidden="true"></span>';
+    for (var i = 0; i < 90; i++) {
+      var iso = isoAdd(start, i), dayRecords = byDate[iso] || [];
+      var active = (S.activityDays || []).indexOf(iso) >= 0;
+      var icons = dayRecords.slice(0, 3).map(function (e) {
+        return '<span class="gcalicon ' + e.kind + '" title="' + esc(growthType(e.kind).label) + '">'
+          + growthIcon(e.kind) + '</span>';
+      }).join('');
+      var main = dayRecords.length ? '<span class="gcalicons">' + icons
+        + (dayRecords.length > 3 ? '<b>+' + (dayRecords.length - 3) + '</b>' : '') + '</span>'
+        : '<b class="gcalvalue">' + (GCALMODE === 'number' ? (i + 1) : esc((+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)))) + '</b>';
+      cells += '<button type="button" class="gday' + (iso === GSELECT ? ' is-selected' : '')
+        + (iso === today ? ' is-today' : '') + (iso > today ? ' is-future' : '')
+        + (active ? ' is-active' : '') + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
+        + '<small class="gdayindex">' + (i + 1) + '</small>' + main
+        + '<span class="gdaydate">' + (+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)) + '</span></button>';
+    }
 
-    var h = wrap('<header class="rhead"><p class="ey">Progress Record</p>'
-      /* ⚠️ **頁首只有標題。** 三條線怎麼讀，說明搬到圖底下（圖例本來就在那裡）。 */
-      + '<h1>成長紀錄</h1><div class="divider"><i></i><s></s></div>'
-      + '<p class="demo-note">demo 沒有後端，紀錄都存在這台裝置。上線時接試算表就會是真的雙向。</p>'
-      + '</header>');
+    var selectedRecords = byDate[GSELECT] || [];
+    var detail = '<section class="gdetail"><div class="gdetailhead"><div><p class="ey">Day '
+      + (isoDiff(GSELECT, start) + 1) + '</p><h2>' + esc(growthDateLabel(GSELECT)) + '</h2></div>'
+      + '<span>' + selectedRecords.length + ' 筆紀錄</span></div>'
+      + (selectedRecords.length ? selectedRecords.map(function (e) {
+          return '<article class="gentry"><span class="gentryicon ' + e.kind + '">' + growthIcon(e.kind) + '</span>'
+            + '<div><p>' + esc(growthType(e.kind).label) + '</p><h3>' + esc(e.t || '這一天的紀錄') + '</h3>'
+            + (e.outcome ? '<div>' + esc(e.outcome) + '</div>' : '')
+            + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div></article>';
+        }).join('') : '<p class="gempty">這一天還沒有紀錄。你可以用上方三個按鈕留下通話、社交或約會。</p>')
+      + '</section>';
 
-    /* 類型篩選 chip 在下方紀錄區當「回看哪一種」。圖上一律全部畫，沒有工具列。 */
-    h += wrap('<div class="rdframe">'
-        + '<i class="brk brk-tl"></i><i class="brk brk-tr"></i>'
-        + '<i class="brk brk-bl"></i><i class="brk brk-br"></i>'
-        + '<div class="rdwrap" id="rdWrap"><div class="rdinner" id="rdInner"></div></div>'
-      + '</div>'
-      + '<p class="rdhint">← 左右捲動看完十二週 →</p>'
-      /* 這段原本在頁首。它講的是**這張圖**，所以放在圖底下。 */
-      + '<p class="cap">三條軌由上而下是<b>通話記錄</b>、<b>外出社交</b>、<b>實際約會</b>，'
-      + '由左到右十二週。前幾週靜音的那兩條不是留白，是還沒開始。'
-      + '一筆紀錄＝一組電平段，<b>段數就是那一筆的狀況</b>（一段差／兩段好／三段優）'
-      + '—— 同一條軌內比才有意義。</p>'
-      /* ⚠️ 入口是**三顆大按鈕**，不是一顆「新增」再從下拉選類型。
-         使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
-         點下去開始寫紀錄。」—— 要記的當下你早就知道是哪一種了，
-         先問「要不要新增」再問「哪一種」是多一層。 */
-      + '<div class="gkinds">'
-      + GLANE.map(function (ln) {
-          return '<button type="button" class="gkind" data-kind="' + ln.k + '">'
-            + '<i class="gkico"><svg viewBox="0 0 32 32" aria-hidden="true">'
-            + glyphSvg(ln.k, 16, 16, 11) + '</svg></i>'
-            + '<b>' + ln.label + '</b><s>' + esc(GKHINT[ln.k]) + '</s></button>';
-        }).join('')
-      + '</div>'
-      + '<div class="tlact">'
-      + '<button class="btn gh" id="gReplay">↻ 重播</button>'
-      + '</div>'
-      + '<div id="gForm"></div>'
-      + '<div id="gPanel" class="gpanel"></div>', 'rv');
+    var form = '';
+    if (GFORM) {
+      var gt = growthType(GFORM);
+      var formDate = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT;
+      form = '<form class="gcalform" id="growthForm"><p class="ey">New Record</p><h2>' + esc(gt.label) + '</h2>'
+        + '<label>日期<input type="date" name="date" min="' + start + '" max="' + end + '" value="' + formDate + '" required></label>'
+        + '<label>發生了什麼<input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
+        + '<label>想留下的觀察<textarea name="outcome" rows="4" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
+        + '<label>補充（選填）<textarea name="note" rows="2" maxlength="4000"></textarea></label>'
+        + '<div><button type="button" class="btn gh" data-gcancel>取消</button><button class="btn pri" type="submit">儲存紀錄</button></div></form>';
+    }
 
-    var body = el('growthBody');
-    body.innerHTML = h;
+    var canSetStart = ACTOR_ROLE !== 'student';
+    body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日曆</h1>'
+      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p></header>')
+      + wrap('<div class="gcalbar"><div class="gkinds">'
+      + GTYPES.map(function (t) { return '<button type="button" class="gkind' + (GFORM === t.k ? ' on' : '') + '" data-gopen="' + t.k + '">'
+          + '<span class="gkico">' + growthIcon(t.k) + '</span><b>' + esc(t.label) + '</b><s>新增一筆</s></button>'; }).join('')
+      + '</div><div class="gcaltools">'
+      + (canSetStart ? '<label class="gstart">90 天起始日<input type="date" data-growth-start value="' + start + '"'
+          + ' data-field-id="report.growthStart" data-field-owner="coach"></label>'
+        : '<p class="gstartread"><span>90 天起始日</span><b>' + esc(start) + '</b></p>')
+      + '<div class="gmode" role="group" aria-label="日期顯示模式"><button type="button" data-gmode="number" class="'
+      + (GCALMODE === 'number' ? 'on' : '') + '">第幾天</button><button type="button" data-gmode="date" class="'
+      + (GCALMODE === 'date' ? 'on' : '') + '">日期</button></div>'
+      + '<button type="button" class="btn gh gexport" data-gexport>輸出日誌</button></div></div>'
+      + '<div class="gcalendar"><div class="gweekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>'
+      + '<div class="gdays">' + cells + '</div></div>'
+      + '<div class="gcallegend"><span><i class="ring"></i>當天編輯過文件</span><span>格內圖示最多顯示三筆</span></div>'
+      + form + detail, 'rv growthcal');
 
-    GEL = {
-      band: el('rdInner'), wrap: el('rdWrap'),
-      form: el('gForm'), panel: el('gPanel')
-    };
-
-    [].forEach.call(body.querySelectorAll('[data-kind]'), function (b) {
-      b.addEventListener('click', function () {
-        GFORM = (GFORM === b.dataset.kind) ? null : b.dataset.kind;   /* 再點一次收起來 */
-        renderForm();
-        if (GFORM && GEL.form.firstChild) GEL.form.scrollIntoView({ block: 'nearest' });
+    [].forEach.call(body.querySelectorAll('[data-gopen]'), function (b) {
+      b.addEventListener('click', function () { GFORM = b.dataset.gopen; renderGrowth(); var f = el('growthForm'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    });
+    [].forEach.call(body.querySelectorAll('[data-gdate]'), function (b) {
+      b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; renderGrowth(); });
+    });
+    [].forEach.call(body.querySelectorAll('[data-gmode]'), function (b) {
+      b.addEventListener('click', function () { GCALMODE = b.dataset.gmode; renderGrowth(); });
+    });
+    var startInput = body.querySelector('[data-growth-start]');
+    if (startInput) startInput.addEventListener('change', function () {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startInput.value)) return;
+      S.coachReport.growthStart = startInput.value; GSELECT = startInput.value; save(); renderGrowth();
+    });
+    var cancel = body.querySelector('[data-gcancel]');
+    if (cancel) cancel.addEventListener('click', function () { GFORM = null; renderGrowth(); });
+    var formEl = el('growthForm');
+    if (formEl) formEl.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var fd = new FormData(formEl), d = String(fd.get('date') || '');
+      var ev = { id: 'G' + Date.now(), by: ACTOR_ROLE === 'coach' ? 'coach' : 'student',
+        kind: GFORM, d: d, w: Math.floor(isoDiff(d, start) / 7) + 1,
+        t: String(fd.get('title') || '').trim(), outcome: String(fd.get('outcome') || '').trim(),
+        note: String(fd.get('note') || '').trim(), lv: 2 };
+      if (!ev.t || isoDiff(d, start) < 0 || isoDiff(d, start) > 89) return;
+      var copied = window.UC_SHARE && window.UC_SHARE.copy
+        ? window.UC_SHARE.copy(growthEntryText(ev)) : Promise.resolve('fail');
+      S.log.push(ev); GSELECT = d; GFORM = null; save(); renderGrowth();
+      copied.then(function (how) {
+        toast(how === 'copy' ? '紀錄已儲存，文字已複製，可以貼到群組'
+          : '紀錄已儲存，但文字沒有複製成功');
       });
     });
-    el('gReplay').addEventListener('click', function () { sweep(); });
-
-    GEL.band.addEventListener('click', function (e) {
-      var pin = e.target.closest('[data-ev]');
-      if (pin) { GSEL = pin.dataset.ev; growthTo(+pin.dataset.w); return; }
-      var col = e.target.closest('[data-week]');
-      if (col) { GSEL = null; growthTo(+col.dataset.week); }
-    });
-    paintBands();
-    growthTo(GW);
-    reveal(body);
-  }
-
-
-  /* ── 三條軌跡（多軌錄音，第九版）───────────────────────
-     前八版是心率圖。換掉的理由不是執行品質，是隱喻本身有兩個結構性問題：
-
-     ① **心電圖是即時生理訊號，這頁是已經結束的三個月。** 舊版自己撞到過 ——
-        循環掃描被砍掉，理由就是「那會假裝是即時訊號」。形式必須壓抑自己
-        最有力的部分（持續走紙）才能不說謊。
-     ② **平線在醫療語彙裡是 flatline，是死。** 用平線解稀疏資料很聰明，
-        但「約會那條前八週完全平坦」讀起來是「沒有生命跡象」，
-        而要說的是「還沒開始」—— 看圖的人正好就是那個前八週沒有約會的人。
-
-     改成錄音軌：CH-01/02/03 本來就是混音台的語彙，一條軌配一個電平表是
-     同一台機器上的東西。錄音本來就是記錄、本來就是過去式；靜音不等於死亡；
-     「重播」鍵終於名正言順。
-
-     稀疏仍然是合理的（靜音段），密度差仍然是診斷。
-     **一筆紀錄＝一組電平段，段數＝lv（差 1／好 2／優 3）** ——
-     等級變成可以數的，不再是目測高低。仍然沒有 Y 軸，軌與軌之間不可比較。
-
-     每一筆是獨立的圖形，不再是「一條 lane 一條連續 path」。所以舊版為了
-     「path 的 x 不能回頭」而存在的一整套（gJit 抖動、hw 夾鄰居、優雅退化、
-     離散變體）全部刪掉了 —— 同一天兩筆重疊在錄音軌上本來就是對的。 */
-  var GSWEEP = 0;                                   // 播放頭代號，新的一次讓舊的失效
-  /* 電平段：段高／段距／段寬／**中央間隙**（兩堆各自離基線多遠，中央空隙是它的兩倍）。
-     ⚠️ **判準是「中央空隙 ÷ 堆內空隙」要在 3～4 倍**，不是絕對值。
-     太小 → 上下黏成一整根，三段被看成六段；太大 → 整筆浮離線外像聲納訊號。
-     調整史：SEGMID ≈3.0（黏住）→ 6.5（太遠，使用者回報）→ 3.4 → **2.6（現在，使用者要更薄更近）**。
-     現在：中央空隙 5.2、堆內空隙 3.8−2.4=1.4 → 3.7 倍，仍然一眼看得出鏡射。
-     lv3 總高 = 2*(2.6 + 2*3.8 + 2.4) = 25.2，軌距 64，留 39px 給鄰軌。 */
-  var SEGH = 2.4, SEGGAP = 3.8, SEGW = 7.5, SEGMID = 2.6;
-
-  function paintBands() {
-    var N = window.UC_GROWTH.weeks, ev = gEvents();
-    /* LAB 是最左邊的示意欄（圖案＋軌名）。三條線都從 LAB 起筆，所以起點對齊。
-       圖案只在這一欄出現一次 —— 使用者：「放在上面太眼花撩亂了」。 */
-    /* 幾何。W 從 1000 縮到 820 —— viewBox 變窄、CSS 寬度仍是 100%，
-       所以整張圖（線、字、刻度、段）等比放大約 22%，不是只把畫布拉長。
-       H 260 是為了塞上下兩條刻度桿：三段的段堆上下各約 19px，跟刻度桿之間還有餘裕。 */
-    var W = 820, H = 260, LAB = 96, PADR = 26;
-    var span = W - LAB - PADR, wkw = span / N;
-    var ROW = [74, 138, 202];
-    var TOP = 20, BOT = 226, GT = 24, GB = 220;   // 頂桿／底桿／格線上下界
-
-    /* bx(day) 把 0..84 的天數映到畫布。整週的交界落在 7 的倍數上，
-       事件落在當天的正中間（day + 0.5），所以不會壓在交界線上。 */
-    function bx(day) { return LAB + (day / GDAYS) * span; }
-    GPOS = { x0: LAB, wkw: wkw };                 // 供 markWeek 就地移動週次色帶
-
-    var g = '';
-
-    /* 格線：現在的最小單位是「天」。84 條細線，密度是原本 step/8 的兩倍多。 */
-    var gd = '';
-    for (var d0 = 0; d0 <= GDAYS; d0++) {
-      gd += 'M' + bx(d0).toFixed(1) + ',' + GT + 'V' + GB + ' ';
-    }
-    for (var gy = GT + 4; gy <= GB; gy += 16) {
-      gd += 'M' + LAB + ',' + gy + 'H' + (W - PADR) + ' ';
-    }
-    g += '<path class="grid" d="' + gd + '"/>';
-    /* 粗格線只在每週的交界（13 條），下方軸線仍然只講 12 週 */
-    var gd2 = '';
-    for (var w0 = 0; w0 <= N; w0++) gd2 += 'M' + bx(w0 * 7).toFixed(1) + ',' + GT + 'V' + GB + ' ';
-    g += '<path class="grid2" d="' + gd2 + '"/>';
-
-    /* 儀器刻度：上下兩條桿。主齒在每週交界，次齒每一天。
-       裝飾一律放在框上，不放在資料上 —— 第四版死在「在資料上疊東西」。 */
-    g += '<g class="chrome">'
-      + '<path class="rail" d="M' + LAB + ',' + TOP + 'H' + (W - PADR)
-      + ' M' + LAB + ',' + BOT + 'H' + (W - PADR) + '"/>';
-    var tM = '';
-    for (var w1 = 0; w1 <= N; w1++) {
-      var xm = bx(w1 * 7).toFixed(1);
-      tM += 'M' + xm + ',' + TOP + 'v7 M' + xm + ',' + BOT + 'v-7 ';
-    }
-    g += '<path class="tkM" d="' + tM + '"/>';
-    var tm = '';
-    for (var d1 = 0; d1 <= GDAYS; d1++) {
-      var xn = bx(d1).toFixed(1);
-      tm += 'M' + xn + ',' + TOP + 'v3 M' + xn + ',' + BOT + 'v-3 ';
-    }
-    g += '<path class="tkm" d="' + tm + '"/></g>';
-
-    /* 選定週次的貫穿線 */
-    g += '<rect class="bcur" x="' + bx((GW - 1) * 7).toFixed(1) + '" y="' + GT
-      + '" width="' + wkw.toFixed(1) + '" height="' + (GB - GT) + '"/>';
-
-    GLANE.forEach(function (ln, li) {
-      var base = ROW[li];
-
-      /* 這一軌的紀錄。**不管有沒有被篩掉都要產生** —— 以前這裡包過 if (!dim)，
-         關掉某軌之後只要發生任何重畫，再開回來就永久消失了。圖上一律全部畫。 */
-      var marks = [];
-      var mine = ev.filter(function (e) { return e.kind === ln.k; });
-      /* 同一天同一軌有多筆時才需要錯開，其餘各就各位。
-         ⚠️ 間距要**至少大於段寬**，否則同日的幾筆會互相疊掉。
-         原本只寫 `dw * 0.62`（一天寬 8.3 → 5.15），段寬 7.5 時每兩筆重疊 2.4px，
-         同一天五筆就糊成一團（實測）。取 max 之後同日五筆是 4×8.7 = 34.8px，
-         一週有 58px，還放得下。 */
-      var perDay = {};
-      mine.forEach(function (e) { var k = dayOf(e); perDay[k] = (perDay[k] || 0) + 1; });
-      var seen = {};
-      mine.forEach(function (e) {
-        var day = dayOf(e), n = perDay[day], i = (seen[day] = (seen[day] || 0));
-        seen[day]++;
-        var dw = span / GDAYS;                     // 一天的寬度
-        var step = n > 1 ? Math.max(SEGW + 1.2, dw * 0.62) : 0;
-        marks.push({
-          e: e, lv: e.lv || 2, w: e.w,
-          cx: bx(day + 0.5) + (i - (n - 1) / 2) * step
-        });
-      });
-      marks.sort(function (p, q) { return p.cx - q.cx; });
-
-      /* ── 靜音線 ─────────────────────────────────────
-         **一條直線。**
-         ⚠️ 這裡曾經是三個正弦疊加的「底噪」（振幅 1.1，使用者早期要過兩次），
-         2026-08 使用者改口要簡潔：「線條改成直線」。舊做法連同 140 個取樣點一起拿掉。
-         不要因為看到「錄音的靜音段本來就有底噪」這種說法就加回去。 */
-      var nf = 'M' + LAB + ',' + base + ' L' + (W - PADR) + ',' + base;
-
-      g += '<g class="lane ' + ln.k + '" style="--i:' + li + '">'
-        /* 示意欄：圖案＋軌名＋道號。整條軌只有這裡有圖案。 */
-        + '<g class="lkey">' + glyphSvg(ln.k, 17, base, 9)
-        + '<text class="lkt" x="36" y="' + (base - 3) + '">' + ln.label + '</text>'
-        + '<text class="lkc" x="36" y="' + (base + 10) + '">CH-0' + (li + 1) + '</text></g>'
-        + '<path class="silence" d="' + nf + '"/>';
-
-      /* ── 「還沒開始」──────────────────────────────────
-         空白之所以危險，是因為它沒有說明 —— 一條什麼都沒有的線讀起來像「沒了」，
-         但這裡要說的是「還沒輪到」。補三個字，空白就從缺席變成序幕。
-         只在夠寬時才放，擠的時候寧可不放。 */
-      if (marks.length) {
-        var gap = marks[0].cx - LAB;
-        if (gap > 96) {
-          g += '<text class="notyet" x="' + (LAB + gap / 2).toFixed(1) + '" y="'
-            + (base - 13) + '" text-anchor="middle">還沒開始</text>';
-        }
-      }
-
-      /* ── 電平段 ─────────────────────────────────────
-         一筆紀錄＝以軌線為中心、上下各堆 lv 段。**段數就是差／好／優** ——
-         等級變成可以數的，不再是目測高低。
-         每一筆是獨立的圖形，所以同一天兩筆重疊就是自然疊在一起 ——
-         舊版「一條 lane 只有一條連續 path」的那套限制（夾鄰居、x 單調）全部不需要了。
-         --d 是播放頭掃到這裡的時間，CSS 拿去當 animation-delay。 */
-      marks.forEach(function (mk) {
-        var x = mk.cx - SEGW / 2, seg = '';
-        for (var n = 0; n < mk.lv; n++) {
-          var off = SEGMID + n * SEGGAP;
-          seg += '<rect x="' + x.toFixed(1) + '" y="' + (base - off - SEGH).toFixed(1) + '"'
-              + ' width="' + SEGW + '" height="' + SEGH + '" rx="' + (SEGH / 2) + '"/>'
-              + '<rect x="' + x.toFixed(1) + '" y="' + (base + off).toFixed(1) + '"'
-              + ' width="' + SEGW + '" height="' + SEGH + '" rx="' + (SEGH / 2) + '"/>';
-        }
-        /* ⚠️ 尖端原本有一顆 `.gdot` 小圓點當 hover／選中的指示器。
-           電平段變薄變近之後，那顆點浮在最上面、跟段之間有空隙，
-           被使用者問「最上面為什麼有一個圓點」—— 它讀起來像多餘的裝飾。
-           拿掉了，回饋改由**電平段自己**變亮／變白（見 uc.css 的 .gmk:hover .seg）。
-           少一個元素，而且選中的是哪一筆更直接。 */
-        g += '<g class="gmk' + (GSEL === mk.e.id ? ' sel' : '')
-          + '" data-ev="' + mk.e.id + '" data-w="' + mk.w + '"'
-          + ' style="--d:' + ((mk.cx - LAB) / span).toFixed(3) + '">'
-          + '<g class="seg">' + seg + '</g>'
-          + '<circle class="ghit" cx="' + mk.cx.toFixed(1) + '" cy="' + base + '" r="16"/></g>';
-      });
-      g += '</g>';
-    });
-
-    /* 週次刻度 */
-    for (var w3 = 1; w3 <= N; w3++) {
-      /* 一週是一段跨距（七天），不是一個點。點擊區＝整段，數字置中在跨距裡。
-         當前週次框起來（沿用 .onum 的作法），靠 markWeek 的 class 切換，不重畫。 */
-      var wx0 = bx((w3 - 1) * 7), wxc = bx((w3 - 1) * 7 + 3.5);
-      g += '<g class="bwk' + (w3 === GW ? ' on' : '') + '" data-week="' + w3 + '">'
-        + '<rect class="bhit" x="' + wx0.toFixed(1) + '" y="0" width="'
-          + wkw.toFixed(1) + '" height="' + H + '"/>'
-        + '<rect class="bwbox" x="' + (wxc - 12).toFixed(1) + '" y="' + (H - 24)
-          + '" width="24" height="16" rx="2"/>'
-        + '<text class="bwt" x="' + wxc.toFixed(1) + '" y="' + (H - 12)
-          + '" text-anchor="middle">' + ('0' + w3).slice(-2) + '</text></g>';
-    }
-
-    /* 播放頭。畫在最後 → 疊在最上層。位置由 sweep() 每一帧改 x1/x2。 */
-    g += '<line class="playhead" x1="' + LAB + '" y1="' + TOP + '" x2="' + LAB
-      + '" y2="' + BOT + '"/>';
-
-    GEL.band.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bands" role="img"'
-      + ' aria-label="十二週的三條紀錄軌跡：通話記錄、外出社交、實際約會">' + g + '</svg>';
-
-    sweep();
-    markWeek();
-  }
-
-  /* 掃描：三條依序從左往右描繪，前端有一顆發光的點。
-     rAF 在被節流的頁籤只跑一次就停，所以用計時器保底把最終狀態補上。 */
-  /* ── 播放頭 ─────────────────────────────────────────
-     舊版是 strokeDasharray 描一條連續 path。段是離散的圖形，描不了 ——
-     改成一條播放頭由左往右掃，段隨它經過依序亮起（`--d` 是那一筆的正規化 x）。
-     這比描線更像 DAW 播放，而且不用 getTotalLength()。
-     **掃一次就停** —— 這是已經發生完的三個月，不做持續循環（那會假裝是即時訊號）。 */
-  function sweep() {
-    var me = ++GSWEEP;
-    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var head = GEL.band.querySelector('.playhead');
-    var marks = [].slice.call(GEL.band.querySelectorAll('.gmk'));
-    var sil = [].slice.call(GEL.band.querySelectorAll('.silence'));
-    var box = GEL.band.querySelector('.bands');
-    if (!box) return;
-    var vb = box.getAttribute('viewBox').split(' ');
-    var x0 = 96, x1 = +vb[2] - 26;                    // LAB / W - PADR
-
-    /* 每一筆的正規化位置。--d 是 paintBands 寫進 style 的，讀不到就當 0。 */
-    var at = marks.map(function (m) { return +(m.style.getPropertyValue('--d') || 0); });
-
-    function finish() {
-      marks.forEach(function (m) { m.classList.add('on'); });
-      sil.forEach(function (n) { n.style.strokeDasharray = 'none'; n.style.strokeDashoffset = 0; });
-      if (head) head.classList.add('done');
-    }
-    if (reduce) { finish(); return; }
-
-    marks.forEach(function (m) { m.classList.remove('on'); });
-    sil.forEach(function (n) {
-      var L = 0;
-      try { L = n.getTotalLength(); } catch (e) { L = x1 - x0; }
-      n.style.strokeDasharray = L; n.style.strokeDashoffset = L;
-      n.dataset.len = L;
-    });
-    if (head) head.classList.remove('done');
-
-    var dur = 1500, t0 = null, done = false;
-    function step(t) {
-      if (done || me !== GSWEEP) return;
-      if (t0 === null) t0 = t;
-      var k = Math.min(1, (t - t0) / dur);
-      if (head) {
-        var x = x0 + (x1 - x0) * k;
-        head.setAttribute('x1', x.toFixed(1)); head.setAttribute('x2', x.toFixed(1));
-      }
-      sil.forEach(function (n) {
-        var L = +n.dataset.len || 0;
-        n.style.strokeDashoffset = L * (1 - k);
-      });
-      /* 段亮起交給 CSS transition，這裡只切 class —— 不要每一帧寫 28 個 opacity */
-      marks.forEach(function (m, i) { if (k >= at[i]) m.classList.add('on'); });
-      if (k < 1) requestAnimationFrame(step); else { done = true; finish(); }
-    }
-    requestAnimationFrame(step);
-    setTimeout(function () {                       // rAF 被節流時保底
-      done = true;
-      if (me === GSWEEP) finish();
-    }, dur + 260);
-  }
-
-  function markWeek() {
-    [].forEach.call(GEL.band.querySelectorAll('.bwk'), function (c) {
-      c.classList.toggle('on', +c.dataset.week === GW);
-    });
-    [].forEach.call(GEL.band.querySelectorAll('[data-ev]'), function (p) {
-      p.classList.toggle('sel', p.dataset.ev === GSEL);
-    });
-    /* 貫穿線就地移動，不重建 SVG */
-    var cur = GEL.band.querySelector('.bcur');
-    if (cur && GPOS.wkw) cur.setAttribute('x', (GPOS.x0 + (GW - 1) * GPOS.wkw).toFixed(1));
-  }
-
-  function growthTo(w) {
-    GW = w;
-    markWeek();
-    paintPanel();
-  }
-
-  /* 下方紀錄區。類型選擇（含總筆數）就在這裡 —— 圖上不再做篩選。
-     「全部」看選定那一週；選了某一種就把十二週該類型的紀錄全部攤開來回看。 */
-  function paintPanel() {
-    var ev = gEvents();
-    var n = function (k) {
-      return k === 'all' ? ev.length
-                         : ev.filter(function (e) { return e.kind === k; }).length;
-    };
-    var tabs = [{ k: 'all', label: '全部' }].concat(GLANE);
-    var head = '<div class="rkind" id="gKind">' + tabs.map(function (t) {
-      return '<button class="rk' + (GKIND === t.k ? ' on' : '') + '" data-kind="' + t.k + '">'
-        + (t.k === 'all' ? '' : '<svg class="cgy" viewBox="0 0 16 16" aria-hidden="true">'
-            + glyphSvg(t.k, 8, 8, 5.6) + '</svg>')
-        + t.label + '<b class="num">' + n(t.k) + '</b></button>';
-    }).join('') + '</div>';
-
-    var body;
-    var one = GSEL ? ev.filter(function (e) { return e.id === GSEL; })[0] : null;
-    if (one) {
-      body = evCard(one);
-    } else if (GKIND === 'all') {
-      var wk = ev.filter(function (e) { return e.w === GW; });
-      body = '<p class="ey">第 ' + GW + ' 週　共 ' + wk.length + ' 筆</p>'
-        + (wk.length ? wk.map(function (e) { return evCard(e, true); }).join('')
-                     : '<p class="snote">這一週還沒有紀錄。</p>');
-    } else {
-      var ln = GLANE.filter(function (l) { return l.k === GKIND; })[0];
-      var all = ev.filter(function (e) { return e.kind === GKIND; })
-        .sort(function (a, b) { return dayOf(a) - dayOf(b); });
-      body = '<p class="ey">' + ln.label + '　十二週共 ' + all.length + ' 筆</p>'
-        + (all.length ? all.map(function (e) { return evCard(e, true); }).join('')
-                      : '<p class="snote">還沒有這一類的紀錄。</p>');
-    }
-
-    GEL.panel.innerHTML = head + body;
-    el('gKind').addEventListener('click', function (e) {
-      var b = e.target.closest('[data-kind]');
-      if (!b || b.dataset.kind === GKIND) return;
-      GKIND = b.dataset.kind;
-      GSEL = null;                 // 換類型就離開「單筆」檢視
-      markWeek();                  // 取消圖上的選取highlight
-      paintPanel();
-    });
-  }
-
-  function evCard(e, compact) {
-    var ln = GLANE.filter(function (x) { return x.k === e.kind; })[0] || { label: e.kind };
-    return '<div class="evc' + (compact ? ' cmp' : '') + '">'
-      + '<p class="ey"><span class="ek">' + ln.label + '</span>'
-      + '第 ' + e.w + ' 週' + (e.d ? '　' + gDateStr(e) : '')
-      + '　・　' + (e.by === 'coach' ? '教練記錄' : '學員記錄')
-      + '　・　狀況 <b class="lv' + (e.lv || 2) + '">' + lvOf(e).t + '</b></p>'
-      /* ⚠️ 新版表單只有「紀錄」一個文字欄（存在 outcome），沒有標題。
-         舊資料還有 t，所以兩種都要畫得出來 —— 有 t 就當小標，沒有就直接是內文。 */
-      + (e.t ? '<p class="evt">' + esc(e.t) + '</p>' : '')
-      + (e.outcome ? '<h3 class="evo">' + esc(e.outcome) + '</h3>' : '')
-      + (e.note ? '<p class="evn">' + esc(e.note) + '</p>' : '')
-      + '</div>';
-  }
-
-  /* ── 雙向紀錄表單 ─────────────────────────────────── */
-  /* 三種類型只差這一句提示 —— 欄位本身完全一樣，不要為了差異而多開欄位。 */
-  var OUTPH = {
-    call:   '這次通話確認了什麼調整？一句就好。',
-    social: '去了哪裡、認識了誰？一句就好。',
-    date:   '跟誰、做了什麼、進展到哪？一句就好。'
-  };
-
-  /* 預設今天。⚠️ 要夾在課程的 12 週範圍內 —— 超出去 gDay() 會回負數，
-     存檔會被自己的檢查擋掉，而使用者只會看到「日期要落在這 12 週裡」很困惑。 */
-  function todayIso() {
-    var t = new Date();
-    var iso = t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2)
-            + '-' + ('0' + t.getDate()).slice(-2);
-    var day = gDay(iso);
-    if (day >= 0 && day < GDAYS) return iso;
-    return gIso(Math.min(GDAYS - 1, Math.max(0, (GW - 1) * 7 + 3)));
-  }
-
-  var GKHINT = {
-    call:   '跟教練通話之後記一筆',
-    social: '出門認識人、參加活動',
-    date:   '約出來見面'
-  };
-
-  function renderForm() {
-    if (!GFORM) { GEL.form.innerHTML = ''; return; }
-    /* 類型在按按鈕的時候就決定了，表單裡不再問一次。 */
-    var lane = GLANE.filter(function (l) { return l.k === GFORM; })[0] || GLANE[0];
-
-    var h = '<div class="gfm" data-field-scope="growth.event"><p class="ey">新增紀錄</p>'
-      + '<h3 class="gfkind">' + esc(lane.label) + '</h3>'
-      + '<p class="fieldtag shared">教練與學員皆可填寫</p>'
-      + '<input type="hidden" id="fKind" value="' + esc(lane.k) + '">'
-      /* 正式登入後記錄者由 LIFF 身分決定，沒得選 —— 選單只留給本機範例模式。 */
-      + (ACTOR_ROLE
-        ? '<input type="hidden" id="fBy" value="' + esc(ACTOR_ROLE) + '">'
-        : '<div class="gfr"><label for="fBy">記錄者</label><select id="fBy" data-field-id="growth.event.author" data-field-owner="state" data-field-label="記錄者">'
-          + '<option value="coach">教練</option><option value="student">學員</option>'
-          + '</select><s class="gfh">正式登入後會自動使用目前身分；範例模式可切換</s></div>')
-      /* ⚠️ **只有三格。** 使用者 2026-09-13：「這個填表功能應該是每週都會用到的，
-         所以要確保他很容易填寫。只需要日期、狀況、紀錄。」
-         類型不問（按哪顆按鈕就是哪一種）、記錄者不問（由身分決定）、
-         標題與補充都拿掉 —— 每週要填的東西多一格就少一分會填。 */
-      + '<div class="gfr"><label for="fDate">日期</label><input type="date" id="fDate" data-field-id="growth.event.date" data-field-owner="shared" data-field-label="紀錄日期"'
-      + ' min="' + G0 + '" max="' + G1 + '" value="' + esc(todayIso()) + '">'
-      + '<s class="gfh">預設今天</s></div>'
-      + '<div class="gfr"><label>狀況</label><div class="gflv" id="fLvBox">'
-      + [1, 2, 3].map(function (n) {
-          return '<button type="button" class="gflvb' + (n === 2 ? ' on' : '') + '"'
-            + ' data-lv="' + n + '">' + esc(GLV[n].t) + '</button>';
-        }).join('')
-      + '</div><input type="hidden" id="fLv" value="2"></div>'
-      + '<div class="gfr"><label for="fO">紀錄</label><textarea id="fO" rows="4" data-field-id="growth.event.outcome" data-field-owner="shared" data-field-label="紀錄內容" placeholder="' + esc(OUTPH[lane.k]) + '"></textarea></div>';
-
-    h += '<div class="gfb"><button class="btn pri" id="fSave">記下來</button>'
-      + '<button class="btn gh" id="fCancel">取消</button></div></div>';
-    GEL.form.innerHTML = h;
-
-    if (!ACTOR_ROLE) el('fBy').value = lane.who;
-    /* 狀況用三顆按鈕不用下拉 —— 手機上點一下比「開下拉、捲、選、關」快得多。 */
-    el('fLvBox').addEventListener('click', function (e) {
-      var b = e.target.closest('[data-lv]'); if (!b) return;
-      el('fLv').value = b.dataset.lv;
-      [].forEach.call(el('fLvBox').children, function (x) { x.classList.toggle('on', x === b); });
-    });
-    el('fO').focus();
-    el('fCancel').addEventListener('click', function () { GFORM = null; renderForm(); });
-    el('fSave').addEventListener('click', function () {
-      var body = el('fO').value.trim();
-      if (!body) { toast('寫一句就好，不用長'); el('fO').focus(); return; }
-      var iso = el('fDate').value;
-      var day = iso ? gDay(iso) : -1;
-      if (day < 0 || day >= GDAYS) { toast('日期要落在這 12 週裡'); return; }
-      var e = {
-        id: 'U' + Date.now(), w: gWeekOf(day), d: iso, by: el('fBy').value,
-        kind: el('fKind').value, lv: +el('fLv').value,
-        outcome: body
-      };
-      S.log = (S.log || []).concat([e]); save();
-      GFORM = null; GSEL = e.id;
-      renderForm(); paintBands(); growthTo(e.w);
-      toast('已加到第 ' + e.w + ' 週');
-    });
+    var exp = body.querySelector('[data-gexport]');
+    if (exp) exp.addEventListener('click', function () { downloadGrowth(records); });
+    applyFieldAccess(body); reveal(body);
   }
 
   /* ── 課程資源與工具 ───────────────────────────────────
@@ -3000,7 +2625,7 @@
       return '<button type="button" class="tile" data-tool="' + esc(t.k) + '">'
         + '<span class="thumb' + (t.cover ? ' has-cover' : '') + '">'
         + (t.cover ? '<img src="' + esc(t.cover) + '" alt="" loading="lazy" decoding="async">' : '')
-        + '<i class="num">' + ('0' + (i + 1)) + '</i>'
+        + '<i class="num">' + ('0' + (i + 1)).slice(-2) + '</i>'
         + '<u>' + (t.status === 'active' ? '可填寫' : t.status === 'preview' ? '結構示意' : '內容待補') + '</u></span>'
         + '<b>' + esc(t.t) + '</b><s>' + esc(t.lead) + '</s>'
         + '<em class="num">' + esc(t.en) + '</em></button>';
@@ -3022,47 +2647,302 @@
     return status === 'completed' ? '已完成' : status === 'submitted' ? '已交作業' : '草稿';
   }
 
+  function assignmentFields(a) {
+    if (a.kind === 'belief-cycle' && a.belief) {
+      return [].concat(
+        a.belief.stage1 && a.belief.stage1.fields || [],
+        a.belief.stage2 && a.belief.stage2.loopFields || [],
+        a.belief.stage2 && a.belief.stage2.exitFields || []
+      );
+    }
+    if (Array.isArray(a.groups)) {
+      return a.groups.reduce(function (out, g) {
+        return out.concat(Array.isArray(g.fields) ? g.fields : []);
+      }, []);
+    }
+    return Array.isArray(a.fields) ? a.fields : [];
+  }
+
+  function assignmentProgress(a, saved) {
+    if (a.kind === 'belief-cycle' && a.belief) {
+      var selected = beliefChoiceIds(a).filter(function (id) { return saved.answers[id] === '1'; }).length;
+      var stage1 = a.belief.stage1;
+      var stage2 = a.belief.stage2;
+      var firstComplete = (selected > 0 || String(saved.answers['stage1-other'] || '').trim())
+        && String(saved.answers['stage1-core'] || '').trim()
+        && String(saved.answers['stage1-origin'] || '').trim();
+      var secondRequired = [].concat(stage2.loopFields || [], stage2.exitFields || []).filter(function (f) {
+        return f.required !== false;
+      });
+      var secondComplete = secondRequired.every(function (f) {
+        return String(saved.answers[f.id] || '').trim();
+      });
+      return { answered: (firstComplete ? 1 : 0) + (secondComplete ? 1 : 0), total: 2,
+        complete: firstComplete && secondComplete, stage1Complete: firstComplete,
+        stage2Complete: secondComplete, selected: selected };
+    }
+    var fields = assignmentFields(a);
+    var required = fields.filter(function (f) { return f.required !== false; });
+    var complete = required.every(function (f) { return String(saved.answers[f.id] || '').trim(); });
+    if (Array.isArray(a.groups)) {
+      var done = a.groups.filter(function (g) {
+        return (g.fields || []).every(function (f) { return String(saved.answers[f.id] || '').trim(); });
+      }).length;
+      return { answered: done, total: a.groups.length, complete: complete };
+    }
+    return {
+      answered: fields.filter(function (f) { return String(saved.answers[f.id] || '').trim(); }).length,
+      total: fields.length,
+      complete: complete
+    };
+  }
+
+  function beliefChoiceIds(a) {
+    var stage = a.belief && a.belief.stage1;
+    return (stage && stage.categories || []).reduce(function (out, category) {
+      return out.concat((category.items || []).map(function (item) { return item.id; }));
+    }, []);
+  }
+
+  function assignmentStepsHTML(a) {
+    if (!Array.isArray(a.steps) || !a.steps.length) return '';
+    return '<div class="assignment-steps">' + a.steps.map(function (step) {
+      return '<section><span class="num">' + esc(step.no) + '</span><div><h4>' + esc(step.t)
+        + '</h4><p>' + esc(step.body) + '</p></div></section>';
+    }).join('') + '</div>';
+  }
+
+  function assignmentLegacyFieldsHTML(a, saved) {
+    return '<div class="assignment-fields">' + (a.fields || []).map(function (f, i) {
+      return '<section class="assignment-field" data-field-id="assignment.' + esc(a.id) + '.' + esc(f.id)
+        + '" data-field-owner="student" data-field-label="' + esc(f.t) + '">'
+        + '<div class="assignment-number num">' + ('0' + (i + 1)).slice(-2) + '</div>'
+        + '<div class="assignment-copy"><h3>' + esc(f.t) + '</h3><p class="assignment-sub">' + esc(f.sub) + '</p>'
+        + '<p class="assignment-scope">' + esc(f.scope) + '</p></div>'
+        + '<div class="assignment-answer"><textarea rows="7" data-assignment-answer="' + esc(f.id)
+        + '" placeholder="' + esc(f.ph || '請依序寫下：現況、目標、如何實踐、為什麼想要。') + '">'
+        + esc(saved.answers[f.id] || '') + '</textarea></div>'
+        + (f.example ? '<details class="assignment-example"><summary>看一個填寫範例</summary><p>'
+          + esc(f.example).replace(/\n/g, '<br>') + '</p></details>' : '') + '</section>';
+    }).join('') + '</div>';
+  }
+
+  function assignmentStoryExampleHTML(g) {
+    if (!g.example) return '';
+    return '<details class="assignment-example assignment-story-example"><summary>看完整填寫範例</summary><dl>'
+      + (g.fields || []).map(function (f) {
+        return '<div><dt>' + esc(f.t) + '</dt><dd>' + esc(g.example[f.key] || '') + '</dd></div>';
+      }).join('') + '</dl></details>';
+  }
+
+  function assignmentStoryFilled(g, saved) {
+    return (g.fields || []).filter(function (f) {
+      return String(saved.answers[f.id] || '').trim();
+    }).length;
+  }
+
+  function assignmentStoryOverviewHTML(a, saved) {
+    var sections = Array.isArray(a.sections) ? a.sections : [];
+    return '<div class="assignment-story-overview"><p class="assignment-overview-intro">'
+      + '先看全部故事，再選一個想整理的主題。不用一次寫完。</p>'
+      + '<div class="assignment-story-matrix">' + sections.map(function (section) {
+      var groups = a.groups.filter(function (g) { return g.section === section.id; });
+      return '<section class="assignment-story-column"><header><span class="num">' + esc(section.no) + '</span>'
+        + '<p class="ey">' + esc(section.en) + '</p><h3>' + esc(section.t) + '</h3></header>'
+        + '<div class="assignment-story-topics">' + groups.map(function (g) {
+          var index = a.groups.indexOf(g) + 1;
+          var filled = assignmentStoryFilled(g, saved);
+          var complete = filled === g.fields.length;
+          var state = complete ? '完成' : filled ? '整理中' : '';
+          return '<button type="button" class="assignment-story-cell' + (complete ? ' is-complete' : filled ? ' is-started' : '')
+            + '" data-assignment-open="' + esc(g.id) + '" data-story-id="' + esc(g.id)
+            + '" aria-label="填寫' + esc(section.t + g.t) + '"><span class="num">' + ('0' + index).slice(-2) + '</span>'
+            + '<strong>' + esc(g.t) + '</strong><span class="assignment-story-state" data-story-progress="'
+            + esc(g.id) + '" data-progress-quiet="1">' + state + '</span></button>';
+        }).join('') + '</div></section>';
+      }).join('') + '</div><p class="assignment-overview-foot">'
+      + '有寫過的主題會標記為「整理中」；四欄都填完才顯示「完成」。</p></div>';
+  }
+
+  function assignmentStoryEditorHTML(a, saved, g) {
+    var section = (a.sections || []).filter(function (x) { return x.id === g.section; })[0] || {};
+    var index = a.groups.indexOf(g) + 1;
+    var filled = assignmentStoryFilled(g, saved);
+    return '<div class="assignment-story-editor" data-assignment-editor><button type="button" class="btn gh assignment-story-back"'
+      + ' data-assignment-back>← 回到故事總表</button>'
+      + '<article class="assignment-story' + (filled === g.fields.length ? ' is-complete' : '')
+      + '" data-story-id="' + esc(g.id) + '"><header><span class="num">' + ('0' + index).slice(-2) + '</span>'
+      + '<div><p>' + esc(section.t || '') + '</p><h4>' + esc(g.t) + '</h4></div>'
+      + '<span class="assignment-story-progress" data-story-progress="' + esc(g.id) + '">'
+      + filled + ' / ' + g.fields.length + '</span></header>'
+      + '<div class="assignment-story-inputs">' + g.fields.map(function (f) {
+        return '<label class="assignment-story-input" data-field-id="assignment.' + esc(a.id) + '.' + esc(f.id)
+          + '" data-field-owner="student" data-field-label="' + esc(g.t + '／' + f.t) + '">'
+          + '<span><b>' + esc(f.t) + '</b><small>' + esc(f.help) + '</small></span>'
+          + '<textarea rows="' + Math.max(2, Math.min(10, Number(f.rows) || 4))
+          + '" data-assignment-answer="' + esc(f.id) + '" placeholder="' + esc(f.ph) + '">'
+          + esc(saved.answers[f.id] || '') + '</textarea></label>';
+      }).join('') + '</div>' + assignmentStoryExampleHTML(g) + '</article>'
+      + '<p class="assignment-editor-hint">內容會隨填寫自動儲存，可以隨時回總表換一個主題。</p></div>';
+  }
+
+  function assignmentGroupedFieldsHTML(a, saved) {
+    var openId = ASSIGNMENT_OPEN[a.id];
+    var group = (a.groups || []).filter(function (g) { return g.id === openId; })[0];
+    return group ? assignmentStoryEditorHTML(a, saved, group) : assignmentStoryOverviewHTML(a, saved);
+  }
+
+  function assignmentBeliefFieldHTML(a, saved, f, extraClass) {
+    return '<label class="belief-field' + (extraClass ? ' ' + extraClass : '')
+      + '" data-field-id="assignment.' + esc(a.id) + '.' + esc(f.id)
+      + '" data-field-owner="student" data-field-label="' + esc(f.t) + '">'
+      + '<span><b>' + esc(f.t) + '</b><small>' + esc(f.help || '') + '</small></span>'
+      + '<textarea rows="' + Math.max(2, Math.min(9, Number(f.rows) || 4))
+      + '" data-assignment-answer="' + esc(f.id) + '" placeholder="' + esc(f.ph || '') + '">'
+      + esc(saved.answers[f.id] || '') + '</textarea></label>';
+  }
+
+  function assignmentBeliefHTML(a, saved) {
+    var belief = a.belief, stage1 = belief.stage1, stage2 = belief.stage2;
+    var active = ASSIGNMENT_OPEN[a.id] === 'stage2' ? 'stage2' : 'stage1';
+    var progress = assignmentProgress(a, saved);
+    return '<div class="belief-workbook" data-belief-workbook data-belief-stage="' + active + '">'
+      + '<div class="belief-tabs" role="tablist" aria-label="信念系統兩階段">'
+      + '<button type="button" role="tab" data-belief-tab="stage1" aria-selected="'
+      + (active === 'stage1' ? 'true' : 'false') + '" class="' + (active === 'stage1' ? 'is-on' : '') + '">'
+      + '<span class="num">' + esc(stage1.no) + '</span><b>' + esc(stage1.t) + '</b><small>'
+      + '<span data-belief-tab-state="stage1">' + (progress.stage1Complete ? '已完成' : '先從這裡開始') + '</span></small></button>'
+      + '<i aria-hidden="true"></i>'
+      + '<button type="button" role="tab" data-belief-tab="stage2" aria-selected="'
+      + (active === 'stage2' ? 'true' : 'false') + '" class="' + (active === 'stage2' ? 'is-on' : '') + '">'
+      + '<span class="num">' + esc(stage2.no) + '</span><b>' + esc(stage2.t) + '</b><small>'
+      + '<span data-belief-tab-state="stage2">' + (progress.stage2Complete ? '已完成' : '用一件事練習') + '</span></small></button></div>'
+      + '<section class="belief-stage" role="tabpanel" data-belief-panel="stage1"'
+      + (active === 'stage1' ? '' : ' hidden') + '><header class="belief-stage-head"><p class="ey">'
+      + esc(stage1.en) + '</p><h3>' + esc(stage1.t) + '</h3><p>' + esc(stage1.body) + '</p></header>'
+      + '<div class="belief-categories">' + (stage1.categories || []).map(function (category) {
+        return '<section class="belief-category"><header><h4>' + esc(category.t) + '</h4><span>'
+          + (category.items || []).length + ' 個句子</span></header><div class="belief-choices">'
+          + (category.items || []).map(function (item) {
+            var checked = saved.answers[item.id] === '1';
+            return '<label class="belief-choice' + (checked ? ' is-checked' : '')
+              + '" data-field-id="assignment.' + esc(a.id) + '.' + esc(item.id)
+              + '" data-field-owner="student" data-field-label="常見信念句">'
+              + '<input type="checkbox" data-belief-choice="' + esc(item.id) + '"'
+              + (checked ? ' checked' : '') + '><i aria-hidden="true"></i><span>' + esc(item.text)
+              + '</span></label>';
+          }).join('') + '</div></section>';
+      }).join('') + '</div><p class="belief-selected"><span data-belief-selected>' + progress.selected
+      + '</span> 個想法曾經出現過</p>'
+      + '<div class="belief-fields belief-stage1-fields">' + (stage1.fields || []).map(function (f) {
+        return assignmentBeliefFieldHTML(a, saved, f, f.id === 'stage1-other' ? 'is-optional' : '');
+      }).join('') + '</div><div class="belief-stage-actions"><span>內容會自動儲存</span>'
+      + '<button type="button" class="btn pri" data-belief-next>進入第二階段 →</button></div></section>'
+      + '<section class="belief-stage" role="tabpanel" data-belief-panel="stage2"'
+      + (active === 'stage2' ? '' : ' hidden') + '><header class="belief-stage-head"><p class="ey">'
+      + esc(stage2.en) + '</p><h3>' + esc(stage2.t) + '</h3><p>' + esc(stage2.body) + '</p></header>'
+      + '<div class="belief-cycle-section"><header><span class="num">A</span><div><h4>'
+      + esc(stage2.loopTitle) + '</h4><p>' + esc(stage2.loopLead) + '</p></div></header>'
+      + '<div class="belief-cycle-fields">' + (stage2.loopFields || []).map(function (f, i) {
+        return assignmentBeliefFieldHTML(a, saved, f, 'belief-cycle-field belief-cycle-' + (i + 1));
+      }).join('') + '</div></div>'
+      + '<div class="belief-pivot"><span aria-hidden="true">↓</span><b>' + esc(stage2.pivotTitle)
+      + '</b><p>' + esc(stage2.pivotBody) + '</p></div>'
+      + '<div class="belief-cycle-section belief-new-path"><header><span class="num">B</span><div><h4>'
+      + esc(stage2.exitTitle) + '</h4><p>' + esc(stage2.exitLead) + '</p></div></header>'
+      + '<div class="belief-exit-fields">' + (stage2.exitFields || []).map(function (f) {
+        return assignmentBeliefFieldHTML(a, saved, f, f.required === false ? 'is-optional' : '');
+      }).join('') + '</div></div>'
+      + '<div class="belief-stage-actions"><button type="button" class="btn gh" data-belief-back>← 回看第一階段</button>'
+      + '<span>行動後可以再回來補上新證據</span></div></section></div>';
+  }
+
   function assignmentHTML(t) {
     var a = t.assignment, saved = assignmentState(t);
-    var fields = a.fields || [];
-    var answered = fields.filter(function (f) { return String(saved.answers[f.id] || '').trim(); }).length;
+    var progress = assignmentProgress(a, saved);
+    var progressUnit = a.progressUnit ? ' ' + a.progressUnit : '';
+    var editingStory = Array.isArray(a.groups) && a.groups.some(function (g) {
+      return g.id === ASSIGNMENT_OPEN[a.id];
+    });
     return '<section class="assignment" data-assignment="' + esc(a.id) + '">'
-      + '<div class="assignment-note"><p>' + esc(a.note) + '</p></div>'
-      + '<div class="assignment-head"><div><p class="ey">這次的作業</p><h3>寫下你的三張生活藍圖</h3></div>'
-      + '<div class="assignment-meta"><span id="assignmentProgress">' + answered + ' / ' + fields.length + '</span>'
+      + (editingStory ? '' : '<div class="assignment-note"><p>' + esc(a.note) + '</p></div>')
+      + '<div class="assignment-head"><div><p class="ey">這次的作業</p><h3>'
+      + esc(a.title || '完成這份作業') + '</h3></div>'
+      + '<div class="assignment-meta"><span id="assignmentProgress">' + progress.answered + ' / '
+      + progress.total + progressUnit + '</span>'
       + '<span id="assignmentStatus">' + assignmentStatusText(saved.status) + '</span></div></div>'
-      + '<p class="assignment-guide">' + esc(a.prompt) + '</p>'
-      + '<div class="assignment-fields">' + fields.map(function (f, i) {
-        return '<section class="assignment-field" data-field-id="assignment.' + esc(a.id) + '.' + esc(f.id) + '" data-field-owner="student" data-field-label="' + esc(f.t) + '">'
-          + '<div class="assignment-number num">' + ('0' + (i + 1)).slice(-2) + '</div>'
-          + '<div class="assignment-copy"><h3>' + esc(f.t) + '</h3><p class="assignment-sub">' + esc(f.sub) + '</p>'
-          + '<p class="assignment-scope">' + esc(f.scope) + '</p></div>'
-          + '<div class="assignment-answer"><textarea rows="7" data-assignment-answer="' + esc(f.id) + '" placeholder="請依序寫下：現況、目標、如何實踐、為什麼想要。">'
-          + esc(saved.answers[f.id] || '') + '</textarea></div>'
-          + '<details class="assignment-example"><summary>看一個填寫範例</summary><p>'
-          + esc(f.example).replace(/\n/g, '<br>') + '</p></details></section>';
-      }).join('') + '</div>'
-      + '<div class="assignment-actions"><p id="assignmentSaveHint">內容會隨填寫自動儲存。</p>'
-      + '<button type="button" class="btn pri" id="assignmentSubmit">'
-      + (ACTOR_ROLE === 'coach' ? '標記完成' : '交作業') + '</button></div></section>';
+      + (editingStory ? '' : assignmentStepsHTML(a) + '<p class="assignment-guide">' + esc(a.prompt) + '</p>')
+      + (a.kind === 'belief-cycle' ? assignmentBeliefHTML(a, saved)
+        : Array.isArray(a.groups) ? assignmentGroupedFieldsHTML(a, saved) : assignmentLegacyFieldsHTML(a, saved))
+      + (editingStory ? '' : '<div class="assignment-actions"><p id="assignmentSaveHint">內容會隨填寫自動儲存。</p>'
+        + '<button type="button" class="btn pri" id="assignmentSubmit">'
+        + (ACTOR_ROLE === 'coach' ? '標記完成' : '交作業') + '</button></div>') + '</section>';
+  }
+
+  function refreshAssignment(t, pane, selector) {
+    var current = pane.querySelector('[data-assignment="' + t.assignment.id + '"]');
+    if (!current) return;
+    var holder = document.createElement('div');
+    holder.innerHTML = assignmentHTML(t);
+    current.parentNode.replaceChild(holder.firstElementChild, current);
+    bindAssignment(t, pane);
+    var target = selector && pane.querySelector(selector);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function bindAssignment(t, pane) {
-    var a = t.assignment, saved = assignmentState(t), fields = a.fields || [];
+    var a = t.assignment, saved = assignmentState(t), fields = assignmentFields(a);
     var button = pane.querySelector('#assignmentSubmit');
     function sync() {
-      var answered = fields.filter(function (f) { return String(saved.answers[f.id] || '').trim(); }).length;
+      var progressInfo = assignmentProgress(a, saved);
       var progress = pane.querySelector('#assignmentProgress');
       var status = pane.querySelector('#assignmentStatus');
-      if (progress) progress.textContent = answered + ' / ' + fields.length;
+      if (progress) progress.textContent = progressInfo.answered + ' / ' + progressInfo.total
+        + (a.progressUnit ? ' ' + a.progressUnit : '');
       if (status) status.textContent = assignmentStatusText(saved.status);
       if (button) {
-        button.disabled = answered !== fields.length || saved.status === 'completed'
+        button.disabled = !progressInfo.complete || saved.status === 'completed'
           || (ACTOR_ROLE !== 'coach' && saved.status === 'submitted');
         button.textContent = saved.status === 'completed' ? '已完成'
           : ACTOR_ROLE === 'coach' ? '標記完成' : saved.status === 'submitted' ? '已交作業' : '交作業';
       }
+      (a.groups || []).forEach(function (g) {
+        var filled = assignmentStoryFilled(g, saved);
+        var node = pane.querySelector('[data-story-progress="' + g.id + '"]');
+        if (node) node.textContent = node.dataset.progressQuiet
+          ? (filled === g.fields.length ? '完成' : filled ? '整理中' : '')
+          : filled + ' / ' + g.fields.length;
+        var card = pane.querySelector('[data-story-id="' + g.id + '"]');
+        if (card) {
+          card.classList.toggle('is-started', filled > 0 && filled < g.fields.length);
+          card.classList.toggle('is-complete', filled === g.fields.length);
+        }
+      });
+      if (a.kind === 'belief-cycle') {
+        var selected = pane.querySelector('[data-belief-selected]');
+        if (selected) selected.textContent = progressInfo.selected;
+        [].forEach.call(pane.querySelectorAll('[data-belief-choice]'), function (choice) {
+          var choiceOn = saved.answers[choice.dataset.beliefChoice] === '1';
+          choice.checked = choiceOn;
+          if (choice.parentNode) choice.parentNode.classList.toggle('is-checked', choiceOn);
+        });
+        var stage1State = pane.querySelector('[data-belief-tab-state="stage1"]');
+        var stage2State = pane.querySelector('[data-belief-tab-state="stage2"]');
+        if (stage1State) stage1State.textContent = progressInfo.stage1Complete ? '已完成' : '先從這裡開始';
+        if (stage2State) stage2State.textContent = progressInfo.stage2Complete ? '已完成' : '用一件事練習';
+      }
     }
+    [].forEach.call(pane.querySelectorAll('[data-assignment-open]'), function (open) {
+      open.addEventListener('click', function () {
+        ASSIGNMENT_OPEN[a.id] = open.dataset.assignmentOpen;
+        refreshAssignment(t, pane, '[data-assignment-editor]');
+      });
+    });
+    var back = pane.querySelector('[data-assignment-back]');
+    if (back) back.addEventListener('click', function () {
+      delete ASSIGNMENT_OPEN[a.id];
+      refreshAssignment(t, pane, '.assignment-story-overview');
+    });
     [].forEach.call(pane.querySelectorAll('[data-assignment-answer]'), function (textarea) {
       grow(textarea);
       textarea.addEventListener('input', function () {
@@ -3072,6 +2952,50 @@
         save(); grow(textarea); sync();
       });
     });
+    [].forEach.call(pane.querySelectorAll('[data-belief-choice]'), function (checkbox) {
+      checkbox.addEventListener('change', function () {
+        if (checkbox.checked) saved.answers[checkbox.dataset.beliefChoice] = '1';
+        else delete saved.answers[checkbox.dataset.beliefChoice];
+        saved.status = 'draft';
+        saved.updatedAt = new Date().toISOString();
+        save(); sync();
+      });
+    });
+    if (a.kind === 'belief-cycle') {
+      var workbook = pane.querySelector('[data-belief-workbook]');
+      function setBeliefStage(stage, shouldScroll) {
+        if (!workbook || ['stage1', 'stage2'].indexOf(stage) < 0) return;
+        ASSIGNMENT_OPEN[a.id] = stage;
+        workbook.dataset.beliefStage = stage;
+        [].forEach.call(workbook.querySelectorAll('[data-belief-panel]'), function (panel) {
+          panel.hidden = panel.dataset.beliefPanel !== stage;
+        });
+        [].forEach.call(workbook.querySelectorAll('[data-belief-tab]'), function (tab) {
+          var on = tab.dataset.beliefTab === stage;
+          tab.classList.toggle('is-on', on);
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        if (shouldScroll) workbook.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      [].forEach.call(pane.querySelectorAll('[data-belief-tab]'), function (tab) {
+        tab.addEventListener('click', function () { setBeliefStage(tab.dataset.beliefTab, true); });
+      });
+      var next = pane.querySelector('[data-belief-next]');
+      if (next) next.addEventListener('click', function () {
+        if (!String(saved.answers['stage2-belief'] || '').trim()
+            && String(saved.answers['stage1-core'] || '').trim()) {
+          saved.answers['stage2-belief'] = saved.answers['stage1-core'];
+          saved.status = 'draft';
+          saved.updatedAt = new Date().toISOString();
+          var beliefInput = pane.querySelector('[data-assignment-answer="stage2-belief"]');
+          if (beliefInput) { beliefInput.value = saved.answers['stage2-belief']; grow(beliefInput); }
+          save(); sync();
+        }
+        setBeliefStage('stage2', true);
+      });
+      var backBelief = pane.querySelector('[data-belief-back]');
+      if (backBelief) backBelief.addEventListener('click', function () { setBeliefStage('stage1', true); });
+    }
     if (button) button.addEventListener('click', function () {
       if (button.disabled) return;
       saved.status = ACTOR_ROLE === 'coach' ? 'completed' : 'submitted';
@@ -3087,6 +3011,8 @@
   function toolTo(k) {
     var t = window.UC_TOOLS.items.filter(function (x) { return x.k === k; })[0];
     if (!t) return;
+    /* 每次重新進入這類作業都先回總表；填過的內容仍在，只是不讓使用者被直接丟回長表單。 */
+    if (t.assignment) delete ASSIGNMENT_OPEN[t.assignment.id];
     var badge = t.status === 'active' ? '可填寫' : t.status === 'preview' ? '結構示意' : '內容待補';
     var x = '<button class="btn gh bk" id="toolBack">← 回到課程工具</button>'
       + '<div class="thead"><div><p class="ey">' + t.en + '</p><h2>' + esc(t.t) + '</h2></div>'
