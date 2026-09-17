@@ -1774,54 +1774,261 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gmode button + button { border-left: 1px solid var(--beige-18); }
 .gmode button.on { color: var(--navy); background: var(--salmon); }
 .gexport { margin-left: auto; }
-.gcalendar { border: 1px solid var(--beige-18); background: var(--navy-lift); }
-.gweekdays, .gdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+/* ⚠️ **格子安靜，紀錄大聲。** 舊版每格畫一個 20～34px 的灰數字，
+   那是整頁最大的元素，卻是最沒有資訊的東西（「今天第幾天」看一眼就知道）；
+   而真正的內容 —— 有沒有紀錄 —— 只是一個小圖示。2026-09-18 把權重對調。 */
+/* ══ 主視覺螢幕 ═══════════════════════════════════════
+   使用者 2026-09-18：「上中央有一個主視覺，類似一個電視螢幕，
+   一開始顯示 logo，要填寫的時候那邊變成輸入面板，有點像遊戲機。」
+
+   ⚠️ **兩種狀態同一個高度。** 閒置畫太空船、填寫畫表單，
+   高度一變整頁就會跳一下，那個跳動比任何裝飾都傷。 */
+/* 主機：螢幕嵌在殼裡，三顆鍵在螢幕下方 —— 整塊就是一台機器。 */
+.gconsole {
+  margin: 24px 0 18px; padding: 12px; background-color: var(--navy-lift);
+  background-image:
+    linear-gradient(rgba(232, 228, 220, .02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 228, 220, .02) 1px, transparent 1px);
+  background-size: 13px 13px;
+  border: 1px solid var(--beige-18);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .3);
+}
+.gconsole .gkinds { margin: 12px 0 0; }
+
+.gscreen {
+  position: relative; overflow: hidden; margin: 0;
+  background-color: #0E1526;                       /* 比 navy 再深一階：關著的螢幕 */
+  background-image:
+    linear-gradient(rgba(232, 228, 220, .028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 228, 220, .028) 1px, transparent 1px);
+  background-size: 26px 26px;
+  border: 1px solid var(--beige-18);
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .3);
+}
+/* CRT 的暗角。用一層遮罩壓邊緣，不要在每個角落畫括號。 */
+.gscreen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background: radial-gradient(120% 80% at 50% 45%, transparent 55%, rgba(0, 0, 0, .55) 100%);
+}
+.gscreenbar {
+  position: relative; z-index: 2; display: flex; align-items: center; gap: 9px;
+  padding: 9px 13px; border-bottom: 1px solid var(--beige-08);
+  color: var(--beige-40); font: 500 9px/1 var(--mono); letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.gled { width: 5px; height: 5px; border-radius: 50%; background: var(--salmon);
+  box-shadow: 0 0 7px rgba(232, 168, 152, .8); }
+.gscreenbar b { color: var(--beige-70); }
+.gscreenbar s { text-decoration: none; }
+.gscreenbar em { margin-left: auto; font-style: normal; }
+
+/* ⚠️ 兩種狀態同一個高度，按下去才不會整頁跳一下。
+   數字是量出來的：表單壓到這個高度剛好放得下，太空船也不會顯得空。 */
+.gscreenin { position: relative; z-index: 2; display: grid; place-items: center;
+  overflow: hidden;
+  min-height: 378px; padding: 18px 22px; }
+
+/* 掃描線：慢、淡、只有一條。快或亮就變成廉價特效。 */
+.gscanline {
+  position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 1; pointer-events: none;
+  background: linear-gradient(rgba(232, 168, 152, 0), rgba(232, 168, 152, .055));
+  animation: gsweep 7s linear infinite;
+}
+@keyframes gsweep { 0% { transform: translateY(-64px); } 100% { transform: translateY(420px); } }
+
+/* ── 閒置：太空船 ── */
+/* 字疊在星空上，靠下擺，不要擋住星系核心。底下加一層很淡的漸層當襯，
+   不然淺色的字碰到亮星點會糊掉。 */
+.gidle { position: relative; z-index: 2; display: grid; justify-items: center; gap: 6px;
+  align-self: end; width: 100%; padding: 26px 0 2px; text-align: center;
+  background: linear-gradient(rgba(14, 21, 38, 0), rgba(14, 21, 38, .82) 62%); }
+/* 窗外：鋪滿整個螢幕。slice 會把圖填滿並裁切，直的橫的都不留白邊。 */
+.gsky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.gsky .halo { fill: none; stroke: var(--beige-08); stroke-width: 1; }
+.gsky .arm { fill: none; stroke: var(--salmon); stroke-width: 1.6; stroke-linecap: round; opacity: .85; }
+.gsky .core { fill: var(--salmon); stroke: none; }
+.gsky .planet { fill: rgba(27, 36, 64, .92); stroke: var(--beige-40); stroke-width: 1.5; }
+.gsky .ring { fill: none; stroke: var(--beige-18); stroke-width: 1.2; }
+.gsky .lane { fill: none; stroke: var(--beige-08); stroke-width: 1; stroke-dasharray: 4 9; }
+.gsky .star { fill: var(--beige-40); stroke: none; }
+/* 一顆會呼吸的星 —— 只要一顆，整片都在閃就變成雜訊。 */
+.gsky .s-lit { fill: var(--salmon); animation: gtwinkle 3.4s ease-in-out infinite; }
+@keyframes gtwinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+/* 窗框：畫在螢幕邊緣，不畫在圖裡 —— 圖會被裁，框跟著裁就穿幫了。
+   兩根窗櫺把視野切成三格，那是「在艙內」最強的線索。 */
+.gport { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--beige-08);
+  background:
+    linear-gradient(90deg, transparent calc(33.333% - .5px), var(--beige-18) calc(33.333% - .5px),
+      var(--beige-18) calc(33.333% + .5px), transparent calc(33.333% + .5px)),
+    linear-gradient(90deg, transparent calc(66.666% - .5px), var(--beige-18) calc(66.666% - .5px),
+      var(--beige-18) calc(66.666% + .5px), transparent calc(66.666% + .5px));
+}
+
+.gidlel { margin: 0; font: 500 10px/1 var(--mono); letter-spacing: .3em;
+  text-transform: uppercase; color: var(--beige-70); }
+.gidles { margin: 0; color: var(--beige-40); font-size: 11.5px; }
+
+/* ── 翻閱：那一天的日誌也在螢幕裡 ── */
+.gscreen .gscreenin.has-log, .gscreen.is-log .gscreenin { align-items: start; }
+.glog { width: 100%; max-width: 560px; display: grid; gap: 10px;
+  align-self: start; height: 100%; grid-template-rows: auto 1fr; }
+.gloghead { display: flex; align-items: end; justify-content: space-between; gap: 12px;
+  padding-bottom: 9px; border-bottom: 1px solid var(--beige-08); }
+.gloghead h2 { margin: 3px 0 0; font: 400 20px/1.3 var(--serif); }
+.gloghead span { color: var(--beige-40); font: 500 10px/1 var(--mono); letter-spacing: .08em; }
+/* ⚠️ 一天可能有很多筆，螢幕高度是固定的 —— 讓內容自己捲，不要把殼撐開。 */
+.glogbody { overflow-y: auto; padding-right: 4px; }
+.glogbody .gentry { padding: 11px 0; }
+.glogbody .gentry:first-child { padding-top: 2px; }
+
+/* ── 填寫：表單長得像螢幕上的輸入行，不是貼上去的網頁表單 ──
+   標籤走等寬字、小寫距，欄位只有一條底線，游標所在的那一行亮起來。 */
+.gscreen .gcalform { width: 100%; max-width: 560px; margin: 0; padding: 0;
+  background: none; border: 0; }
+.gscreen .gcalform h2 { margin: 0 0 14px; font: 400 19px/1.2 var(--serif);
+  color: var(--beige); }
+.gscreen .gcalform > label {
+  display: grid; grid-template-columns: 64px 1fr; align-items: start; gap: 12px;
+  margin: 0 0 12px; color: var(--beige-40);
+}
+.gscreen .gcalform > label > span {
+  padding-top: 8px; font: 500 9.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase;
+}
+/* 前面那個小三角是提示符，讓每一行看起來像在等你輸入。 */
+.gscreen .gcalform > label > span::before { content: '▸ '; color: var(--salmon); opacity: .55; }
+.gscreen .gcalform input, .gscreen .gcalform textarea {
+  padding: 6px 2px; color: var(--beige); background: transparent;
+  border: 0; border-bottom: 1px solid var(--beige-18); font-size: 14px;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.gscreen .gcalform input::placeholder, .gscreen .gcalform textarea::placeholder {
+  color: var(--beige-40); opacity: .55;
+}
+.gscreen .gcalform input:focus, .gscreen .gcalform textarea:focus {
+  outline: none; border-bottom-color: var(--salmon);
+  box-shadow: 0 1px 0 0 var(--salmon), 0 6px 14px -10px var(--salmon);
+}
+.gscreen .gcalform textarea[name="outcome"] { height: 92px; min-height: 0; resize: none; line-height: 1.8; }
+.gscreen .gcalform > div { display: flex; justify-content: end; gap: 8px; margin-top: 16px; }
+
+@media (max-width: 620px) {
+  /* ⚠️ 手機的表單是上下堆疊的，比桌機高。閒置高度要跟著改，
+     不然按一下按鈕，螢幕長高、按鈕被推下去 213px —— 手指剛按完的地方就跑掉了。 */
+  .gscreenin { min-height: 416px; padding: 14px 13px; }
+  .gscreen .gcalform > label { grid-template-columns: 1fr; gap: 2px; margin-bottom: 10px; }
+  .gscreen .gcalform > label > span { padding-top: 0; }
+  .gscreen .gcalform h2 { margin: 0 0 10px; font-size: 18px; }
+  .gscreen .gcalform textarea[name="outcome"] { height: 92px; }
+  .gscreen .gcalform > div { margin-top: 12px; }
+  .gshipart { width: min(300px, 92%); }
+  .gidles { font-size: 11px; }
+}
+
+/* ⚠️ 這一塊沿用**任務面板（.taskpanel）已經建立的科技語彙** ——
+   切角、細網格、四角 L 型括號、掃描線。不要另外發明一套：
+   同一個產品裡兩套「科技感」看起來只會像沒對齊。 */
+.gcalendar {
+  position: relative; overflow: hidden;
+  background-color: rgba(19, 27, 46, .91);
+  background-image:
+    linear-gradient(rgba(232, 228, 220, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 228, 220, .025) 1px, transparent 1px);
+  background-size: 26px 26px, 26px 26px;
+  border: 1px solid var(--beige-18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .28), inset 0 1px 0 var(--beige-08);
+}
+/* ── 讀數區 ── */
+.ghud { position: relative; z-index: 1; padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--beige-18); }
+.ghudtop { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.ghudtag { margin: 0; font: 500 9.5px/1 var(--mono); letter-spacing: .24em;
+  text-transform: uppercase; color: var(--beige); opacity: .44; }
+.ghudday { margin: 0; display: flex; align-items: baseline; gap: 7px;
+  color: var(--beige-70); font: 500 10px/1 var(--mono); letter-spacing: .08em; }
+.ghudday b { color: var(--salmon); font-size: 26px; line-height: 1;
+  font-variant-numeric: tabular-nums; }
+
+/* ⚠️ 13 格 = 13 週。連續長條只看得出模糊比例，有刻度才看得出走到第幾週。 */
+.ghudbar { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; margin: 13px 0 12px; }
+.ghudbar i { height: 3px; background: var(--beige-08); }
+.ghudbar i.on { background: var(--salmon); box-shadow: 0 0 6px rgba(232, 168, 152, .45); }
+
+.ghudcounts { display: flex; align-items: center; gap: 18px; }
+.gcount, .ghudtotal { display: inline-flex; align-items: center; gap: 6px;
+  color: var(--beige-40); font: 500 9px/1 var(--mono); letter-spacing: .1em; }
+.gcount b, .ghudtotal b { color: var(--beige-70); font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.gcount.has b { color: var(--beige); }
+.gcount .gmark { width: 14px; height: 14px; opacity: .55; }
+.gcount.has .gmark { opacity: 1; }
+.gcount s, .ghudtotal s { text-decoration: none; }
+.ghudtotal { margin-left: auto; }
+
+/* 控制列收在日曆的右下角（使用者：整合在一起、移到右下角）。 */
+.gcalendar .gcaltools { margin: 0; padding: 0; border: 0; gap: 9px;
+  align-items: end; justify-content: end; }
+.gcalendar .gexport { margin-left: 0; }
+
+/* ── 網格 ── */
+.gweekdays, .gdays { position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .gweekdays { border-bottom: 1px solid var(--beige-18); }
-.gweekdays span { padding: 9px 4px; text-align: center; color: var(--beige-70);
+.gweekdays span { padding: 8px 4px; text-align: center; color: var(--beige-70);
   font: 500 9px/1 var(--mono); letter-spacing: .12em; }
-.gblank { min-height: 84px; border-right: 1px solid var(--beige-08); border-bottom: 1px solid var(--beige-08);
+
+.gblank { min-height: 62px; border-right: 1px solid var(--beige-08); border-bottom: 1px solid var(--beige-08);
   background: rgba(19,27,46,.3); }
-.gday { position: relative; min-height: 84px; padding: 10px; color: var(--beige); background: transparent;
+.gday { position: relative; min-height: 62px; padding: 7px 8px; display: block;
+  color: var(--beige); background: transparent;
   border: 0; border-right: 1px solid var(--beige-08); border-bottom: 1px solid var(--beige-08);
   cursor: pointer; text-align: left; overflow: hidden; }
-.gday:hover { background: var(--beige-08); }
+.gday:hover { background: var(--navy-lift2); }
 .gday:focus-visible { z-index: 2; outline: 2px solid var(--salmon); outline-offset: -2px; }
+
+/* 日期永遠在左上、永遠同樣大小 —— 有沒有紀錄都不換版面。 */
+.gdayn { display: block; color: var(--beige-40);
+  font: 500 10px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.gdayn .dt { display: none; }
+.gdays.mode-date .gdayn .n { display: none; }
+.gdays.mode-date .gdayn .dt { display: inline; }
+
+/* 紀錄：整格唯一的亮點。 */
+.gmarks { position: absolute; inset: auto 6px 7px 7px; display: flex; align-items: center; gap: 4px; }
+.gmark { display: grid; place-items: center; width: 17px; height: 17px; color: var(--salmon); }
+.gmore { color: var(--salmon); font: 500 9px/1 var(--mono); }
+
+/* ⚠️ 有紀錄的格子**不變色**（使用者 2026-09-18：「不會因為有填入東西而發亮」）。
+   底色一亮，整片日曆就會被切成一塊一塊的斑駁；差別交給圖案自己講就好。 */
+.gday.is-today { box-shadow: inset 0 0 0 1px var(--salmon-30); }
+.gday.is-today .gdayn { color: var(--salmon); }
 .gday.is-selected { background: var(--salmon-12); box-shadow: inset 0 0 0 1px var(--salmon); }
-.gday.is-future { color: var(--beige-40); }
-.gdayindex { position: absolute; top: 8px; left: 8px; display: none; z-index: 1;
-  font: 500 9px/1 var(--mono); opacity: .55; }
-.gday.has-records .gdayindex { display: block; }
-.gcalvalue { position: absolute; inset: 0; display: grid; place-items: center;
-  font: 500 clamp(20px,3vw,34px)/1 var(--mono); font-variant-numeric: tabular-nums; opacity: .52; }
-.gday.is-selected .gcalvalue { opacity: .72; }
-.gdaydate { position: absolute; right: 7px; bottom: 6px; color: var(--beige-70);
-  font: 400 8px/1 var(--mono); opacity: .42; }
-.gday.is-active:not(.has-records) .gcalvalue::after,
-.gday.is-active.has-records .gdayindex::after {
-  content: ''; position: absolute; width: 1.45em; height: 1.45em; border: 1px solid var(--salmon);
-  border-radius: 50%; transform: rotate(-8deg);
-}
-.gday.is-active.has-records .gdayindex::after { left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(-8deg);
-  width: 20px; height: 20px; }
-.gcalicons { position: absolute; inset: 18px 6px 10px; display: flex; align-items: center;
-  justify-content: center; gap: 5px; }
-.gcalicons > b { font: 500 9px/1 var(--mono); color: var(--salmon); }
-.gcalicon, .gentryicon { display: grid; place-items: center; color: var(--salmon); }
-.gcalicon { width: clamp(18px,2.6vw,28px); height: clamp(18px,2.6vw,28px); }
-.gcalicon svg, .gentryicon svg, .gkico svg { width: 100%; height: 100%; overflow: visible; }
-.gcalicon svg *, .gentryicon svg *, .gkico svg * { fill: none; stroke: currentColor; stroke-width: 1.55;
+.gday.is-selected .gdayn { color: var(--beige); }
+/* 未來要淡掉但不能消失 —— 它還是可以點（教練會先排日期）。 */
+.gday.is-future { background: transparent; }
+.gday.is-future .gdayn { color: rgba(232, 228, 220, .22); }
+
+/* 「當天編輯過文件」的圈記本來掛在大數字上，數字沒了就換到右上角，
+   跟左下角的紀錄圖示分開 —— 兩件不同的事不要疊在一起看。 */
+.gday.is-active::after { content: ''; position: absolute; top: 7px; right: 7px;
+  width: 7px; height: 7px; border: 1px solid var(--salmon-30); border-radius: 50%; }
+.gday.is-active.has-records::after { border-color: var(--salmon); }
+
+.gentryicon { display: grid; place-items: center; color: var(--salmon); }
+.gmark svg, .gentryicon svg, .gkico svg { width: 100%; height: 100%; overflow: visible; }
+.gmark svg *, .gentryicon svg *, .gkico svg * { fill: none; stroke: currentColor; stroke-width: 1.55;
   stroke-linecap: round; stroke-linejoin: round; }
-.gcalicon.date svg path, .gentryicon.date svg path, .gkico svg path { fill: transparent; }
-.gcalicon .gy.pk, .gentryicon .gy.pk, .gkico .gy.pk,
-.gcalicon .gy.tr, .gentryicon .gy.tr, .gkico .gy.tr { fill: currentColor; stroke: none; }
-.gcallegend { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 0;
-  color: var(--beige-70); font: 400 10px/1.5 var(--mono); }
+.gmark.date svg path, .gentryicon.date svg path, .gkico svg path { fill: transparent; }
+.gmark .gy.pk, .gentryicon .gy.pk, .gkico .gy.pk,
+.gmark .gy.tr, .gentryicon .gy.tr, .gkico .gy.tr { fill: currentColor; stroke: none; }
+.gcalfoot { position: relative; z-index: 1; display: flex; align-items: end;
+  justify-content: space-between; gap: 18px; flex-wrap: wrap;
+  padding: 11px 22px 13px; border-top: 1px solid var(--beige-08); }
+.gcallegend { display: flex; gap: 16px; flex-wrap: wrap;
+  color: var(--beige-40); font: 400 10px/1.5 var(--mono); }
 .gcallegend span { display: inline-flex; align-items: center; gap: 7px; }
-.gcallegend .ring { width: 16px; height: 16px; border: 1px solid var(--salmon); border-radius: 50%; }
-.gdetail { margin-top: 28px; border-top: 1px solid var(--beige-18); }
-.gdetailhead { display: flex; align-items: end; justify-content: space-between; gap: 14px; padding: 20px 0 12px; }
-.gdetailhead h2 { margin: 4px 0 0; font: 700 24px/1.25 var(--serif); }
-.gdetailhead > span { color: var(--beige-70); font: 500 10px/1 var(--mono); }
+.gcallegend .ring { width: 7px; height: 7px; border: 1px solid var(--salmon); border-radius: 50%; }
 .gentry { display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding: 16px 0;
   border-top: 1px solid var(--beige-08); }
 .gentryicon { width: 30px; height: 30px; margin-top: 3px; }
@@ -1829,7 +2036,6 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gentry h3 { margin: 0; font: 700 17px/1.45 var(--serif); }
 .gentry div div { margin-top: 7px; color: var(--beige-70); font-size: 13px; line-height: 1.8; white-space: pre-wrap; }
 .gentry small { display: block; margin-top: 7px; color: var(--beige-40); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
-.gempty { padding: 22px 0; color: var(--beige-70); font-size: 13px; line-height: 1.8; }
 .gcalform { margin: 22px 0 8px; padding: 20px; background: var(--navy-lift);
   border: 1px solid var(--salmon); }
 .gcalform h2 { margin: 5px 0 18px; font: 700 24px/1.2 var(--serif); }
@@ -1843,13 +2049,15 @@ html.task-open, html.task-open body { overflow: hidden; }
   .gcaltools { align-items: stretch; }
   .gstart, .gstartread { flex: 1 1 100%; }
   .gexport { margin-left: 0; }
-  .gblank, .gday { min-height: 58px; }
-  .gday { padding: 6px; }
-  .gcalvalue { font-size: 19px; }
-  .gdaydate { display: none; }
-  .gcalicons { inset: 15px 2px 5px; gap: 2px; }
-  .gcalicon { width: 17px; height: 17px; }
-  .gdayindex { top: 5px; left: 5px; font-size: 7px; }
+  .ghud { padding: 15px 14px 11px; }
+  .ghudday b { font-size: 20px; }
+  .ghudcounts { gap: 11px; }
+  .gblank, .gday { min-height: 48px; }
+  .gday { padding: 5px; }
+  .gdayn { font-size: 9px; }
+  .gmarks { inset: auto 4px 5px 5px; gap: 3px; }
+  .gmark { width: 14px; height: 14px; }
+  .gday.is-active::after { top: 5px; right: 5px; width: 6px; height: 6px; }
   .gcalform > label { grid-template-columns: 1fr; gap: 6px; }
 }
 /* ═══ 星等（逐條報告與表單沿用；能力圖／藍圖改用菱形）═══ */
@@ -2442,32 +2650,62 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* ═══ 成長紀錄：三顆大按鈕 ═══════════════════════════
    使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
    點下去開始寫紀錄。」入口就是分類，不要先問「要不要新增」再問「哪一種」。 */
-.gkinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 26px 0 14px; }
+/* ⚠️ 這三顆**不要融入背景**（使用者 2026-09-18：「做成像是遊戲機台的按鈕」）。
+   它們是機台上的實體鍵：有厚度、按下去會沉下去、鬆手彈回來。
+   厚度用 box-shadow 的第四個值做，不是加邊框 —— 加邊框只會變成更粗的線。 */
+.gkinds { display: flex; justify-content: center; gap: 22px; margin: 26px 0 14px; }
+/* ⚠️ 「看起來像按鈕」靠的是**三層**，缺一層就只是個方框：
+     ① 座：鍵周圍一圈暗環，像面板上挖的孔
+     ② 厚度：底下一道實心暗邊，鬆手時看得到側面
+     ③ 打光：頂緣一道亮線、表面由上而下微微變暗
+   按下去時三層要一起變 —— 沉 5px、厚度歸零、亮線換成內凹陰影。 */
 .gkind {
-  display: grid; justify-items: center; gap: 6px; padding: 20px 12px 18px;
-  color: var(--beige); background: var(--navy-lift);
-  border: 1px solid var(--beige-18); border-radius: 0; cursor: pointer;
-  transition: border-color .2s var(--ease), background .2s var(--ease);
+  position: relative; width: 88px;
+  display: grid; justify-items: center; align-items: center;
+  gap: 6px; padding: 12px 6px 10px; text-align: center;
+  color: var(--beige); cursor: pointer; border: 0; border-radius: 3px;
+  background:
+    linear-gradient(var(--navy-lift2), var(--navy-lift));
+  /* ⚠️ 陰影要**薄**。厚一點點就會從「有質感的鍵」掉到「卡通按鈕」，
+     而那條線比想像中近（2026-09-18 一次就踩過）。厚度 3px 就夠。 */
+  box-shadow:
+    0 0 0 1px var(--beige-18),                  /* 鍵身的邊 */
+    0 3px 0 rgba(0, 0, 0, .34),                 /* 厚度 */
+    0 0 0 4px rgba(0, 0, 0, .14),               /* 座：挖在面板上的孔 */
+    inset 0 1px 0 rgba(232, 228, 220, .1);      /* 頂緣打光 */
+  transition: transform .09s var(--ease), box-shadow .09s var(--ease),
+              background .2s var(--ease);
 }
-.gkind:hover { border-color: var(--salmon); background: var(--navy-lift2); }
-.gkind.on { color: var(--navy); border-color: var(--salmon); background: var(--salmon); }
-.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
-.gkind b { font-family: var(--serif); font-size: 16px; font-weight: 400; }
-.gkind s { font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
-  text-decoration: none; opacity: .5; text-align: center; }
-.gkico { display: block; width: 32px; height: 32px; }
-.gkico svg { width: 100%; height: 100%; }
+.gkind:hover { box-shadow:
+    0 0 0 1px var(--salmon), 0 3px 0 rgba(0, 0, 0, .34),
+    0 0 0 4px rgba(0, 0, 0, .14), inset 0 1px 0 rgba(232, 228, 220, .1); }
+.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: 7px; }
+/* 按下與「正在填這一類」都是同一個姿態：整顆沉進座裡。 */
+.gkind:active, .gkind.on {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 1px var(--salmon),
+    0 0 0 4px rgba(0, 0, 0, .14),
+    inset 0 2px 4px rgba(0, 0, 0, .3);
+}
+.gkind.on { color: var(--navy);
+  background: linear-gradient(rgba(255, 255, 255, .22), rgba(255, 255, 255, 0)), var(--salmon); }
+/* 圖案是主角，字只是名牌 —— 小、等寬、不搶。 */
+.gkind b { font: 500 9.5px/1 var(--mono); letter-spacing: .08em; }
+/* ⚠️ 圖示外面**不要那一圈環**。鍵身已經是一個框了，再套一個圈就是框中框。 */
+.gkico { display: grid; place-items: center; width: 30px; height: 30px; color: var(--salmon); }
+.gkico svg { width: 20px; height: 20px; }
+.gkind.on .gkico { color: var(--navy); }
 /* glyphSvg 畫的是 .gy，配色跟軌上的圖案同一套。 */
 .gkico .gy { fill: none; stroke: currentColor; }
 .gkico .gy.pk, .gkico .gy.tr { fill: currentColor; stroke: none; }
 .gfkind { margin: 2px 0 10px; font-family: var(--serif); font-size: 20px; font-weight: 400; }
 @media (max-width: 560px) {
-  .gkinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--beige-18); }
-  .gkind { min-width: 0; padding: 10px 4px 9px; border: 0; }
-  .gkind + .gkind { border-left: 1px solid var(--beige-18); }
-  .gkico { width: 24px; height: 24px; }
-  .gkind b { font-size: 11.5px; white-space: nowrap; }
-  .gkind s { display: none; }
+  .gkinds { gap: 15px; }
+  .gkind { width: 78px; padding: 10px 4px 8px; }
+  .gkico { width: 28px; height: 28px; }
+  .gkico svg { width: 18px; height: 18px; }
+  .gkind b { font-size: 9px; white-space: nowrap; }
 }
 
 /* 範例學員：跟真學員視覺上要分得開 —— 虛線邊框＋沒有進度條。
@@ -2619,3 +2857,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 @media (pointer: coarse) {
   .qfield { min-height: 4.8em; }
 }
+
+/* 閒置時星空要貼齊螢幕四邊，不要被內距推進來。 */
+.gscreen.is-idle .gscreenin { padding: 0; align-items: stretch; }
+.gscreen.is-idle .gscreenin > * { grid-area: 1 / 1; }

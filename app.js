@@ -2432,6 +2432,90 @@
     toast('日誌已輸出');
   }
 
+  /* 面板的讀數區。90 天之外不要硬湊出一個天數 ——
+     還沒開始就說還沒開始，走完就說走完，那才是使用者想知道的。
+     ⚠️ 進度條做成 13 格（一格一週），不是連續長條 ——
+     刻度看得出「走到第幾週」，連續的只看得出一個模糊比例。 */
+  function ghudHTML(start, today, records) {
+    var n = isoDiff(today, start) + 1;
+    var state, doneWeeks;
+    if (n < 1) { state = '<b>還沒開始</b><span>' + esc(start) + ' 起算</span>'; doneWeeks = 0; }
+    else if (n > 90) { state = '<b>90 / 90</b><span>已完成</span>'; doneWeeks = 13; }
+    else { state = '<b>' + n + '</b><span>／ 90 天</span>'; doneWeeks = Math.ceil(n / 7); }
+
+    var seg = '';
+    for (var w = 0; w < 13; w++) {
+      seg += '<i class="' + (w < doneWeeks ? 'on' : '') + '"></i>';
+    }
+
+    var by = {};
+    records.forEach(function (e) { by[e.kind] = (by[e.kind] || 0) + 1; });
+    var counts = GTYPES.map(function (t) {
+      return '<span class="gcount' + (by[t.k] ? ' has' : '') + '">'
+        + '<i class="gmark ' + t.k + '">' + growthIcon(t.k) + '</i>'
+        + '<b>' + (by[t.k] || 0) + '</b><s>' + esc(t.short) + '</s></span>';
+    }).join('');
+
+    return '<div class="ghud">'
+      + '<div class="ghudtop"><p class="ghudtag">90-Day Grid</p>'
+      + '<p class="ghudday">' + state + '</p></div>'
+      + '<div class="ghudbar">' + seg + '</div>'
+      + '<div class="ghudcounts">' + counts
+      + '<span class="ghudtotal"><b>' + records.length + '</b><s>總筆數</s></span></div></div>';
+  }
+
+  /* 窗外的星空。**滿版**（使用者 2026-09-18：「整個螢幕都是對著外面」）。
+     ⚠️ 用 preserveAspectRatio="slice" 填滿並裁切 —— 直的橫的都填得滿，
+     代價是邊緣會被切掉，所以重要的東西（星系核心、行星）要放在中央偏內，
+     被切到的只能是星點與航道。
+     ⚠️ 窗框不畫在圖裡：圖會被裁，框就跟著跑掉了。框交給 CSS 畫在螢幕邊緣。 */
+  function skySVG() {
+    return '<svg class="gsky" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'
+      /* 星系：暈、兩道旋臂、核心 */
+      + '<ellipse class="halo" cx="252" cy="104" rx="86" ry="31" transform="rotate(-16 252 104)"/>'
+      + '<path class="arm" d="M252 104c26-23 64-20 82 9"/>'
+      + '<path class="arm" d="M252 104c-26 23-64 20-82-9"/>'
+      + '<circle class="core" cx="252" cy="104" r="4.2"/>'
+      /* 行星：左下角，大半沉在畫面外 */
+      + '<circle class="planet" cx="84" cy="256" r="72"/>'
+      + '<ellipse class="ring" cx="84" cy="256" rx="104" ry="22" transform="rotate(-12 84 256)"/>'
+      /* 航道 */
+      + '<path class="lane" d="M-10 186C70 146 180 140 410 172"/>'
+      /* 星點：散開一點，被裁掉幾顆也無所謂 */
+      + '<circle class="star" cx="48" cy="46" r="1.8"/><circle class="star" cx="122" cy="26" r="1.1"/>'
+      + '<circle class="star" cx="168" cy="70" r="1.5"/><circle class="star" cx="206" cy="34" r="1"/>'
+      + '<circle class="star" cx="318" cy="52" r="1.7"/><circle class="star" cx="366" cy="120" r="1.2"/>'
+      + '<circle class="star" cx="142" cy="140" r="1"/><circle class="star" cx="300" cy="182" r="1.5"/>'
+      + '<circle class="star" cx="68" cy="128" r="1.2"/><circle class="star" cx="352" cy="228" r="1.1"/>'
+      + '<circle class="star s-lit" cx="212" cy="156" r="2.2"/>'
+      + '</svg>';
+  }
+
+  /* 主視覺螢幕。三種狀態輪流佔用同一塊畫面：
+       閒置 → 太空船　｜　填寫 → 輸入面板　｜　翻閱 → 那一天的日誌
+     ⚠️ 三種狀態**共用同一個高度** —— 高度一變整頁就會跳一下，
+     而使用者的手指剛按完的地方就跑掉了。那個跳動比任何裝飾都傷。 */
+  function gscreenHTML(formHTML, logHTML, logCount, dayNo, start, today, total) {
+    var n = isoDiff(today, start) + 1;
+    var stat = n < 1 ? '待啟程' : (n > 90 ? '航程完成' : 'DAY ' + n + ' / 90');
+    var inner, mode, badge;
+    if (formHTML) { inner = formHTML; mode = 'form'; badge = 'NEW RECORD'; }
+    else if (logCount) { inner = logHTML; mode = 'log'; badge = 'DAY ' + dayNo + ' LOG'; }
+    else {
+      mode = 'idle'; badge = stat;
+      /* 星空鋪滿整個螢幕，字疊在上面。 */
+      inner = skySVG() + '<i class="gport" aria-hidden="true"></i>'
+        + '<div class="gidle"><p class="gidlel">UC Training</p>'
+        + '<p class="gidles">' + (n < 1 || n > 90 ? '選一天看紀錄，或按下面留一筆'
+            : 'Day ' + dayNo + ' 還沒有紀錄　·　按下面留下第一筆') + '</p></div>';
+    }
+    return '<div class="gscreen is-' + mode + '">'
+      + '<div class="gscreenbar"><span class="gled"></span><b>UC-90</b><s>' + esc(badge) + '</s>'
+      + '<em>' + total + ' REC</em></div>'
+      + '<div class="gscreenin">' + inner + '</div>'
+      + '<i class="gscanline" aria-hidden="true"></i></div>';
+  }
+
   function renderGrowth() {
     var body = el('growthBody'), start = growthStart(), end = isoAdd(start, 89);
     var today = isoToday(), records = growthRecords();
@@ -2441,84 +2525,174 @@
     var byDate = {};
     records.forEach(function (e) { (byDate[e.d] = byDate[e.d] || []).push(e); });
     var startDow = new Date(start + 'T00:00:00').getDay();
-    var lead = (startDow + 6) % 7, cells = '';
-    for (var z = 0; z < lead; z++) cells += '<span class="gblank" aria-hidden="true"></span>';
-    for (var i = 0; i < 90; i++) {
-      var iso = isoAdd(start, i), dayRecords = byDate[iso] || [];
-      var active = (S.activityDays || []).indexOf(iso) >= 0;
-      var icons = dayRecords.slice(0, 3).map(function (e) {
-        return '<span class="gcalicon ' + e.kind + '" title="' + esc(growthType(e.kind).label) + '">'
-          + growthIcon(e.kind) + '</span>';
-      }).join('');
-      var main = dayRecords.length ? '<span class="gcalicons">' + icons
-        + (dayRecords.length > 3 ? '<b>+' + (dayRecords.length - 3) + '</b>' : '') + '</span>'
-        : '<b class="gcalvalue">' + (GCALMODE === 'number' ? (i + 1) : esc((+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)))) + '</b>';
-      cells += '<button type="button" class="gday' + (iso === GSELECT ? ' is-selected' : '')
-        + (iso === today ? ' is-today' : '') + (iso > today ? ' is-future' : '')
-        + (active ? ' is-active' : '') + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
-        + '<small class="gdayindex">' + (i + 1) + '</small>' + main
-        + '<span class="gdaydate">' + (+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)) + '</span></button>';
+    var lead = (startDow + 6) % 7;
+    var rowTotal = Math.ceil((lead + 90) / 7);
+
+    /* ⚠️ 左邊的週次軌與右邊的密度條**拿掉了**（使用者 2026-09-18：
+       「周次不必要、量條有點多、裝飾元素太多」）。主視覺移到上面的螢幕，
+       日曆這裡只留資訊，不再自己搶戲。 */
+    var cells = '';
+    for (var row = 0; row < rowTotal; row++) {
+      for (var c = 0; c < 7; c++) {
+        var i = row * 7 + c - lead;
+        if (i < 0 || i >= 90) { cells += '<span class="gblank" aria-hidden="true"></span>'; continue; }
+        var iso = isoAdd(start, i), dayRecords = byDate[iso] || [];
+        var active = (S.activityDays || []).indexOf(iso) >= 0;
+        /* ⚠️ **有沒有紀錄都用同一套版面。** 舊版空格子畫一個大數字、有紀錄的格子
+           改畫圖示、數字縮到角落 —— 同一個網格裡兩種版面，眼睛沒辦法掃。
+           現在日期永遠在左上同一個位置，紀錄永遠在左下，格子安靜、紀錄大聲。 */
+        var marks = dayRecords.slice(0, 3).map(function (e) {
+          return '<i class="gmark ' + e.kind + '" title="' + esc(growthType(e.kind).label) + '">'
+            + growthIcon(e.kind) + '</i>';
+        }).join('');
+        if (dayRecords.length > 3) marks += '<b class="gmore">+' + (dayRecords.length - 3) + '</b>';
+        cells += '<button type="button" class="gday' + (iso === GSELECT ? ' is-selected' : '')
+          + (iso === today ? ' is-today' : '') + (iso > today ? ' is-future' : '')
+          + (active ? ' is-active' : '') + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
+          + '<small class="gdayn"><span class="n">' + (i + 1) + '</span>'
+          + '<span class="dt">' + (+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)) + '</span></small>'
+          + '<span class="gmarks">' + marks + '</span></button>';
+      }
     }
 
+    function logHTML(list, no) {
+      return '<div class="glog"><div class="gloghead"><div><p class="ey">Day ' + no + '</p>'
+        + '<h2>' + esc(growthDateLabel(GSELECT)) + '</h2></div>'
+        + '<span>' + list.length + ' 筆紀錄</span></div>'
+        + '<div class="glogbody">' + list.map(function (e) {
+            return '<article class="gentry"><span class="gentryicon ' + e.kind + '">' + growthIcon(e.kind) + '</span>'
+              + '<div><p>' + esc(growthType(e.kind).label) + '</p><h3>' + esc(e.t || '這一天的紀錄') + '</h3>'
+              + (e.outcome ? '<div>' + esc(e.outcome) + '</div>' : '')
+              + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div></article>';
+          }).join('') + '</div></div>';
+    }
     var selectedRecords = byDate[GSELECT] || [];
-    var detail = '<section class="gdetail"><div class="gdetailhead"><div><p class="ey">Day '
-      + (isoDiff(GSELECT, start) + 1) + '</p><h2>' + esc(growthDateLabel(GSELECT)) + '</h2></div>'
-      + '<span>' + selectedRecords.length + ' 筆紀錄</span></div>'
-      + (selectedRecords.length ? selectedRecords.map(function (e) {
-          return '<article class="gentry"><span class="gentryicon ' + e.kind + '">' + growthIcon(e.kind) + '</span>'
-            + '<div><p>' + esc(growthType(e.kind).label) + '</p><h3>' + esc(e.t || '這一天的紀錄') + '</h3>'
-            + (e.outcome ? '<div>' + esc(e.outcome) + '</div>' : '')
-            + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div></article>';
-        }).join('') : '<p class="gempty">這一天還沒有紀錄。你可以用上方三個按鈕留下通話、社交或約會。</p>')
-      + '</section>';
+    var dayNo = isoDiff(GSELECT, start) + 1;
+    var log = logHTML(selectedRecords, dayNo);
 
     var form = '';
     if (GFORM) {
       var gt = growthType(GFORM);
       var formDate = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT;
-      form = '<form class="gcalform" id="growthForm"><p class="ey">New Record</p><h2>' + esc(gt.label) + '</h2>'
-        + '<label>日期<input type="date" name="date" min="' + start + '" max="' + end + '" value="' + formDate + '" required></label>'
-        + '<label>發生了什麼<input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
-        + '<label>想留下的觀察<textarea name="outcome" rows="4" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
-        + '<label>補充（選填）<textarea name="note" rows="2" maxlength="4000"></textarea></label>'
+      /* ⚠️ 只留三格（使用者 2026-09-18：「只要有日期、標題、紀錄就好」）。
+         「補充」拿掉了 —— 兩個都是自由文字的欄位，使用者只會猶豫該寫在哪一格。
+         舊資料的 note 仍然讀得出來、也還畫得出來，只是不再有地方新增。 */
+      form = '<form class="gcalform" id="growthForm"><h2>' + esc(gt.label) + '</h2>'
+        + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end + '" value="' + formDate + '" required></label>'
+        + '<label><span>標題</span><input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
+        + '<label><span>紀錄</span><textarea name="outcome" rows="5" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
         + '<div><button type="button" class="btn gh" data-gcancel>取消</button><button class="btn pri" type="submit">儲存紀錄</button></div></form>';
     }
 
     var canSetStart = ACTOR_ROLE !== 'student';
-    body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日曆</h1>'
-      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p></header>')
-      + wrap('<div class="gcalbar"><div class="gkinds">'
-      + GTYPES.map(function (t) { return '<button type="button" class="gkind' + (GFORM === t.k ? ' on' : '') + '" data-gopen="' + t.k + '">'
-          + '<span class="gkico">' + growthIcon(t.k) + '</span><b>' + esc(t.label) + '</b><s>新增一筆</s></button>'; }).join('')
-      + '</div><div class="gcaltools">'
+    /* 以圖案為主、文字縮到最小（使用者 2026-09-18）。
+       ⚠️ 文字不整個拿掉 —— 三個圖案在第一次看到時分不出誰是誰，
+       title 只有滑鼠停留才看得到，手機根本沒有。留一行小字是最便宜的保險。 */
+    var kinds = GTYPES.map(function (t) {
+      return '<button type="button" class="gkind' + (GFORM === t.k ? ' on' : '') + '" data-gopen="' + t.k + '"'
+        + ' title="' + esc(t.label) + '" aria-label="' + esc(t.label) + '">'
+        + '<span class="gkico">' + growthIcon(t.k) + '</span><b>' + esc(t.short) + '</b></button>';
+    }).join('');
+
+    var tools = '<div class="gcaltools">'
       + (canSetStart ? '<label class="gstart">90 天起始日<input type="date" data-growth-start value="' + start + '"'
           + ' data-field-id="report.growthStart" data-field-owner="coach"></label>'
         : '<p class="gstartread"><span>90 天起始日</span><b>' + esc(start) + '</b></p>')
       + '<div class="gmode" role="group" aria-label="日期顯示模式"><button type="button" data-gmode="number" class="'
       + (GCALMODE === 'number' ? 'on' : '') + '">第幾天</button><button type="button" data-gmode="date" class="'
       + (GCALMODE === 'date' ? 'on' : '') + '">日期</button></div>'
-      + '<button type="button" class="btn gh gexport" data-gexport>輸出日誌</button></div></div>'
-      + '<div class="gcalendar"><div class="gweekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>'
-      + '<div class="gdays">' + cells + '</div></div>'
-      + '<div class="gcallegend"><span><i class="ring"></i>當天編輯過文件</span><span>格內圖示最多顯示三筆</span></div>'
-      + form + detail, 'rv growthcal');
+      + '<button type="button" class="btn gh gexport" data-gexport>輸出日誌</button></div>';
+
+    /* ⚠️ **整頁只有兩塊**（使用者 2026-09-18）：
+       上面是主機（螢幕 ＋ 三顆鍵），下面是日曆（讀數 ＋ 控制 ＋ 格子 ＋ 圖例）。
+       填寫與翻閱都發生在螢幕裡，不要再有第三塊散在頁尾。 */
+    body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日曆</h1>'
+      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p></header>')
+      + wrap('<div class="gconsole">'
+      + gscreenHTML(form, log, selectedRecords.length, dayNo, start, today, records.length)
+      + '<div class="gkinds">' + kinds + '</div></div>'
+      + '<div class="gcalendar">'
+      + ghudHTML(start, today, records)
+      + '<div class="gweekdays"><span>一</span><span>二</span><span>三</span><span>四</span>'
+      + '<span>五</span><span>六</span><span>日</span></div>'
+      + '<div class="gdays' + (GCALMODE === 'date' ? ' mode-date' : '') + '">' + cells + '</div>'
+      /* 設定類的東西放右下角：要用的時候找得到，平常不擋路。 */
+      + '<div class="gcalfoot"><div class="gcallegend">'
+      + '<span><i class="ring"></i>當天編輯過文件</span>'
+      + '<span>格內圖示最多顯示三筆</span></div>' + tools + '</div></div>', 'rv growthcal');
+
+    /* ⚠️ **只換該動的那一塊。** 舊版每按一顆鍵就重寫整個 body，
+       於是 .rv 的淡入重播一次、捲動位置被拉回去 —— 體感就是「整頁重新整理」。
+       （同樣的坑在資源頁也踩過，那裡的解法一樣：只換窗格。）
+       畫面上真正會變的只有三樣：螢幕的內容、哪顆鍵亮著、哪一格被選。 */
+    function screenHTML() {
+      var sel = byDate[GSELECT] || [];
+      var no = isoDiff(GSELECT, start) + 1;
+      var f = '';
+      if (GFORM) {
+        var t2 = growthType(GFORM);
+        var fd2 = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT;
+        f = '<form class="gcalform" id="growthForm"><h2>' + esc(t2.label) + '</h2>'
+          + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end + '" value="' + fd2 + '" required></label>'
+          + '<label><span>標題</span><input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
+          + '<label><span>紀錄</span><textarea name="outcome" rows="5" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
+          + '<div><button type="button" class="btn gh" data-gcancel>取消</button><button class="btn pri" type="submit">儲存紀錄</button></div></form>';
+      }
+      return gscreenHTML(f, logHTML(sel, no), sel.length, no, start, today, records.length);
+    }
+
+    function paintScreen() {
+      var host = body.querySelector('.gscreen');
+      if (!host) { renderGrowth(); return; }
+      var box = document.createElement('div');
+      box.innerHTML = screenHTML();
+      host.parentNode.replaceChild(box.firstChild, host);
+      bindScreen();
+      [].forEach.call(body.querySelectorAll('[data-gopen]'), function (x) {
+        x.classList.toggle('on', x.dataset.gopen === GFORM);
+      });
+      [].forEach.call(body.querySelectorAll('[data-gdate]'), function (x) {
+        x.classList.toggle('is-selected', x.dataset.gdate === GSELECT);
+      });
+    }
 
     [].forEach.call(body.querySelectorAll('[data-gopen]'), function (b) {
-      b.addEventListener('click', function () { GFORM = b.dataset.gopen; renderGrowth(); var f = el('growthForm'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+      b.addEventListener('click', function () {
+        GFORM = b.dataset.gopen;
+        paintScreen();
+        /* ⚠️ 只有螢幕沒完全看得到才捲。看得到還硬捲一下，就是使用者說的「彈一下」。 */
+        var sc = body.querySelector('.gscreen');
+        if (sc) {
+          var r = sc.getBoundingClientRect();
+          if (r.top < 60 || r.bottom > window.innerHeight) {
+            sc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      });
     });
     [].forEach.call(body.querySelectorAll('[data-gdate]'), function (b) {
-      b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; renderGrowth(); });
+      b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; paintScreen(); });
     });
+    /* 顯示方式只是換一個 class，連螢幕都不用重畫。 */
     [].forEach.call(body.querySelectorAll('[data-gmode]'), function (b) {
-      b.addEventListener('click', function () { GCALMODE = b.dataset.gmode; renderGrowth(); });
+      b.addEventListener('click', function () {
+        GCALMODE = b.dataset.gmode;
+        var days = body.querySelector('.gdays');
+        if (days) days.classList.toggle('mode-date', GCALMODE === 'date');
+        [].forEach.call(body.querySelectorAll('[data-gmode]'), function (x) {
+          x.classList.toggle('on', x.dataset.gmode === GCALMODE);
+        });
+      });
     });
     var startInput = body.querySelector('[data-growth-start]');
     if (startInput) startInput.addEventListener('change', function () {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(startInput.value)) return;
       S.coachReport.growthStart = startInput.value; GSELECT = startInput.value; save(); renderGrowth();
     });
+    /* 螢幕重畫之後，裡面的處理器要重新綁一次。 */
+    function bindScreen() {
     var cancel = body.querySelector('[data-gcancel]');
-    if (cancel) cancel.addEventListener('click', function () { GFORM = null; renderGrowth(); });
+    if (cancel) cancel.addEventListener('click', function () { GFORM = null; paintScreen(); });
     var formEl = el('growthForm');
     if (formEl) formEl.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -2526,7 +2700,7 @@
       var ev = { id: 'G' + Date.now(), by: ACTOR_ROLE === 'coach' ? 'coach' : 'student',
         kind: GFORM, d: d, w: Math.floor(isoDiff(d, start) / 7) + 1,
         t: String(fd.get('title') || '').trim(), outcome: String(fd.get('outcome') || '').trim(),
-        note: String(fd.get('note') || '').trim(), lv: 2 };
+        note: '', lv: 2 };
       if (!ev.t || isoDiff(d, start) < 0 || isoDiff(d, start) > 89) return;
       var copied = window.UC_SHARE && window.UC_SHARE.copy
         ? window.UC_SHARE.copy(growthEntryText(ev)) : Promise.resolve('fail');
@@ -2536,6 +2710,9 @@
           : '紀錄已儲存，但文字沒有複製成功');
       });
     });
+    }
+    bindScreen();
+
     var exp = body.querySelector('[data-gexport]');
     if (exp) exp.addEventListener('click', function () { downloadGrowth(records); });
     applyFieldAccess(body); reveal(body);
