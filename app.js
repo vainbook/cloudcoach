@@ -2741,7 +2741,7 @@
     }).length;
   }
 
-  function assignmentStoryOverviewHTML(a, saved) {
+  function assignmentStoryOverviewHTML(a, saved, openId) {
     var sections = Array.isArray(a.sections) ? a.sections : [];
     return '<div class="assignment-story-overview"><p class="assignment-overview-intro">'
       + '先看全部故事，再選一個想整理的主題。不用一次寫完。</p>'
@@ -2755,7 +2755,9 @@
           var complete = filled === g.fields.length;
           var state = complete ? '完成' : filled ? '整理中' : '';
           return '<button type="button" class="assignment-story-cell' + (complete ? ' is-complete' : filled ? ' is-started' : '')
+            + (g.id === openId ? ' is-open' : '')
             + '" data-assignment-open="' + esc(g.id) + '" data-story-id="' + esc(g.id)
+            + '" aria-expanded="' + (g.id === openId ? 'true' : 'false') + '"'
             + '" aria-label="填寫' + esc(section.t + g.t) + '"><span class="num">' + ('0' + index).slice(-2) + '</span>'
             + '<strong>' + esc(g.t) + '</strong><span class="assignment-story-state" data-story-progress="'
             + esc(g.id) + '" data-progress-quiet="1">' + state + '</span></button>';
@@ -2769,7 +2771,7 @@
     var index = a.groups.indexOf(g) + 1;
     var filled = assignmentStoryFilled(g, saved);
     return '<div class="assignment-story-editor" data-assignment-editor><button type="button" class="btn gh assignment-story-back"'
-      + ' data-assignment-back>← 回到故事總表</button>'
+      + ' data-assignment-back>收起這一則</button>'
       + '<article class="assignment-story' + (filled === g.fields.length ? ' is-complete' : '')
       + '" data-story-id="' + esc(g.id) + '"><header><span class="num">' + ('0' + index).slice(-2) + '</span>'
       + '<div><p>' + esc(section.t || '') + '</p><h4>' + esc(g.t) + '</h4></div>'
@@ -2783,13 +2785,22 @@
           + '" data-assignment-answer="' + esc(f.id) + '" placeholder="' + esc(f.ph) + '">'
           + esc(saved.answers[f.id] || '') + '</textarea></label>';
       }).join('') + '</div>' + assignmentStoryExampleHTML(g) + '</article>'
-      + '<p class="assignment-editor-hint">內容會隨填寫自動儲存，可以隨時回總表換一個主題。</p></div>';
+      + '<p class="assignment-editor-hint">內容會隨填寫自動儲存。上面的清單一直在，想換主題直接點下一個。</p></div>';
   }
 
+  /* ⚠️ **總表不可以被編輯區換掉。**
+     舊版是「點一個主題 → 整張總表消失、換成那一題的編輯畫面 → 要按返回才回得去」。
+     12 個主題就是 12 次來回，使用者回報「每次點一個話題都是轉跳頁面，太麻煩」。
+
+     改成總表永遠在上面（點過的主題有標記），編輯區接在它下面換內容 ——
+     想換主題直接點下一個，不用先退回去。 */
   function assignmentGroupedFieldsHTML(a, saved) {
     var openId = ASSIGNMENT_OPEN[a.id];
     var group = (a.groups || []).filter(function (g) { return g.id === openId; })[0];
-    return group ? assignmentStoryEditorHTML(a, saved, group) : assignmentStoryOverviewHTML(a, saved);
+    return assignmentStoryOverviewHTML(a, saved, openId)
+      + '<div data-assignment-editor-slot>'
+      + (group ? assignmentStoryEditorHTML(a, saved, group) : '')
+      + '</div>';
   }
 
   function assignmentBeliefFieldHTML(a, saved, f, extraClass) {
@@ -2934,8 +2945,13 @@
     }
     [].forEach.call(pane.querySelectorAll('[data-assignment-open]'), function (open) {
       open.addEventListener('click', function () {
-        ASSIGNMENT_OPEN[a.id] = open.dataset.assignmentOpen;
-        refreshAssignment(t, pane, '[data-assignment-editor]');
+        var id = open.dataset.assignmentOpen;
+        /* 再點一次同一個就收起來 —— 跟「收起這一則」同一件事。 */
+        var opening = ASSIGNMENT_OPEN[a.id] !== id;
+        if (opening) ASSIGNMENT_OPEN[a.id] = id;
+        else delete ASSIGNMENT_OPEN[a.id];
+        /* 收起來的時候不要捲 —— 那會把畫面拉到一個空的容器上。 */
+        refreshAssignment(t, pane, opening ? '[data-assignment-editor]' : null);
       });
     });
     var back = pane.querySelector('[data-assignment-back]');

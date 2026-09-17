@@ -2591,3 +2591,32 @@ html.task-open, html.task-open body { overflow: hidden; }
 .perft td:first-child { width: auto; color: var(--beige-70); }
 .perft td { color: var(--beige); }
 .perflaps { color: var(--beige-40) !important; font-size: 10px; padding-bottom: 10px !important; }
+
+/* 正在編輯的那一個主題。
+   使用者 2026-09-17：「每次點一個話題都是轉跳頁面，太麻煩了」——
+   總表現在永遠留著，這個標記讓你知道下面編輯的是哪一則。 */
+.assignment-story-cell.is-open {
+  border-color: var(--salmon);
+  background: var(--salmon-12);
+}
+.assignment-story-cell.is-open .num { color: var(--salmon); opacity: 1; }
+/* 編輯區跟總表之間要有明確的分界，不然會讀成同一塊。 */
+[data-assignment-editor-slot]:not(:empty) {
+  margin-top: 18px; padding-top: 18px;
+  border-top: 1px solid var(--beige-18);
+}
+
+/* ⚠️ **手機上填空題要先給足高度，不然打字會把下面推走。**
+   實測（2026-09-17）同一段字：
+     桌機 1024px　欄位 70px → 70px，下方位移 0px
+     手機 375px 　欄位 30px → 79px，下方位移 **49px**
+   桌機是兩欄格線把欄位撐成三行高，手機收成一欄之後只剩一行 ——
+   於是每換一行就推一次，整頁在手指底下跳。
+   使用者說「手機版比較難用但說不出哪裡」，就是這個。
+
+   先給三行的高度，多數答案根本不會換行到第四行，也就不會有位移；
+   真的寫很長時才長高，那時使用者本來就預期版面會延伸。
+   代價是評測頁在手機上變長一些 —— 比畫面一直跳好。 */
+@media (pointer: coarse) {
+  .qfield { min-height: 4.8em; }
+}
