@@ -179,6 +179,29 @@
     SYNC_STATE.state = allowed.indexOf(state) >= 0 ? state : 'connecting';
     SYNC_STATE.text = String(text || '連線中');
     renderSession();
+    syncWarn(SYNC_STATE.state, SYNC_STATE.text);
+  }
+
+  /* ⚠️ 存不上去的時候要**大聲說**。
+     使用者 2026-09-18 決定不把未送出的佇列存進瀏覽器（那會帶來「寫到別的學員
+     頭上」的風險），所以**這條橫幅就是唯一的保護** —— 在還沒送出去的時候
+     關掉頁面，那幾筆就沒了。
+     原本只有標題列一行 9px 小字和一次就消失的 toast，放著看不到。 */
+  function syncWarn(state, text) {
+    var bad = state === 'error' || state === 'offline';
+    var box = document.getElementById('syncWarn');
+    if (!bad) { if (box) box.hidden = true; return; }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'syncWarn';
+      box.className = 'syncwarn';
+      box.setAttribute('role', 'status');
+      box.innerHTML = '<b></b><span>網路回來會自動送。<u>先不要關掉這個頁面</u> ——'
+        + '還沒送出去的內容只留在這個畫面上。</span>';
+      document.body.appendChild(box);
+    }
+    box.querySelector('b').textContent = text;
+    box.hidden = false;
   }
 
   /* ── 同一介面的欄位權限 ─────────────────────────────
