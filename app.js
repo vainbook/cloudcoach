@@ -1713,6 +1713,7 @@
       });
     });
     bindFigure(pane);
+    bindFigDims(pane);
     /* 總覽頁：平常設定「當前任務」與「完成」；需要時才開啟隱藏管理。
        ⚠️ 這裡**不 renderOkr()** —— 勾一條就重建整頁會讓捲動歸零，
        教練連續設定時會失去位置。只改列的 class、控制項與頂端計數。 */
@@ -1863,7 +1864,7 @@
         : '在總覽勾選「當前任務」就會出現在這裡。') + '</span></div>';
 
     return wrap('<div class="bpcover bpcover-task"><p class="bpctag">Current Missions</p>'
-      + '<div class="bpctasklayout">' + figureHTML()
+      + '<div class="bpctasklayout">' + figureHTML() + figDimsHTML()
       + '<section class="bpctaskdeck"><header><div><p class="ey">Mission Deck</p><h2>目前任務</h2></div>'
       + '<strong class="num">' + items.length + '</strong></header>'
       + '<div class="bpctaskscroll">' + (cards || empty) + '</div></section></div>'
@@ -1981,6 +1982,40 @@
      滑鼠與鍵盤都要接（focus/blur），不然只有滑鼠使用者看得到這個對應。 */
   /* 人物的高亮。**模組層級，不是 bindFigure 的區域函式** ——
      點格子開面板時也要用它（見 bindOkrPane 的 click）。 */
+  /* 人物左上角的能力切換（使用者 2026-09-18：「五排星號即可」）。
+     ⚠️ 它同時是**圖例**也是**開關**：看得到五維各幾顆星，點一下就把人物
+     對應的部位點亮。再點同一個會關掉 —— 不然點過就沒辦法回到「全暗」。
+     星等用的是報告裡的最終值（含教練加減），跟報告頁看到的同一組數字。 */
+  function figDimsHTML() {
+    var r = reportBase(), cr = S.coachReport || normalizeCoachReport();
+    return '<div class="figdims">' + window.UC_DIMENSIONS.dims.map(function (d) {
+      var n = reportStar(d.k, r, cr);
+      return '<button type="button" class="figdim" data-figdim="' + esc(d.k) + '"'
+        + ' aria-pressed="false" title="' + esc(d.label) + '　' + n + ' 顆星">'
+        + '<b>' + esc(d.label) + '</b>'
+        + '<s>' + new Array(n + 1).join('★') + new Array(6 - n).join('☆') + '</s>'
+        + '</button>';
+    }).join('') + '</div>';
+  }
+
+  /* 目前點亮的是哪一維（null＝全暗）。 */
+  var FIGDIM = null;
+
+  function bindFigDims(root) {
+    [].forEach.call(root.querySelectorAll('[data-figdim]'), function (b) {
+      b.addEventListener('click', function () {
+        var k = b.dataset.figdim;
+        FIGDIM = (FIGDIM === k) ? null : k;
+        figLit(FIGDIM);
+        [].forEach.call(root.querySelectorAll('[data-figdim]'), function (x) {
+          var on = x.dataset.figdim === FIGDIM;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      });
+    });
+  }
+
   function figLit(k) {
     var fig = document.getElementById('bpcFig');
     if (!fig) return;
@@ -2342,7 +2377,8 @@
 
 
   /* ── 成長紀錄：90 天回顧日曆 ─────────────────────── */
-  var GCALMODE = 'number', GSELECT = null, GFORM = null;
+  /* GFORM = 正在填哪一類（call／social／date）；GEDIT = 正在改哪一筆（null＝新增）。 */
+  var GCALMODE = 'number', GSELECT = null, GFORM = null, GEDIT = null;
   var GTYPES = [
     { k: 'call', label: '通話記錄', short: '通話' },
     { k: 'social', label: '外出社交', short: '社交' },
@@ -2623,6 +2659,8 @@
                  只有刪除才分角色。複製做得比刪除明顯：帶文字、有外框；
                  刪除維持淡淡的圖示，不可逆的動作不該一直在招手。 */
               + '<button type="button" class="gcopy" data-gcopy="' + esc(e.id) + '">複製</button>'
+              /* 能不能改跟能不能刪是同一組條件：要在 S.log 裡，而且學員不能動教練寫的。 */
+              + (canDelete(e) ? '<button type="button" class="gedit" data-gedit="' + esc(e.id) + '">編輯</button>' : '')
               + (canDelete(e) ? '<button type="button" class="gdel" data-gdel="' + esc(e.id) + '"'
                   + ' title="刪除這一筆" aria-label="刪除這一筆">' + trashIcon() + '</button>' : '')
               + '</span></article>';
@@ -2632,19 +2670,32 @@
     var dayNo = isoDiff(GSELECT, start) + 1;
     var log = logHTML(selectedRecords, dayNo);
 
-    var form = '';
-    if (GFORM) {
+    /* ⚠️ 表單**只有這一份實作**。初次繪製與局部重畫都叫它 ——
+       之前兩邊各寫一份，改一邊就會走鐘。新增與編輯也共用同一份：
+       差別只有「有沒有帶既有的值」跟「按鈕上寫什麼」。
+
+       ⚠️ 只留三格（使用者 2026-09-18：「只要有日期、標題、紀錄就好」）。
+       「補充」拿掉了 —— 兩個都是自由文字，使用者只會猶豫該寫在哪一格。
+       舊資料的 note 仍然讀得出來、也還畫得出來，只是不再有地方新增。 */
+    function formHTML() {
+      if (!GFORM) return '';
       var gt = growthType(GFORM);
-      var formDate = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT;
-      /* ⚠️ 只留三格（使用者 2026-09-18：「只要有日期、標題、紀錄就好」）。
-         「補充」拿掉了 —— 兩個都是自由文字的欄位，使用者只會猶豫該寫在哪一格。
-         舊資料的 note 仍然讀得出來、也還畫得出來，只是不再有地方新增。 */
-      form = '<form class="gcalform" id="growthForm"><h2>' + esc(gt.label) + '</h2>'
-        + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end + '" value="' + formDate + '" required></label>'
-        + '<label><span>標題</span><input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
-        + '<label><span>紀錄</span><textarea name="outcome" rows="5" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
-        + '<div><button type="button" class="btn gh" data-gcancel>取消</button><button class="btn pri" type="submit">儲存紀錄</button></div></form>';
+      var rec = GEDIT ? (S.log || []).filter(function (x) { return x && x.id === GEDIT; })[0] : null;
+      var d0 = rec ? rec.d
+        : (isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT);
+      return '<form class="gcalform" id="growthForm">'
+        + '<h2>' + esc(gt.label) + (rec ? '　·　編輯' : '') + '</h2>'
+        + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end
+          + '" value="' + esc(d0) + '" required></label>'
+        + '<label><span>標題</span><input type="text" name="title" maxlength="120"'
+          + ' placeholder="用一句話留下情境" value="' + esc(rec ? (rec.t || '') : '') + '" required></label>'
+        + '<label><span>紀錄</span><textarea name="outcome" rows="5" maxlength="4000"'
+          + ' placeholder="你感受到什麼、學到什麼，或下次想怎麼做">'
+          + esc(rec ? (rec.outcome || '') : '') + '</textarea></label>'
+        + '<div><button type="button" class="btn gh" data-gcancel>取消</button>'
+        + '<button class="btn pri" type="submit">' + (rec ? '儲存修改' : '儲存紀錄') + '</button></div></form>';
     }
+    var form = formHTML();
 
     var canSetStart = ACTOR_ROLE !== 'student';
     /* 以圖案為主、文字縮到最小（使用者 2026-09-18）。
@@ -2690,17 +2741,7 @@
     function screenHTML() {
       var sel = byDate[GSELECT] || [];
       var no = isoDiff(GSELECT, start) + 1;
-      var f = '';
-      if (GFORM) {
-        var t2 = growthType(GFORM);
-        var fd2 = isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT;
-        f = '<form class="gcalform" id="growthForm"><h2>' + esc(t2.label) + '</h2>'
-          + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end + '" value="' + fd2 + '" required></label>'
-          + '<label><span>標題</span><input type="text" name="title" maxlength="120" placeholder="用一句話留下情境" required></label>'
-          + '<label><span>紀錄</span><textarea name="outcome" rows="5" maxlength="4000" placeholder="你感受到什麼、學到什麼，或下次想怎麼做"></textarea></label>'
-          + '<div><button type="button" class="btn gh" data-gcancel>取消</button><button class="btn pri" type="submit">儲存紀錄</button></div></form>';
-      }
-      return gscreenHTML(f, logHTML(sel, no), sel.length, no, start, today, records.length);
+      return gscreenHTML(formHTML(), logHTML(sel, no), sel.length, no, start, today, records.length);
     }
 
     function paintScreen() {
@@ -2721,6 +2762,7 @@
     [].forEach.call(body.querySelectorAll('[data-gopen]'), function (b) {
       b.addEventListener('click', function () {
         GFORM = b.dataset.gopen;
+        GEDIT = null;              /* 按新增就是新增，不要沿用上一次的編輯對象 */
         paintScreen();
         /* ⚠️ 只有螢幕沒完全看得到才捲。看得到還硬捲一下，就是使用者說的「彈一下」。 */
         var sc = body.querySelector('.gscreen');
@@ -2733,7 +2775,7 @@
       });
     });
     [].forEach.call(body.querySelectorAll('[data-gdate]'), function (b) {
-      b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; paintScreen(); });
+      b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; GEDIT = null; paintScreen(); });
     });
     /* 顯示方式只是換一個 class，連螢幕都不用重畫。 */
     [].forEach.call(body.querySelectorAll('[data-gmode]'), function (b) {
@@ -2778,6 +2820,17 @@
       });
     });
 
+    [].forEach.call(body.querySelectorAll('[data-gedit]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.gedit;
+        var one = (S.log || []).filter(function (x) { return x && x.id === id; })[0];
+        if (!one) return;
+        GEDIT = id;
+        GFORM = one.kind;          /* 表單的標題與類別跟著那一筆走 */
+        paintScreen();
+      });
+    });
+
     [].forEach.call(body.querySelectorAll('[data-gdel]'), function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.dataset.gdel;
@@ -2800,19 +2853,40 @@
     });
 
     var cancel = body.querySelector('[data-gcancel]');
-    if (cancel) cancel.addEventListener('click', function () { GFORM = null; paintScreen(); });
+    if (cancel) cancel.addEventListener('click', function () { GFORM = null; GEDIT = null; paintScreen(); });
     var formEl = el('growthForm');
     if (formEl) formEl.addEventListener('submit', function (e) {
       e.preventDefault();
       var fd = new FormData(formEl), d = String(fd.get('date') || '');
-      var ev = { id: 'G' + Date.now(), by: ACTOR_ROLE === 'coach' ? 'coach' : 'student',
-        kind: GFORM, d: d, w: Math.floor(isoDiff(d, start) / 7) + 1,
-        t: String(fd.get('title') || '').trim(), outcome: String(fd.get('outcome') || '').trim(),
-        note: '', lv: 2 };
-      if (!ev.t || isoDiff(d, start) < 0 || isoDiff(d, start) > 89) return;
-      var copied = window.UC_SHARE && window.UC_SHARE.copy
-        ? window.UC_SHARE.copy(growthEntryText(ev)) : Promise.resolve('fail');
-      S.log.push(ev); GSELECT = d; GFORM = null; save(); renderGrowth();
+      var title = String(fd.get('title') || '').trim();
+      var outcome = String(fd.get('outcome') || '').trim();
+      if (!title || isoDiff(d, start) < 0 || isoDiff(d, start) > 89) return;
+
+      var old = GEDIT ? (S.log || []).filter(function (x) { return x && x.id === GEDIT; })[0] : null;
+      var ev;
+      if (old) {
+        /* ⚠️ 編輯是**改那一筆**，不是刪掉再新增一筆。
+           id 一定要留著 —— 後端是用 event_id 找列的，換了 id 就會多出一列，
+           而舊的那列還躺在試算表上（多一筆鬼紀錄）。
+           by 也不改：那是「這筆是誰寫的」，不是「誰最後動過」。 */
+        old.d = d; old.t = title; old.outcome = outcome;
+        old.w = Math.floor(isoDiff(d, start) / 7) + 1;
+        ev = old;
+      } else {
+        ev = { id: 'G' + Date.now(), by: ACTOR_ROLE === 'coach' ? 'coach' : 'student',
+          kind: GFORM, d: d, w: Math.floor(isoDiff(d, start) / 7) + 1,
+          t: title, outcome: outcome, note: '', lv: 2 };
+        S.log.push(ev);
+      }
+
+      /* 新增才順手複製。改一個錯字也跳出「已複製」會很吵。 */
+      var copied = (!old && window.UC_SHARE && window.UC_SHARE.copy)
+        ? window.UC_SHARE.copy(growthEntryText(ev)) : null;
+
+      GSELECT = d; GFORM = null; GEDIT = null;
+      save(); renderGrowth();
+
+      if (!copied) { toast('已儲存修改'); return; }
       copied.then(function (how) {
         toast(how === 'copy' ? '紀錄已儲存，文字已複製，可以貼到群組'
           : '紀錄已儲存，但文字沒有複製成功');

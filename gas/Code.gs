@@ -1942,10 +1942,20 @@ function runSelftest_() {
     && decodeValue_(encodeValue_(false)) === false
     && String(decodeValue_(encodeValue_([1, 2]))) === '1,2');
 
-  t('報告欄位白名單涵蓋五維與信',
-    REPORT_FIELDS.indexOf('note.values') >= 0 && REPORT_FIELDS.indexOf('adjust.flirt') >= 0
-    && REPORT_FIELDS.indexOf('letter') >= 0 && REPORT_FIELDS.indexOf('complete') >= 0
-    && REPORT_FIELDS.indexOf('letter; DROP') < 0);
+  /* ⚠️ 白名單要跟 site/store.js 的 snapshot() 對得上。這裡把前端會送的欄位
+     整份列出來比對 —— 只檢查「有沒有五維和信」是抓不到漏欄位的，
+     2026-09-18 就是這樣漏掉 coachName／coachEnglishName／growthStart 三個。
+     ⚠️ 前端加欄位時，這份清單要跟著加，不然會安靜地存不進去。 */
+  var SENT_BY_CLIENT = ['letter', 'complete', 'coachName', 'coachEnglishName', 'growthStart'];
+  ['values', 'emo', 'image', 'circle', 'flirt'].forEach(function (k) {
+    SENT_BY_CLIENT.push('adjust.' + k, 'score.' + k, 'note.' + k);
+  });
+  var notAllowed = SENT_BY_CLIENT.filter(function (f) { return REPORT_FIELDS.indexOf(f) < 0; });
+  t('前端會送的報告欄位全部在白名單上' + (notAllowed.length ? '：缺 ' + notAllowed.join('、') : ''),
+    !notAllowed.length);
+  t('白名單沒有多出前端不會送的欄位',
+    REPORT_FIELDS.every(function (f) { return SENT_BY_CLIENT.indexOf(f) >= 0; }));
+  t('白名單擋得掉亂七八糟的欄位名', REPORT_FIELDS.indexOf('letter; DROP') < 0);
 
   /* ⚠️ **寫入路徑一定要真的寫一次。**
      原本 selftest 只驗「沒有 Token 會被擋」，所以 state.save 裡

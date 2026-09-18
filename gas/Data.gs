@@ -105,7 +105,12 @@ var TASK_COL = { current: '當前任務', done: '已完成', hidden: '已隱藏'
 var TASK_FIELDS = ['current', 'done', 'hidden', 'picked', 'key'];
 
 /* 教練報告允許的 field。 */
-var REPORT_FIELDS = ['letter', 'complete'];
+/* ⚠️ **這份清單要跟 site/store.js 的 snapshot() 一模一樣。**
+   少一個，前端就會安靜地送不進去 —— 使用者填了、畫面上看起來有，
+   重新整理就沒了（2026-09-18 踩到：coachName、coachEnglishName、growthStart
+   三個都漏了，其中 growthStart 是 90 天起始日，等於教練設了日期也存不住）。
+   加欄位的時候**兩邊一起加**，selftest 會比對。 */
+var REPORT_FIELDS = ['letter', 'complete', 'coachName', 'coachEnglishName', 'growthStart'];
 (function () {
   ['values', 'emo', 'image', 'circle', 'flirt'].forEach(function (k) {
     REPORT_FIELDS.push('adjust.' + k, 'score.' + k, 'note.' + k);

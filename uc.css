@@ -1900,6 +1900,16 @@ html.task-open, html.task-open body { overflow: hidden; }
   font: 500 10px/1.5 var(--mono); letter-spacing: .08em;
   transition: color .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
 }
+/* 編輯跟複製同一個量級 —— 兩個都是「可以隨便按」的動作。
+   只有刪除保持淡的，因為它救不回來。 */
+.gedit {
+  padding: 3px 9px; color: var(--beige-70); background: transparent; cursor: pointer;
+  border: 1px solid var(--beige-18); border-radius: 0;
+  font: 500 10px/1.5 var(--mono); letter-spacing: .08em;
+  transition: color .18s var(--ease), border-color .18s var(--ease);
+}
+.gedit:hover { color: var(--beige); border-color: var(--beige-40); }
+.gedit:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
 .gcopy:hover { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
 .gcopy:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
 .gcopy.is-ok { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
@@ -2477,6 +2487,32 @@ html.task-open, html.task-open body { overflow: hidden; }
 .bpcover-task .bpcfigure {
   grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: 470px;
 }
+/* 人物左上角的能力切換。⚠️ 疊在人物上面，所以要給 z-index ——
+   .bpcfigure 裡每一層都是明確排序的，少給一個就會被線稿蓋掉。 */
+.figdims {
+  position: absolute; left: 0; top: 4px; z-index: 6;
+  display: grid; gap: 2px; width: max-content;
+}
+.figdim {
+  display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 7px;
+  padding: 3px 6px; cursor: pointer; text-align: left;
+  color: var(--beige-40); background: rgba(19, 27, 46, .55); border: 1px solid transparent;
+  transition: color .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease);
+}
+.figdim b { font: 500 9px/1.2 var(--mono); letter-spacing: .06em; }
+.figdim s { text-decoration: none; font-size: 9px; line-height: 1; letter-spacing: .5px;
+  color: var(--salmon); opacity: .55; }
+.figdim:hover { color: var(--beige-70); border-color: var(--beige-18); }
+.figdim.on { color: var(--beige); border-color: var(--salmon-30); background: rgba(19, 27, 46, .85); }
+.figdim.on s { opacity: 1; }
+.figdim:focus-visible { outline: 2px solid var(--salmon); outline-offset: 1px; }
+
+@media (max-width: 720px) {
+  .figdims { top: 0; gap: 1px; }
+  .figdim { padding: 2px 5px; gap: 5px; }
+  .figdim b, .figdim s { font-size: 8px; }
+}
+
 .bpctaskdeck {
   grid-column: 2; grid-row: 1; align-self: center; min-width: 0; height: 470px;
   display: grid; grid-template-rows: auto minmax(0, 1fr);
