@@ -179,7 +179,36 @@
     SYNC_STATE.state = allowed.indexOf(state) >= 0 ? state : 'connecting';
     SYNC_STATE.text = String(text || '連線中');
     renderSession();
-    syncWarn(SYNC_STATE.state, SYNC_STATE.text);
+
+    /* 失敗或離線 → 立刻提醒。 */
+    if (SYNC_STATE.state === 'error' || SYNC_STATE.state === 'offline') {
+      clearSlowSave();
+      syncWarn(true);
+      return;
+    }
+    /* ⚠️ **還沒失敗、但太久** 也要提醒（使用者 2026-09-18：
+       「正常使用下應該不會放超過 10 秒，如果 10 秒後都還沒有儲存就應該提醒勿關」）。
+       單筆實測 2～3 秒，10 秒代表已經不正常了 —— 等它失敗才說話太慢
+       （掛住的請求要 25 秒才會被逾時砍掉）。
+       ⚠️ **不可以每一筆都重設計時器** —— 佇列裡有十筆的話就永遠到不了 10 秒。
+       從「開始有東西在送」算起，中間一直是 saving 就繼續計時。 */
+    if (SYNC_STATE.state === 'saving') {
+      if (!slowSaveTimer) {
+        slowSaveTimer = setTimeout(function () {
+          slowSaveTimer = null;
+          if (SYNC_STATE.state === 'saving') syncWarn(true);
+        }, SLOW_SAVE_MS);
+      }
+      return;
+    }
+    clearSlowSave();
+    syncWarn(false);
+  }
+
+  var SLOW_SAVE_MS = 10000;
+  var slowSaveTimer = null;
+  function clearSlowSave() {
+    if (slowSaveTimer) { clearTimeout(slowSaveTimer); slowSaveTimer = null; }
   }
 
   /* ⚠️ 存不上去的時候要**大聲說**。
@@ -187,10 +216,9 @@
      頭上」的風險），所以**這條橫幅就是唯一的保護** —— 在還沒送出去的時候
      關掉頁面，那幾筆就沒了。
      原本只有標題列一行 9px 小字和一次就消失的 toast，放著看不到。 */
-  function syncWarn(state, text) {
-    var bad = state === 'error' || state === 'offline';
+  function syncWarn(show) {
     var box = document.getElementById('syncWarn');
-    if (!bad) { if (box) box.hidden = true; return; }
+    if (!show) { if (box) box.hidden = true; return; }
     if (!box) {
       box = document.createElement('div');
       box.id = 'syncWarn';
@@ -200,7 +228,9 @@
         + '還沒送出去的內容只留在這個畫面上。</span>';
       document.body.appendChild(box);
     }
-    box.querySelector('b').textContent = text;
+    /* 現在的狀態字（例：儲存中・3 筆／連線不穩・3 筆）。每次都重讀，
+       不要用計時器建立時的那一份 —— 筆數會變。 */
+    box.querySelector('b').textContent = SYNC_STATE.text;
     box.hidden = false;
   }
 
