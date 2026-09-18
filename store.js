@@ -576,6 +576,17 @@
     perf: function () { return perf.slice(); },
     studentId: function () { return studentId; },
     demoStudentId: function () { return demoId; },
+    /* 刪掉一筆成長紀錄。⚠️ **一定要讓伺服器也刪掉** ——
+       mergeRest 是以 id 做聯集，只刪本機的話下一次同步就會把它撈回來。
+       本機／demo 模式沒有伺服器，直接回成功讓前端自己處理狀態。 */
+    deleteGrowth: function (eventId) {
+      if (!isRemote()) return Promise.resolve({ deleted: true, eventId: eventId });
+      return call({ action: 'growth.delete', eventId: String(eventId) }).then(function (r) {
+        /* 快照裡還留著那一筆的話，下一次 push 會把它寫回去。 */
+        if (snap) delete snap['growth|' + eventId + '|event'];
+        return r;
+      });
+    },
     attach: function (app) {
       APP = app;
       if (APP && APP.setSyncStatus) APP.setSyncStatus(syncState.state, syncState.text);

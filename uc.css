@@ -1880,7 +1880,20 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gloghead span { color: var(--beige-40); font: 500 10px/1 var(--mono); letter-spacing: .08em; }
 /* ⚠️ 一天可能有很多筆，螢幕高度是固定的 —— 讓內容自己捲，不要把殼撐開。 */
 .glogbody { overflow-y: auto; padding-right: 4px; }
-.glogbody .gentry { padding: 11px 0; }
+.glogbody .gentry { position: relative; padding: 11px 34px 11px 0; }
+/* 刪除鈕：平常很淡，滑到那一筆才清楚 —— 不可逆的動作不該一直在招手。 */
+.gdel { position: absolute; top: 8px; right: 0; width: 26px; height: 26px;
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+  color: var(--beige-40); background: none; border: 0;
+  opacity: .45; transition: opacity .18s var(--ease), color .18s var(--ease); }
+.gentry:hover .gdel, .gdel:focus-visible { opacity: 1; }
+.gdel:hover { color: var(--salmon); }
+.gdel[disabled] { opacity: .25; cursor: default; }
+.gdel svg { width: 15px; height: 15px; }
+.gdel .gy { fill: none; stroke: currentColor; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; }
+/* 手機沒有 hover，直接給到看得見但不搶戲的程度。 */
+@media (pointer: coarse) { .gdel { opacity: .7; } }
 .glogbody .gentry:first-child { padding-top: 2px; }
 
 /* ── 填寫：表單長得像螢幕上的輸入行，不是貼上去的網頁表單 ──
@@ -2009,11 +2022,14 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gday.is-future { background: transparent; }
 .gday.is-future .gdayn { color: rgba(232, 228, 220, .22); }
 
-/* 「當天編輯過文件」的圈記本來掛在大數字上，數字沒了就換到右上角，
-   跟左下角的紀錄圖示分開 —— 兩件不同的事不要疊在一起看。 */
-.gday.is-active::after { content: ''; position: absolute; top: 7px; right: 7px;
-  width: 7px; height: 7px; border: 1px solid var(--salmon-30); border-radius: 50%; }
-.gday.is-active.has-records::after { border-color: var(--salmon); }
+/* 「當天編輯過文件」＝那天有動筆，所以就畫一支鉛筆（使用者 2026-09-18）。
+   放右上角，跟左下角的紀錄圖示分開 —— 兩件不同的事不要疊在一起看。 */
+.gpen { position: absolute; top: 5px; right: 5px; width: 12px; height: 12px;
+  color: var(--salmon); opacity: .5; }
+.gday.has-records .gpen { opacity: .8; }
+.gpen svg { display: block; width: 100%; height: 100%; }
+.gpen .gy { fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round; }
 
 .gentryicon { display: grid; place-items: center; color: var(--salmon); }
 .gmark svg, .gentryicon svg, .gkico svg { width: 100%; height: 100%; overflow: visible; }
@@ -2028,7 +2044,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gcallegend { display: flex; gap: 16px; flex-wrap: wrap;
   color: var(--beige-40); font: 400 10px/1.5 var(--mono); }
 .gcallegend span { display: inline-flex; align-items: center; gap: 7px; }
-.gcallegend .ring { width: 7px; height: 7px; border: 1px solid var(--salmon); border-radius: 50%; }
+.gcallegend .gpen { position: static; width: 12px; height: 12px; opacity: .8; }
 .gentry { display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding: 16px 0;
   border-top: 1px solid var(--beige-08); }
 .gentryicon { width: 30px; height: 30px; margin-top: 3px; }
@@ -2057,7 +2073,7 @@ html.task-open, html.task-open body { overflow: hidden; }
   .gdayn { font-size: 9px; }
   .gmarks { inset: auto 4px 5px 5px; gap: 3px; }
   .gmark { width: 14px; height: 14px; }
-  .gday.is-active::after { top: 5px; right: 5px; width: 6px; height: 6px; }
+  .gpen { top: 4px; right: 4px; width: 10px; height: 10px; }
   .gcalform > label { grid-template-columns: 1fr; gap: 6px; }
 }
 /* ═══ 星等（逐條報告與表單沿用；能力圖／藍圖改用菱形）═══ */

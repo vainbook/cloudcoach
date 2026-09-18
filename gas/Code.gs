@@ -125,6 +125,7 @@ function doPost(e) {
       return ok_(perf_(t0, action, { blueprint: blueprintLoad_() }));
     }
     if (action === 'state.save')     return ok_(perf_(t0, action, stateSaveAction_(body)));
+    if (action === 'growth.delete')  return ok_(perf_(t0, action, growthDeleteAction_(body)));
     if (action === 'student.list')   return ok_(perf_(t0, action, studentListAction_(body)));
 
     return fail_('INVALID_INPUT', '不認識的 action：' + (action || '（空白）'));
@@ -465,6 +466,42 @@ function canWriteScope_(binding, scope) {
 function requireWriteScope_(binding, scope) {
   if (!canWriteScope_(binding, scope)) {
     throw new AppError('FORBIDDEN_FIELD', '只有教練可以修改這項內容');
+  }
+}
+
+/* growth.delete —— 刪掉一筆成長紀錄。
+   ⚠️ **真的刪掉那一列**，不是在本機隱藏。前端的 mergeRest 是「以 id 做聯集」，
+   伺服器上還在的話，下一次同步就會把它撈回來，使用者會以為刪除壞掉了。
+   ⚠️ 學員只能刪自己寫的；教練誰的都能刪。判斷依據是**表上的 author_role**，
+   不是前端送來的值 —— 前端送什麼都不採信。 */
+function growthDeleteAction_(body) {
+  var b = requireBinding_(body);
+  var sid = targetStudent_(b, body);
+  requireWriteScope_(b, 'growth');
+
+  var id = String(body.eventId || '').trim();
+  if (!id) throw new AppError('INVALID_INPUT', '沒有指定要刪除的紀錄');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = skelSheet_('growth'), map = skelMap_(sh);
+    var line = findRow_(sh, map, function (r) {
+      return String(r.student_id) === String(sid) && String(r.event_id) === id;
+    });
+    if (!line) return { deleted: false, reason: 'not_found' };   /* 找不到＝已經刪過，不是錯誤 */
+
+    var row = sh.getRange(line, 1, 1, sh.getLastColumn()).getValues()[0];
+    var owner = String(rowObj_(row, map).author_role || 'student');
+    if (b.access_scope !== 'manage' && owner !== 'student') {
+      throw new AppError('FORBIDDEN_FIELD', '這筆紀錄是教練寫的，只有教練可以刪除');
+    }
+    sh.deleteRow(line);
+    skelDrop_('growth');          /* 刪完之後同一次執行再讀要拿到新的 */
+    console.log('刪除成長紀錄 student=' + sid + ' event=' + id);
+    return { deleted: true, eventId: id };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -1618,6 +1655,20 @@ function runSelftest_() {
     String(bindingCacheKey_.toString()).indexOf('bindingEpoch_') >= 0);
   t('寫完會丟掉讀取快取（不然同一次執行裡寫完再讀是舊值）',
     srcNoComments_(stateSave_).indexOf('skelDrop_') >= 0);
+  /* ⚠️ 刪除是不可逆的，把關一定要在後端。 */
+  var r10 = post({ action: 'growth.delete', idToken: 'x.y.z', eventId: 'G1' });
+  t('growth.delete 要先驗 Token', r10.error && r10.error.code === 'UNAUTHENTICATED');
+  t('growth.delete 真的刪列，不是標記',
+    String(growthDeleteAction_.toString()).indexOf('deleteRow') >= 0);
+  t('growth.delete 有鎖',
+    String(growthDeleteAction_.toString()).indexOf('getScriptLock') >= 0);
+  t('學員不能刪教練寫的紀錄',
+    String(growthDeleteAction_.toString()).indexOf("access_scope !== 'manage'") >= 0);
+  t('刪除的權限看表上的 author_role，不看前端送什麼',
+    String(growthDeleteAction_.toString()).indexOf('author_role') >= 0);
+  t('刪完會丟掉讀取快取',
+    String(growthDeleteAction_.toString()).indexOf('skelDrop_') >= 0);
+
   t('綁定變動會清掉快取',
     String(authBind_.toString()).indexOf('bindingCacheClear_') >= 0
     && String(menuMakeCoach.toString()).indexOf('bindingCacheClear_') >= 0

@@ -2464,6 +2464,26 @@
       + '<span class="ghudtotal"><b>' + records.length + '</b><s>總筆數</s></span></div></div>';
   }
 
+  /* 刪除。線條跟其他圖示同一套。 */
+  function trashIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path class="gy" d="M4.5 6.5h15"/>'
+      + '<path class="gy" d="M9.5 6.5V4.8h5v1.7"/>'
+      + '<path class="gy" d="M6.6 6.5l.9 12.2a1.4 1.4 0 0 0 1.4 1.3h6.2a1.4 1.4 0 0 0 1.4-1.3l.9-12.2"/>'
+      + '<path class="gy" d="M10.4 10v6.4M13.6 10v6.4"/>'
+      + '</svg>';
+  }
+
+  /* 「當天編輯過文件」的記號。舊版是一個空心圓 —— 圓圈在日曆裡什麼都不像，
+     使用者 2026-09-18 要求換成鉛筆：一看就知道是「那天有動筆」。
+     筆畫粗細跟成長圖示同一套。 */
+  function penIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path class="gy" d="M4.6 19.4l.9-3.6L15 6.3l2.7 2.7-9.5 9.5-3.6.9Z"/>'
+      + '<path class="gy" d="M14.1 7.2l2.7 2.7"/>'
+      + '</svg>';
+  }
+
   /* 窗外的星空。**滿版**（使用者 2026-09-18：「整個螢幕都是對著外面」）。
      ⚠️ 用 preserveAspectRatio="slice" 填滿並裁切 —— 直的橫的都填得滿，
      代價是邊緣會被切掉，所以重要的東西（星系核心、行星）要放在中央偏內，
@@ -2524,6 +2544,11 @@
     }
     var byDate = {};
     records.forEach(function (e) { (byDate[e.d] = byDate[e.d] || []).push(e); });
+    /* 編輯簽到日。⚠️ 跟 growthRecords() 同一個作法：接上後端只認學員自己的紀錄，
+       本機／demo 才補上範例資料 —— 不然 demo 看不到這個功能存在（2026-09-18）。 */
+    var activeDays = ((window.UC_STORE && window.UC_STORE.isRemote())
+      ? [] : (window.UC_GROWTH.activityDays || [])).concat(S.activityDays || []);
+
     var startDow = new Date(start + 'T00:00:00').getDay();
     var lead = (startDow + 6) % 7;
     var rowTotal = Math.ceil((lead + 90) / 7);
@@ -2537,7 +2562,7 @@
         var i = row * 7 + c - lead;
         if (i < 0 || i >= 90) { cells += '<span class="gblank" aria-hidden="true"></span>'; continue; }
         var iso = isoAdd(start, i), dayRecords = byDate[iso] || [];
-        var active = (S.activityDays || []).indexOf(iso) >= 0;
+        var active = activeDays.indexOf(iso) >= 0;
         /* ⚠️ **有沒有紀錄都用同一套版面。** 舊版空格子畫一個大數字、有紀錄的格子
            改畫圖示、數字縮到角落 —— 同一個網格裡兩種版面，眼睛沒辦法掃。
            現在日期永遠在左上同一個位置，紀錄永遠在左下，格子安靜、紀錄大聲。 */
@@ -2551,8 +2576,19 @@
           + (active ? ' is-active' : '') + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
           + '<small class="gdayn"><span class="n">' + (i + 1) + '</span>'
           + '<span class="dt">' + (+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)) + '</span></small>'
+          + (active ? '<i class="gpen" aria-hidden="true">' + penIcon() + '</i>' : '')
           + '<span class="gmarks">' + marks + '</span></button>';
       }
+    }
+
+    /* 能不能刪這一筆。三個條件都要成立：
+       ① 它真的在 S.log 裡（範例資料不在狀態裡，刪了也存不住）
+       ② 教練誰的都能刪；學員只能刪自己寫的
+       ⚠️ 前端這層只是把按鈕藏起來，真正的把關在後端（送什麼都不採信）。 */
+    function canDelete(e) {
+      if (!e || !e.id) return false;
+      if (!(S.log || []).some(function (x) { return x && x.id === e.id; })) return false;
+      return ACTOR_ROLE === 'coach' || e.by !== 'coach';
     }
 
     function logHTML(list, no) {
@@ -2563,7 +2599,10 @@
             return '<article class="gentry"><span class="gentryicon ' + e.kind + '">' + growthIcon(e.kind) + '</span>'
               + '<div><p>' + esc(growthType(e.kind).label) + '</p><h3>' + esc(e.t || '這一天的紀錄') + '</h3>'
               + (e.outcome ? '<div>' + esc(e.outcome) + '</div>' : '')
-              + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div></article>';
+              + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div>'
+              + (canDelete(e) ? '<button type="button" class="gdel" data-gdel="' + esc(e.id) + '"'
+                  + ' title="刪除這一筆" aria-label="刪除這一筆">' + trashIcon() + '</button>' : '')
+              + '</article>';
           }).join('') + '</div></div>';
     }
     var selectedRecords = byDate[GSELECT] || [];
@@ -2618,7 +2657,7 @@
       + '<div class="gdays' + (GCALMODE === 'date' ? ' mode-date' : '') + '">' + cells + '</div>'
       /* 設定類的東西放右下角：要用的時候找得到，平常不擋路。 */
       + '<div class="gcalfoot"><div class="gcallegend">'
-      + '<span><i class="ring"></i>當天編輯過文件</span>'
+      + '<span><i class="gpen">' + penIcon() + '</i>當天編輯過文件</span>'
       + '<span>格內圖示最多顯示三筆</span></div>' + tools + '</div></div>', 'rv growthcal');
 
     /* ⚠️ **只換該動的那一塊。** 舊版每按一顆鍵就重寫整個 body，
@@ -2691,6 +2730,30 @@
     });
     /* 螢幕重畫之後，裡面的處理器要重新綁一次。 */
     function bindScreen() {
+    /* ⚠️ 刪除是**不可逆**的，所以一定要先問一次。
+       ⚠️ 先問後端、成功了才動本機 —— 反過來的話後端失敗時畫面已經少一筆，
+       使用者以為刪掉了，下次登入又冒出來。 */
+    [].forEach.call(body.querySelectorAll('[data-gdel]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.gdel;
+        var one = (S.log || []).filter(function (x) { return x && x.id === id; })[0];
+        if (!one) return;
+        if (!confirm('刪除「' + (one.t || '這一筆紀錄') + '」？刪掉就救不回來了。')) return;
+        btn.disabled = true;
+        var done = window.UC_STORE && window.UC_STORE.deleteGrowth
+          ? window.UC_STORE.deleteGrowth(id) : Promise.resolve({ deleted: true });
+        done.then(function () {
+          S.log = (S.log || []).filter(function (x) { return !(x && x.id === id); });
+          save();
+          renderGrowth();            /* 資料真的變了：日曆上的圖示也要跟著少 */
+          toast('已刪除');
+        }).catch(function (err) {
+          btn.disabled = false;
+          toast('刪不掉：' + ((err && err.message) || '連不上伺服器'));
+        });
+      });
+    });
+
     var cancel = body.querySelector('[data-gcancel]');
     if (cancel) cancel.addEventListener('click', function () { GFORM = null; paintScreen(); });
     var formEl = el('growthForm');
