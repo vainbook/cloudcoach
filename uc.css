@@ -2558,12 +2558,6 @@ html.task-open, html.task-open body { overflow: hidden; }
 .cap { font-size: 12.5px; line-height: 1.95; opacity: .58; margin: 14px 0 0; max-width: 62ch; }
 .cap b { opacity: 1; font-weight: 500; }
 
-/* 文案直接編輯（edit.js）。**畫面上不能有任何編輯的痕跡** ——
-   焦點外框、拼字紅底線都算，所以這裡把它們關掉。
-   游標維持文字的 I 型（本來就是），不要改成 pointer 或加 hover 底色。 */
-[contenteditable] { outline: none; }
-[contenteditable]:focus { outline: none; }
-
 /* 文字稽核模式（audit.html / ?audit=1）。正常網站沒有任何稽核痕跡。
    狀態只用 UC 四色與線型區分，不引入紅黃綠第五色。 */
 #ucAuditOverlay { position: fixed; inset: 0; z-index: 8000; pointer-events: none; }
