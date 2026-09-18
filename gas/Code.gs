@@ -232,7 +232,8 @@ function authExchange_(body) {
        但 2026-09-17 量到「讀作業 ＋ 讀成長」在登入路徑上是 1.3～2.4 秒
        （每次 getDataRange 本身就要 300～2000ms 而且會抖），
        而前端本來就會在畫完之後自己補。多等的是背景，不是使用者。 */
-    out.payload = studentPayload_(b, String(b.student_id || ''), 'boot');
+    out.payload = studentPayload_(b, String(b.student_id || ''),
+                                  b.access_scope === 'manage' ? 'coach' : 'boot');
 
     /* ⚠️ **教練登入的第一件事是挑學員，不是看自己的資料。**
        2026-09-18 實測：教練登入要打三次請求（exchange / load / list），
@@ -413,8 +414,16 @@ function studentLoad_(body) {
  * 中間那兩秒使用者可能已經在填東西了（見 store.js 的 mergeRest）。
  */
 function studentPayload_(b, sid, part) {
-  var wantBoot = part !== 'rest';
-  var wantRest = part !== 'boot';
+  /* part 的三種值：
+       'boot'  → 第一眼要用的（答案／報告／任務）＋ 共用的（藍圖／連結）
+       'rest'  → 背景補的（作業／成長）
+       'coach' → **只有共用的**。教練的第一個畫面是學員清單，挑完人才載那個人的整包，
+                 所以「教練自己的」答案與報告從頭到尾沒人看（使用者 2026-09-18 確認）。
+                 實測那一段是 829ms，砍掉直接省下來。
+     不給 part → 全部。 */
+  var wantBoot = part !== 'rest' && part !== 'coach';
+  var wantRest = part !== 'boot' && part !== 'coach';
+  var wantShared = part !== 'rest';      /* 藍圖與課程連結是全體共用的，教練也要 */
 
   var out = {
     studentId: sid,
@@ -442,9 +451,12 @@ function studentPayload_(b, sid, part) {
     lap_('讀報告');
     out.tasks = stateLoad_('task', sid);
     lap_('讀任務');
+  }
+
+  if (wantShared) {
     out.blueprint = blueprintLoad_();
     lap_('讀藍圖');
-    /* 課程連結跟藍圖一樣是全體共用、有快取，所以放在 boot 幾乎不花時間。 */
+    /* 課程連結跟藍圖一樣是全體共用、有快取，所以幾乎不花時間。 */
     out.links = linksLoad_();
     lap_('讀連結');
   }
@@ -1680,9 +1692,24 @@ function runSelftest_() {
     srcNoComments_(authExchange_).indexOf('studentList_') >= 0);
   t('只有教練才帶清單（學員不需要，也不該拿得到）',
     srcNoComments_(authExchange_).indexOf("access_scope === 'manage'") >= 0);
-  t('登入不分角色都只帶 boot（教練也不例外）',
-    String(authExchange_.toString()).indexOf("'boot'") >= 0
-    && String(authExchange_.toString()).indexOf("access_scope === 'manage' ? null") < 0);
+  /* ⚠️ 教練自己的答案與報告從頭到尾沒人看 —— 載了就是純浪費（實測 829ms）。
+     但藍圖與課程連結是全體共用的，教練還是要。 */
+  var coachKeys = null;
+  try {
+    coachKeys = Object.keys(studentPayload_({ student_name: '', line_display_name: '',
+                                              access_scope: 'manage' }, '__selftest_part__', 'coach'));
+  } catch (e) {}
+  t('教練那一包不含自己的答案與報告',
+    !!coachKeys && coachKeys.indexOf('answers') < 0 && coachKeys.indexOf('report') < 0
+    && coachKeys.indexOf('tasks') < 0);
+  t('教練那一包仍有藍圖與課程連結',
+    !!coachKeys && coachKeys.indexOf('blueprint') >= 0 && coachKeys.indexOf('links') >= 0);
+  /* ⚠️ 這一項原本叫「不分角色都只帶 boot」—— 改成教練走 'coach' 之後那個名字
+     就是錯的（規則 58：會誤導的守門比沒有更糟）。要守的其實是
+     **登入絕對不帶整包**：學員 boot、教練 coach，兩者都不是 null。 */
+  t('登入不帶整包（學員 boot、教練 coach）',
+    srcNoComments_(authExchange_).indexOf("'coach' : 'boot'") >= 0
+    && srcNoComments_(authExchange_).indexOf("'manage' ? null") < 0);
   t('綁定查詢有走快取（每次 700～900ms）',
     String(findBindingByLine_.toString()).indexOf('CacheService') >= 0);
   t('登入的三張表是一個請求抓完',
