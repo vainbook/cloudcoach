@@ -119,7 +119,7 @@
 
     function add(scope, itemId, field, label, value) {
       out[scope + '|' + itemId + '|' + field] =
-        { scope: scope, itemId: itemId, field: field, label: label, value: value };
+        { scope: scope, itemId: itemId, field: field, label: label, value: detach(value) };
     }
 
     /* 成長紀錄：一筆事件送一整個物件，不是拆成欄位 ——
@@ -131,10 +131,23 @@
         scope: 'growth', itemId: String(ev.id), field: 'event',
         label: String(ev.t || '').slice(0, 60),
         display: String(ev.outcome || ev.t || '').slice(0, 200),
-        value: ev
+        value: detach(ev)
       };
     });
     return out;
+  }
+
+  /* ⚠️ **快照要是快照，不能是活的參考。**
+     舊版把物件本身放進 out（成長紀錄的 ev、作業的 submission），
+     而 push() 最後會 `snap = now` —— 於是 snap 裡那一份跟畫面上的是同一個物件。
+     使用者「就地改」一筆紀錄（old.t = ...）時，snap 也跟著變，
+     比對起來完全相同，差異偵測認為沒改，一個字都不會送出去
+     （2026-09-18：編輯成長紀錄存不到）。
+     新增之所以正常，是因為那是一個全新的 key，不需要比對。
+     ⚠️ 只有物件要複製；字串與數字本來就是傳值。 */
+  function detach(v) {
+    if (!v || typeof v !== 'object') return v;
+    try { return JSON.parse(JSON.stringify(v)); } catch (e) { return v; }
   }
 
   /* 試算表上要看得懂。階梯題存的是選項索引，光看數字沒有意義 ——
