@@ -115,6 +115,12 @@
     Object.keys(S.assignments || {}).forEach(function (assignmentId) {
       var submission = S.assignments[assignmentId];
       if (!submission || typeof submission !== 'object') return;
+      /* ⚠️ **沒被人碰過的空殼不送。** 作業一份就是一包 JSON，整包覆蓋 ——
+         而畫面一打開 assignmentState() 就會先放一個空的草稿佔位。
+         背景補的那一包還沒到（或補失敗）的時候，那個空殼一旦被送出去，
+         學員本來寫好的整份作業就被洗掉了，而且不會有任何錯誤訊息。
+         真的被編輯過的一定有 updatedAt，用它分辨最準。 */
+      if (!submission.updatedAt && !Object.keys(submission.answers || {}).length) return;
       add('assignment', assignmentId, 'submission', assignmentId + '／作業作答', JSON.stringify(submission));
     });
 
@@ -385,17 +391,28 @@
      而使用者走到那裡至少要幾秒，補得完。
      ⚠️ 失敗不吵使用者：那兩頁進去時本來就會是空的，
      跟「還沒填」長得一樣，不是錯誤狀態。下次登入會再補一次。 */
-  var restDone = false;
+  var restDone = false, restState = 'ok';   /* ok ｜ loading ｜ failed */
 
   function prefetchRest() {
     if (restDone || !isRemote()) return;
     restDone = true;
+    restSettle('loading');
     call({ action: 'student.load', part: 'rest' })
       .then(mergeRest)
+      .then(function () { restSettle('ok'); })
       .catch(function (e) {
         restDone = false;                /* 讓下一次切換學員還能再試 */
+        restSettle('failed');
         console.warn('背景補資料失敗（不影響現在這一頁）', e && e.message);
       });
+  }
+
+  /* ⚠️ **狀態一變就要重畫。** 那兩頁在等的時候長得跟「還沒填」一模一樣，
+     不重畫的話補回來的資料要等使用者自己再點一次才看得到。 */
+  function restSettle(next) {
+    if (restState === next) return;
+    restState = next;
+    if (APP && APP.render) APP.render();
   }
 
   /**
@@ -436,7 +453,7 @@
       /* 補進來的是伺服器上本來就有的東西，不是新的修改 ——
          要一起算進基準，否則下一次 save() 會把它們整包再送回去一次。 */
       snap = flatten(S);
-      if (APP.render) APP.render();
+      /* 重畫由 restSettle('ok') 負責 —— 這裡再叫一次就是白畫一遍。 */
     }
     return data;
   }
@@ -589,6 +606,7 @@
       studentId = id;
       snap = null;
       restDone = false;            /* 換人了，那一份要重補 */
+      restState = 'ok';            /* 教練走的是整包 load_()，不經過背景補 */
       return load_().catch(function (e) {
         studentId = prev;               /* 換失敗就換回去，不要停在半空中 */
         throw e;
@@ -628,6 +646,11 @@
     token: token,
     listStudents: listStudents,
     switchStudent: switchStudent,
+    restState: function () { return restState; },
+    /* ⚠️ 只重試**失敗過的**那一次。無條件呼叫 prefetchRest 的話，
+       教練切完學員（restDone 被重設）走進成長日曆就會多打一趟 ——
+       而他那一包 load_() 早就整包拿回來了。 */
+    retryRest: function () { if (restState === 'failed') prefetchRest(); },
     isRemote: isRemote,
     push: push,
     flush: flush,

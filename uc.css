@@ -2959,3 +2959,19 @@ html.task-open, html.task-open body { overflow: hidden; }
 @media (min-width: 700px) {
   .syncwarn { left: auto; right: 18px; bottom: 18px; max-width: 330px; }
 }
+
+/* ── 背景補資料還沒到 ────────────────────────────────
+   成長紀錄與作業是畫面出來之後才補的。等不到就說等不到 ——
+   空白畫面跟「還沒填」長得一樣，那是在騙人。 */
+.restnote {
+  margin: 12px 0 0; padding: 9px 12px;
+  font-size: 12.5px; line-height: 1.6;
+  color: var(--beige-70); background: var(--beige-08);
+  border-left: 2px solid var(--beige-18);
+}
+.restnote.is-bad { color: var(--beige); border-left-color: var(--salmon); }
+.restnote button {
+  margin-left: 6px; padding: 0; border: 0; background: none;
+  font: inherit; color: var(--salmon); text-decoration: underline; cursor: pointer;
+}
+.assignment .restnote { margin-top: 0; }

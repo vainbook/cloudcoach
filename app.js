@@ -323,6 +323,34 @@
     [].forEach.call(ns, function (n) { io.observe(n); });
   }
 
+  /* ── 背景補資料的狀態 ──────────────────────────────
+     成長紀錄與作業不在登入那一包裡，是畫面出來之後才補的（省 1.5～2.5 秒）。
+     ⚠️ **還沒補到的時候不能裝成空的。** 空白畫面跟「還沒填」長得一模一樣，
+     學員會以為自己寫的東西不見了 —— 而作業那頁更糟：空表單被填一個字就整包
+     蓋回伺服器。等不到就要說等不到。 */
+  function restPending() {
+    var st = window.UC_STORE;
+    if (!st || !st.isRemote() || !st.restState) return '';
+    var s = st.restState();
+    return s === 'ok' ? '' : s;
+  }
+
+  function restNoticeHTML(what) {
+    var s = restPending();
+    if (!s) return '';
+    return s === 'loading'
+      ? '<p class="restnote">正在讀取' + esc(what) + '…</p>'
+      : '<p class="restnote is-bad">' + esc(what) + '讀取失敗，畫面上顯示的可能不完整。'
+        + '<button type="button" data-rest-retry>重新讀取</button></p>';
+  }
+
+  /* 一個監聽器管兩頁的重試鍵 —— 那兩頁各自重畫，逐頁綁會漏。 */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-rest-retry]');
+    if (!b) return;
+    if (window.UC_STORE && window.UC_STORE.retryRest) window.UC_STORE.retryRest();
+  });
+
   /* ── 路由 ─────────────────────────────────────────── */
   var ROUTES = {
     '#/':        { view: 'v-home' },
@@ -441,6 +469,9 @@
     var ns = el('navStudents');
     if (ns) ns.hidden = !(ACTOR_ROLE === 'coach' && window.UC_STORE && window.UC_STORE.isRemote());
 
+    /* 走進要用到那包資料的頁面就再試一次。補過了的話這是空操作。 */
+    if ((hash === '#/growth' || hash === '#/tools')
+        && window.UC_STORE && window.UC_STORE.retryRest) window.UC_STORE.retryRest();
     if (r.render) r.render();
     rememberRoute(hash);
     window.scrollTo(0, 0);
@@ -2785,7 +2816,8 @@
        上面是主機（螢幕 ＋ 三顆鍵），下面是日曆（讀數 ＋ 控制 ＋ 格子 ＋ 圖例）。
        填寫與翻閱都發生在螢幕裡，不要再有第三塊散在頁尾。 */
     body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日曆</h1>'
-      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p></header>')
+      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p>'
+      + restNoticeHTML('成長紀錄') + '</header>')
       + wrap('<div class="gconsole">'
       + gscreenHTML(form, log, selectedRecords.length, dayNo, start, today, records.length)
       + '<div class="gkinds">' + kinds + '</div></div>'
@@ -3311,7 +3343,21 @@
   }
 
   function assignmentHTML(t) {
-    var a = t.assignment, saved = assignmentState(t);
+    var a = t.assignment;
+    /* ⚠️ **資料沒到就不要開表單。** assignmentState() 會先塞一份空草稿佔位，
+       使用者在上面打一個字，那一整包空的就會覆蓋掉他之前寫好的作業（無聲）。
+       擋在這裡，比在四個欄位渲染器裡各擋一次省事，也不會漏。 */
+    var wait = restPending();
+    if (wait) {
+      return '<section class="assignment" data-assignment="' + esc(a.id) + '">'
+        + '<div class="assignment-head"><div><p class="ey">這次的作業</p><h3>'
+        + esc(a.title || '完成這份作業') + '</h3></div></div>'
+        + (wait === 'loading'
+          ? '<p class="restnote">正在讀取你之前寫的內容…好了才會開放填寫，避免蓋掉。</p>'
+          : '<p class="restnote is-bad">讀不到你之前寫的內容。先不開放填寫，以免覆蓋掉。'
+            + '<button type="button" data-rest-retry>重新讀取</button></p>') + '</section>';
+    }
+    var saved = assignmentState(t);
     var progress = assignmentProgress(a, saved);
     var progressUnit = a.progressUnit ? ' ' + a.progressUnit : '';
     var editingStory = Array.isArray(a.groups) && a.groups.some(function (g) {
