@@ -1360,6 +1360,7 @@ function onOpen() {
     .addItem('把某個帳號升級成教練…', 'menuMakeCoach')
     .addItem('修復「帳號綁定」的排版', 'menuDecorate')
     .addItem('整理並檢查「藍圖內容」', 'menuBlueprintSetup')
+    .addItem('同步「課程連結」的課表（不動你貼的網址）', 'menuSyncLinks')
     .addItem('清掉藍圖與連結快取（改完想立刻生效）', 'menuClearBlueprintCache')
     .addItem('查這份表的狀態', 'menuStatus')
     .addSeparator()
@@ -1461,6 +1462,18 @@ function menuBlueprintSetup() {
 
 /* 藍圖有 15 分鐘的快取（那一段實測 497ms，是登入時間裡很大一塊）。
    改完藍圖不想等就按這個。 */
+/* 課程改名或重新排序之後，把試算表上的標籤對回來、缺的課補上。
+   ⚠️ 連結那一欄不會被動到 —— 那是教練貼的。 */
+function menuSyncLinks() {
+  var r = syncLinks_();
+  SpreadsheetApp.getUi().alert(
+    '「' + LINKS_SHEET + '」已同步。\n\n'
+    + '更新了 ' + r.updated + ' 列的分類／編號／名稱\n'
+    + '新增了 ' + r.added.length + ' 列'
+    + (r.added.length ? '：\n　' + r.added.join('\n　') : '')
+    + '\n\n⚠️ 「連結」那一欄一格都沒有動。新增的課要自己貼網址。');
+}
+
 function menuClearBlueprintCache() {
   try { CacheService.getScriptCache().removeAll(['bp', 'links']); } catch (e) {}
   bindingCacheClear_();
@@ -1707,6 +1720,12 @@ function runSelftest_() {
   /* 課程連結：分頁在不在、只收 http(s)、有沒有進快取。 */
   t('有「' + LINKS_SHEET + '」分頁', !!(ss && ss.getSheetByName(LINKS_SHEET)));
   t('課程連結有走快取', String(linksLoad_.toString()).indexOf('CacheService') >= 0);
+  /* ⚠️ 不可以用「有沒有提到『連結』」來判斷 —— 欄位檢查那段本來就會提到它，
+     那種寫法必然誤報（規則 58）。要看的是**有沒有寫進去**。 */
+  t('同步課表不會寫到連結那一欄',
+    String(syncLinks_.toString()).indexOf("col['連結']] =") < 0);
+  t('同步課表是用課程代號配對，不是用編號',
+    String(syncLinks_.toString()).indexOf("at[code2]") >= 0);
   t('課程連結只收 http(s)', String(linksLoad_.toString()).indexOf('^https?:') >= 0);
   var lk = null;
   try { lk = linksLoad_(); } catch (e) {}

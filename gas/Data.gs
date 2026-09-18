@@ -419,6 +419,65 @@ function seedLinks_() {
   return LINK_SEED.length;
 }
 
+/**
+ * 把「課程連結」分頁的標籤對回程式裡的課表：缺的列補上，既有列的
+ * 分類／編號／名稱更新成最新的。
+ *
+ * ⚠️ **連結那一欄一格都不動。** 那是教練貼的，程式沒有資格覆蓋。
+ * ⚠️ 配對只看**課程代號**。課程重新排序時編號會變、課名也可能改，
+ * 但代號是身分，一旦發出去就不再變（見 site/data/library.js 的 id）。
+ */
+function syncLinks_() {
+  var sh = sheet_().getSheetByName(LINKS_SHEET);
+  if (!sh) throw new AppError('INTERNAL_ERROR', '還沒有「' + LINKS_SHEET + '」分頁，先跑 setup()');
+
+  var all = sh.getDataRange().getValues();
+  var head = all.length >= LINKS_HEADER_ROW ? all[LINKS_HEADER_ROW - 1] : [];
+  var col = {};
+  for (var h = 0; h < head.length; h++) if (head[h]) col[String(head[h])] = h;
+
+  var need = ['課程代號', '分類', '編號', '名稱', '連結'];
+  for (var n = 0; n < need.length; n++) {
+    if (col[need[n]] === undefined) throw new AppError('INTERNAL_ERROR', '「' + LINKS_SHEET + '」缺欄位：' + need[n]);
+  }
+
+  var body = all.slice(LINKS_HEADER_ROW);
+  var at = {};
+  for (var i = 0; i < body.length; i++) {
+    var code = String(body[i][col['課程代號']] || '').trim();
+    if (code) at[code] = i;
+  }
+
+  var updated = 0, added = [];
+  for (var k = 0; k < LINK_SEED.length; k++) {
+    var row = LINK_SEED[k], code2 = String(row[0]);
+    if (at[code2] === undefined) { added.push(row); continue; }
+    var r = body[at[code2]], changed = false;
+    if (String(r[col['分類']] || '') !== String(row[1])) { r[col['分類']] = row[1]; changed = true; }
+    if (String(r[col['編號']] || '') !== String(row[2])) { r[col['編號']] = row[2]; changed = true; }
+    if (String(r[col['名稱']] || '') !== String(row[3])) { r[col['名稱']] = row[3]; changed = true; }
+    if (changed) updated++;
+  }
+
+  if (body.length) {
+    sh.getRange(LINKS_HEADER_ROW + 1, 1, body.length, head.length).setValues(body);
+  }
+  if (added.length) {
+    var start = LINKS_HEADER_ROW + 1 + body.length;
+    var fill = added.map(function (row) {
+      var line = [];
+      for (var c = 0; c < head.length; c++) line.push('');
+      line[col['課程代號']] = row[0]; line[col['分類']] = row[1];
+      line[col['編號']] = row[2];     line[col['名稱']] = row[3];
+      return line;
+    });
+    sh.getRange(start, 1, fill.length, head.length).setValues(fill);
+  }
+
+  try { CacheService.getScriptCache().remove('links'); } catch (e) {}
+  return { updated: updated, added: added.map(function (r) { return r[0] + ' ' + r[3]; }) };
+}
+
 function decorateLinks_(sh) {
   var NAVY = '#131B2E', BEIGE = '#E8E4DC', SALMON = '#E8A898';
   sh.getRange(2, 1).setValue('課程連結')

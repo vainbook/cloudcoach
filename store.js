@@ -558,7 +558,9 @@
     var L = window.UC_LIBRARY;
     if (!L || !L.items) return;
     L.items.forEach(function (i) {
-      var url = map[i.tab + '-' + i.no];
+      /* ⚠️ 用 **id**，不是 tab + no。no 會跟著排序變，
+         用 no 當鍵的話重排一次，連結就接到別堂課上（無聲的錯誤）。 */
+      var url = map[i.id || (i.tab + '-' + i.no)];
       if (typeof url === 'string' && /^https?:\/\//i.test(url)) i.src = url;
     });
   }

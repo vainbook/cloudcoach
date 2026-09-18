@@ -356,6 +356,17 @@ window.UC_SELFTEST = function () {
     t('資源分頁「' + x.name + '」至少有 1 筆', n > 0);
   });
   t('資源頁有工具分頁（工具已併入資源頁）', L.tabs.some(function (x) { return x.k === 'tool'; }));
+
+  /* ⚠️ id 是課程連結的鍵，重複或漏掉都會讓教練貼的網址接錯課。
+     no 只是畫面上的編號，會跟著排序變 —— 兩者不可以混用。 */
+  var seenId = {}, dupId = [], noId = [];
+  L.items.forEach(function (i) {
+    if (!i.id) { noId.push(i.t); return; }
+    if (seenId[i.id]) dupId.push(i.id);
+    seenId[i.id] = 1;
+  });
+  t('每個資源都有 id（課程連結的鍵）' + (noId.length ? '：缺 ' + noId.join('、') : ''), !noId.length);
+  t('資源 id 沒有重複' + (dupId.length ? '：' + dupId.join('、') : ''), !dupId.length);
   /* 「為你安排」要對每個維度都排得出課，否則某些學員會看到空的推薦 */
   E.keys.forEach(function (k) {
     t('維度 ' + k + ' 至少有 1 堂指定課程',
