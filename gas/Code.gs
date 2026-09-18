@@ -233,6 +233,20 @@ function authExchange_(body) {
        （每次 getDataRange 本身就要 300～2000ms 而且會抖），
        而前端本來就會在畫完之後自己補。多等的是背景，不是使用者。 */
     out.payload = studentPayload_(b, String(b.student_id || ''), 'boot');
+
+    /* ⚠️ **教練登入的第一件事是挑學員，不是看自己的資料。**
+       2026-09-18 實測：教練登入要打三次請求（exchange / load / list），
+       每一次都付一遍 1.4～1.9 秒的平台地板 —— 平台成本現在比腳本還大，
+       所以能省的是「次數」，不是「每次跑多快」。
+
+       清單順手帶回來幾乎不用錢：兩張進度表在上面的 boot 已經讀進 _skel，
+       綁定表也在 requireBinding_ 時讀過了（_bread），
+       真正多花的只有「學員」那一張（實測 292～627ms）——
+       換掉的是一整趟 2.7～3.2 秒的往返。 */
+    if (b.access_scope === 'manage') {
+      out.students = studentList_();
+      lap_('順手帶學員清單');
+    }
   } catch (e) {
     console.warn('auth.exchange 順帶載入失敗，前端會自己再打一次：' + e);
   }
@@ -1660,6 +1674,12 @@ function runSelftest_() {
 
   /* ⚠️ 2026-09-17 實測：登入的腳本時間 4.2～5.3 秒，全部是讀表，
      而且同一段來回可以差六倍。能砍的只有次數。 */
+  /* ⚠️ 教練登入原本要打三次（exchange / load / list），每次一遍平台地板。
+     清單跟著登入回來之後只剩一次 —— 這個守門是防它被改回去。 */
+  t('教練登入時清單跟著一起回來',
+    srcNoComments_(authExchange_).indexOf('studentList_') >= 0);
+  t('只有教練才帶清單（學員不需要，也不該拿得到）',
+    srcNoComments_(authExchange_).indexOf("access_scope === 'manage'") >= 0);
   t('登入不分角色都只帶 boot（教練也不例外）',
     String(authExchange_.toString()).indexOf("'boot'") >= 0
     && String(authExchange_.toString()).indexOf("access_scope === 'manage' ? null") < 0);

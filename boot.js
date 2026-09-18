@@ -531,7 +531,7 @@
       })
       .then(function (data) {
         if (!data) return;
-        if (data.bound) return enter(data.studentId, data.accessScope, data.payload);
+        if (data.bound) return enter(data.studentId, data.accessScope, data.payload, data.students);
         askCode();
       })
       .catch(function (err) {
@@ -682,7 +682,7 @@
     document.body.appendChild(perfBtn);
   }
 
-  function enter(studentId, scope, payload) {
+  function enter(studentId, scope, payload, students) {
     step = 'LOAD';
     lineStage('sync');
     /* ⚠️ **身分要在 connect() 之前設。** connect 載完會立刻重畫，
@@ -697,7 +697,9 @@
        student.load（每次 GAS 往返實測 1.5～2.5 秒）。
        ⚠️ 後端組 payload 失敗時不會帶這個欄位，connect 會自動退回去自己打。 */
     return window.UC_STORE.connect({ api: GAS_API, idToken: idToken,
-                                     studentId: studentId, payload: payload, render: false })
+                                     studentId: studentId, payload: payload,
+                                     /* 教練的清單跟著登入一起回來了，省一趟往返。 */
+                                     students: students, accessScope: scope, render: false })
       .then(function () {
         done();
         completeLogin();

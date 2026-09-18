@@ -323,10 +323,14 @@
     /* 已經有整包了就不要再打一次 —— 那是這次最佳化的重點。 */
     var first = opts.payload ? hydrate(opts.payload, opts.render !== false)
                              : load_(opts.render !== false);
+    if (opts.students && opts.students.length) firstStudents = opts.students;
     return first.then(function (data) {
       /* 畫面已經出來了，剩下的在背景補。使用者等不到它。
-         ⚠️ 只有拿到 'boot' 那一包才需要補；教練或完整載入不必。 */
-      if (data && data.part === 'boot') prefetchRest();
+         ⚠️ 只有拿到 'boot' 那一包才需要補。
+         ⚠️ **教練不補。** 補的是「教練自己的」作業與成長紀錄，而教練下一步
+         是挑學員，挑完會重新載入那個人的整包 —— 那一趟純粹是浪費
+         （2026-09-18 實測：讀作業 972ms ＋ 一整趟 1.5 秒的往返）。 */
+      if (data && data.part === 'boot' && opts.accessScope !== 'manage') prefetchRest();
       return data;
     });
   }
@@ -516,7 +520,17 @@
   /* ── 教練切換學員 ──────────────────────────────────
      ⚠️ 真正的權限在後端 —— 這裡送什麼 studentId，GAS 都會再對一次
      綁定表的 access_scope。前端改這個值換不到別人的資料。 */
+  /* auth.exchange 順手帶回來的清單。用掉一次就丟，之後重讀走正常的請求。
+     ⚠️ 不做長期快取 —— 清單會變（綁了新學員、進度往前走），
+     這裡只是省掉「登入完馬上要看清單」那一次往返。 */
+  var firstStudents = null;
+
   function listStudents() {
+    if (firstStudents) {
+      var once = firstStudents;
+      firstStudents = null;
+      return Promise.resolve(once);
+    }
     return call({ action: 'student.list', studentId: '' })
       .then(function (d) { return d.students || []; });
   }
