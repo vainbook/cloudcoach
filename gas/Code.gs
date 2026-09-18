@@ -773,6 +773,18 @@ function validateBlueprint_() {
       errors.push('第 ' + line + ' 列：啟用必須勾選 TRUE 或 FALSE');
     }
     if (!String(r['目標 O'] || '').trim()) warnings.push('第 ' + line + ' 列：目標 O 留空');
+
+    /* ⚠️ 「教材」與「作業」是**用文字比對**的：對得上才會在任務視窗出現「傳送」。
+       課程改名之後，還寫著舊名字的列會**安靜地失去按鈕** —— 不報錯、按鈕就是不見了。
+       所以在這裡把對不上的列出來。自由輸入是允許的，所以這是提醒不是錯誤。 */
+    var tool = String(r['教材'] || '').trim();
+    if (tool && typeof COURSE_NAMES !== 'undefined' && COURSE_NAMES.indexOf(tool) < 0) {
+      warnings.push('第 ' + line + ' 列：教材「' + tool + '」對不上任何課程，不會有傳送按鈕');
+    }
+    var work = String(r['作業'] || '').trim();
+    if (work && typeof TASK_NAMES !== 'undefined' && TASK_NAMES.indexOf(work) < 0) {
+      warnings.push('第 ' + line + ' 列：作業「' + work + '」對不上任何工具，不會有傳送按鈕');
+    }
   });
   return { count: count, errors: errors, warnings: warnings };
 }
@@ -1730,6 +1742,13 @@ function runSelftest_() {
     String(dropdown_.toString()).indexOf('setAllowInvalid(true)') >= 0);
   t('作業的下拉來自工具對照表', typeof TASK_NAMES !== 'undefined' && TASK_NAMES.length >= 10);
   t('教材的下拉來自課表', typeof COURSE_NAMES !== 'undefined' && COURSE_NAMES.length >= 15);
+  /* ⚠️ 課程改名之後，藍圖裡還寫著舊名字的列會安靜失去傳送鈕。
+     檢查一定要把它們列出來，不然改名這件事沒有任何回饋。 */
+  t('藍圖檢查會抓出對不上的教材與作業',
+    String(validateBlueprint_.toString()).indexOf('對不上任何課程') >= 0
+    && String(validateBlueprint_.toString()).indexOf('對不上任何工具') >= 0);
+  t('對不上只是提醒，不是錯誤（自由輸入是允許的）',
+    String(validateBlueprint_.toString()).indexOf("warnings.push('第 ' + line + ' 列：教材") >= 0);
   t('整理藍圖時會套下拉',
     String(menuBlueprintSetup.toString()).indexOf('blueprintDropdowns_') >= 0);
 
