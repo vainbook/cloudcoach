@@ -50,8 +50,7 @@
       done:    obj(raw.done),
       assignments: normalizeAssignments(raw.assignments),
       coachReport: normalizeCoachReport(raw.coachReport),
-      log:     Array.isArray(raw.log) ? raw.log : b.log,
-      activityDays: normalizeActivityDays(raw.activityDays)
+      log:     Array.isArray(raw.log) ? raw.log : b.log
     };
     function obj(v) {
       return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
@@ -62,18 +61,8 @@
   function blank() {
     return {
       name: '', answers: {}, picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
-      assignments: {}, coachReport: normalizeCoachReport(), log: [], activityDays: []
+      assignments: {}, coachReport: normalizeCoachReport(), log: []
     };
-  }
-  function normalizeActivityDays(v) {
-    if (typeof v === 'string') v = v.split(',');
-    if (!Array.isArray(v)) return [];
-    var seen = {};
-    return v.filter(function (x) {
-      x = String(x || '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(x) || seen[x]) return false;
-      seen[x] = 1; return true;
-    }).sort();
   }
   function normalizeTaskNow(v) {
     var out = {};
@@ -131,10 +120,6 @@
      呼叫 save()，所以要接後端只要接這一個出口 —— 不必去改那 21 個地方，
      也不會漏掉 cr 那種閉包別名（app.js 的教練報告寫的是 cr.xxx 不是 S.coachReport.xxx）。 */
   function save() {
-    /* ⚠️ 登入日**不在這裡記**（2026-09-18 改）。
-       以前每次存檔就往 S.activityDays 塞一天，那份清單再跟著答案送上去，
-       結果它借住在評測那張表裡，害進度計數多算一題。
-       現在改成後端在登入時蓋章，前端只讀不寫。 */
     /* demo／離線照舊寫瀏覽器。配額爆掉不影響使用，所以這個 catch 是故意空的。 */
     if (!(window.UC_STORE && window.UC_STORE.isRemote())) {
       try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
@@ -2572,16 +2557,6 @@
       + '</svg>';
   }
 
-  /* 「當天編輯過文件」的記號。舊版是一個空心圓 —— 圓圈在日曆裡什麼都不像，
-     使用者 2026-09-18 要求換成鉛筆：一看就知道是「那天有動筆」。
-     筆畫粗細跟成長圖示同一套。 */
-  function penIcon() {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true">'
-      + '<path class="gy" d="M4.6 19.4l.9-3.6L15 6.3l2.7 2.7-9.5 9.5-3.6.9Z"/>'
-      + '<path class="gy" d="M14.1 7.2l2.7 2.7"/>'
-      + '</svg>';
-  }
-
   /* 窗外的星空。**滿版**（使用者 2026-09-18：「整個螢幕都是對著外面」）。
      ⚠️ 用 preserveAspectRatio="slice" 填滿並裁切 —— 直的橫的都填得滿，
      代價是邊緣會被切掉，所以重要的東西（星系核心、行星）要放在中央偏內，
@@ -2642,11 +2617,6 @@
     }
     var byDate = {};
     records.forEach(function (e) { (byDate[e.d] = byDate[e.d] || []).push(e); });
-    /* 編輯簽到日。⚠️ 跟 growthRecords() 同一個作法：接上後端只認學員自己的紀錄，
-       本機／demo 才補上範例資料 —— 不然 demo 看不到這個功能存在（2026-09-18）。 */
-    var activeDays = ((window.UC_STORE && window.UC_STORE.isRemote())
-      ? [] : (window.UC_GROWTH.activityDays || [])).concat(S.activityDays || []);
-
     var startDow = new Date(start + 'T00:00:00').getDay();
     var lead = (startDow + 6) % 7;
     var rowTotal = Math.ceil((lead + 90) / 7);
@@ -2660,7 +2630,6 @@
         var i = row * 7 + c - lead;
         if (i < 0 || i >= 90) { cells += '<span class="gblank" aria-hidden="true"></span>'; continue; }
         var iso = isoAdd(start, i), dayRecords = byDate[iso] || [];
-        var active = activeDays.indexOf(iso) >= 0;
         /* ⚠️ **有沒有紀錄都用同一套版面。** 舊版空格子畫一個大數字、有紀錄的格子
            改畫圖示、數字縮到角落 —— 同一個網格裡兩種版面，眼睛沒辦法掃。
            現在日期永遠在左上同一個位置，紀錄永遠在左下，格子安靜、紀錄大聲。 */
@@ -2671,10 +2640,9 @@
         if (dayRecords.length > 3) marks += '<b class="gmore">+' + (dayRecords.length - 3) + '</b>';
         cells += '<button type="button" class="gday' + (iso === GSELECT ? ' is-selected' : '')
           + (iso === today ? ' is-today' : '') + (iso > today ? ' is-future' : '')
-          + (active ? ' is-active' : '') + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
+          + (dayRecords.length ? ' has-records' : '') + '" data-gdate="' + iso + '">'
           + '<small class="gdayn"><span class="n">' + (i + 1) + '</span>'
           + '<span class="dt">' + (+iso.slice(5, 7)) + '/' + (+iso.slice(8, 10)) + '</span></small>'
-          + (active ? '<i class="gpen" aria-hidden="true">' + penIcon() + '</i>' : '')
           + '<span class="gmarks">' + marks + '</span></button>';
       }
     }
@@ -2775,7 +2743,6 @@
       + '<div class="gdays' + (GCALMODE === 'date' ? ' mode-date' : '') + '">' + cells + '</div>'
       /* 設定類的東西放右下角：要用的時候找得到，平常不擋路。 */
       + '<div class="gcalfoot"><div class="gcallegend">'
-      + '<span><i class="gpen">' + penIcon() + '</i>當天有登入</span>'
       + '<span>格內圖示最多顯示三筆</span></div>' + tools + '</div></div>', 'rv growthcal');
 
     /* ⚠️ **只換該動的那一塊。** 舊版每按一顆鍵就重寫整個 body，

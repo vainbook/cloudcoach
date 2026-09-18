@@ -94,7 +94,7 @@ var BINDING_COLS = ['binding_id', 'line_user_id', 'student_id', 'student_name',
                     'line_display_name',
                     'access_scope', 'reusable', 'status', 'activation_code_hash',
                     'activation_code_plain', 'activation_expires_at',
-                    'activation_used_at', 'linked_at', 'last_login_at', '登入日', 'note'];
+                    'activation_used_at', 'linked_at', 'last_login_at', 'note'];
 
 /* 允許回給前端的錯誤分類（BACKEND-WORKFLOW.md §5）。
    不在這張表裡的一律變成 INTERNAL_ERROR —— 白名單，不是黑名單。 */
@@ -431,24 +431,6 @@ function nameOf_(b, sid) {
   return { studentName: '', lineDisplayName: '' };       /* 還沒綁定就留空，前端顯示「學員」 */
 }
 
-/* 這位學員哪幾天登入過。跟 nameOf_ 一樣從綁定表拿 —— 那張表本來就讀進來了。 */
-function loginDays_(b, sid) {
-  var row = null;
-  if (String(sid) === String(b.student_id || '')) row = b;
-  else {
-    var bb = bindingBody_();
-    for (var i = 0; i < bb.rows.length; i++) {
-      var r = rowObj_(bb.rows[i], bb.map);
-      if (String(r.student_id) !== String(sid)) continue;
-      if (String(r.access_scope) === 'manage') continue;
-      row = r; break;
-    }
-  }
-  if (!row) return [];
-  return String(row['登入日'] || '').split(',')
-    .map(function (x) { return String(x).trim(); }).filter(Boolean);
-}
-
 function studentPayload_(b, sid, part) {
   /* part 的三種值：
        'boot'  → 第一眼要用的（答案／報告／任務）＋ 共用的（藍圖／連結）
@@ -458,8 +440,6 @@ function studentPayload_(b, sid, part) {
                  實測那一段是 829ms，砍掉直接省下來。
      不給 part → 全部。 */
   var who = nameOf_(b, sid);      /* 查一次就好，下面兩個欄位共用 */
-  /* 登入日就在綁定列上，nameOf_ 已經掃過那張表 —— 不多一次讀取，所以放 boot。 */
-  var days = loginDays_(b, sid);
   var wantBoot = part !== 'rest' && part !== 'coach';
   var wantRest = part !== 'boot' && part !== 'coach';
   var wantShared = part !== 'rest';      /* 藍圖與課程連結是全體共用的，教練也要 */
@@ -477,8 +457,7 @@ function studentPayload_(b, sid, part) {
        （2026-09-18 使用者回報）。 */
     studentName: who.studentName,
     lineDisplayName: who.lineDisplayName,
-    accessScope: b.access_scope || 'self',
-    activityDays: days
+    accessScope: b.access_scope || 'self'
   };
 
   if (wantBoot) {
@@ -1119,29 +1098,7 @@ function touchLastLogin_(line) {
 }
 
 function touchLastLoginNow_(line) {
-  try {
-    var sh = bindingSheet_(), map = bindingMap_(sh);
-    var now = new Date();
-    var set = { last_login_at: now };
-
-    /* ⚠️ 登入日：一天蓋一次章，給成長日曆畫「這天他有來」。
-       放在綁定列上是因為**那一列本來就會被讀、也本來就要被寫** ——
-       零額外成本（2026-09-18 使用者：「不想增加表格運算成本」）。
-       ⚠️ 用累積的清單，不是靠 last_login_at 回推 ——
-       時間戳只留最後一次，昨天來過這件事會被今天蓋掉。
-       ⚠️ 只留最近 180 天，不然這一格會無限長大。 */
-    if (map['登入日']) {
-      var today = Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd');
-      var was = String(sh.getRange(line, map['登入日']).getValue() || '');
-      var days = was.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-      if (days.indexOf(today) < 0) {
-        days.push(today);
-        if (days.length > 180) days = days.slice(days.length - 180);
-        set['登入日'] = days.join(',');
-      }
-    }
-    writeRow_(sh, map, line, set);     /* 兩格一起寫回，不是寫兩次 */
-  }
+  try { setCell_(bindingSheet_(), line, 'last_login_at', new Date()); }
   catch (e) { console.warn('更新 last_login_at 失敗', e); }   /* 不該因此擋住登入 */
 }
 
@@ -1899,21 +1856,6 @@ function runSelftest_() {
 
   /* ⚠️ 90 天編輯簽到借住在「學員填寫」，算進度時要跳過，
      不然有簽到的人會出現「55 / 54」這種比題數還多的進度。 */
-  /* ⚠️ 登入日：一天蓋一次章，資料就在綁定列上（那張表本來就讀進來）。
-     ⚠️ 不可以改成「從 last_login_at 回推」—— 時間戳只留最後一次，
-     昨天來過這件事會被今天蓋掉，日曆上的歷史會愈用愈少。 */
-  t('綁定表有「登入日」欄位', BINDING_COLS.indexOf('登入日') >= 0);
-  t('登入時會蓋當天的章',
-    srcNoComments_(touchLastLoginNow_).indexOf("map['登入日']") >= 0);
-  t('登入日是累積的，不是只留最後一次',
-    srcNoComments_(touchLastLoginNow_).indexOf('days.push(today)') >= 0);
-  t('登入日有上限，不會無限長大',
-    srcNoComments_(touchLastLoginNow_).indexOf('slice(days.length - 180)') >= 0);
-  t('登入日跟 last_login_at 一起寫回，不是寫兩次',
-    srcNoComments_(touchLastLoginNow_).indexOf('writeRow_(sh, map, line, set)') >= 0);
-  t('payload 的登入日來自綁定列，不多讀一張表',
-    srcNoComments_(studentPayload_).indexOf('loginDays_(b, sid)') >= 0);
-
   t('算作答進度會跳過不是題目的列',
     srcNoComments_(studentList_).indexOf('NOT_A_QUESTION') >= 0);
   t('跳過的清單認得帶前綴的寫法',

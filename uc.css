@@ -2054,29 +2054,12 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gday.is-future { background: transparent; }
 .gday.is-future .gdayn { color: rgba(232, 228, 220, .22); }
 
-/* 「當天編輯過文件」＝那天有動筆，所以就畫一支鉛筆（使用者 2026-09-18）。
-   放右上角，跟左下角的紀錄圖示分開 —— 兩件不同的事不要疊在一起看。 */
-.gpen { position: absolute; top: 5px; right: 5px; width: 12px; height: 12px;
-  color: var(--salmon); opacity: .5; }
-.gday.has-records .gpen { opacity: .8; }
-.gpen svg { display: block; width: 100%; height: 100%; }
-.gpen .gy { fill: none; stroke: currentColor; stroke-width: 1.7;
-  stroke-linecap: round; stroke-linejoin: round; }
-
-.gentryicon { display: grid; place-items: center; color: var(--salmon); }
-.gmark svg, .gentryicon svg, .gkico svg { width: 100%; height: 100%; overflow: visible; }
-.gmark svg *, .gentryicon svg *, .gkico svg * { fill: none; stroke: currentColor; stroke-width: 1.55;
-  stroke-linecap: round; stroke-linejoin: round; }
-.gmark.date svg path, .gentryicon.date svg path, .gkico svg path { fill: transparent; }
-.gmark .gy.pk, .gentryicon .gy.pk, .gkico .gy.pk,
-.gmark .gy.tr, .gentryicon .gy.tr, .gkico .gy.tr { fill: currentColor; stroke: none; }
 .gcalfoot { position: relative; z-index: 1; display: flex; align-items: end;
   justify-content: space-between; gap: 18px; flex-wrap: wrap;
   padding: 11px 22px 13px; border-top: 1px solid var(--beige-08); }
 .gcallegend { display: flex; gap: 16px; flex-wrap: wrap;
   color: var(--beige-40); font: 400 10px/1.5 var(--mono); }
 .gcallegend span { display: inline-flex; align-items: center; gap: 7px; }
-.gcallegend .gpen { position: static; width: 12px; height: 12px; opacity: .8; }
 .gentry { display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding: 16px 0;
   border-top: 1px solid var(--beige-08); }
 .gentryicon { width: 30px; height: 30px; margin-top: 3px; }
@@ -2105,7 +2088,6 @@ html.task-open, html.task-open body { overflow: hidden; }
   .gdayn { font-size: 9px; }
   .gmarks { inset: auto 4px 5px 5px; gap: 3px; }
   .gmark { width: 14px; height: 14px; }
-  .gpen { top: 4px; right: 4px; width: 10px; height: 10px; }
   .gcalform > label { grid-template-columns: 1fr; gap: 6px; }
 }
 /* ═══ 星等（逐條報告與表單沿用；能力圖／藍圖改用菱形）═══ */

@@ -393,10 +393,6 @@
         touched = true;
       }
     }
-    if (Array.isArray(data.activityDays) && data.activityDays.length) {
-      S.activityDays = data.activityDays;
-      touched = true;
-    }
     if (data.assignments) {
       S.assignments = S.assignments || {};
       Object.keys(data.assignments).forEach(function (k) {
@@ -428,11 +424,8 @@
       studentId = data.studentId || studentId;
       if (data.demoStudentId) demoId = data.demoStudentId;
       var rawAnswers = data.answers || {};
-      /* ⚠️ 來源是 data.activityDays（後端從綁定列給的登入日）。
-         舊資料可能還躺在評測表裡，所以 activity_days 仍要從答案裡剔除 ——
-         留著的話它會被當成第 55 題畫出來。 */
-      var activityDays = Array.isArray(data.activityDays) ? data.activityDays
-        : String(rawAnswers.activity_days || '').split(',').filter(Boolean);
+      /* ⚠️ 舊制度（活躍度記號）留在評測表裡的 activity_days 要剔除 ——
+         留著的話它會被當成第 55 題畫出來。功能已經拿掉，這行是為了舊資料。 */
       delete rawAnswers.activity_days;
       /* ⚠️ data 可能只是 'boot' 那一包（沒有 log／assignments）——
          缺的就給空值，等 prefetchRest 補。不要因此把已經有的清掉。 */
@@ -443,8 +436,7 @@
         coachReport: unpackReport(data.report || {}),
         picked: [], key: {}, taskNow: {}, hidden: {}, done: {},
         assignments: data.assignments || {},
-        log: Array.isArray(data.log) ? data.log : [],
-        activityDays: activityDays
+        log: Array.isArray(data.log) ? data.log : []
       };
       if (!data.assignments && prev.assignments) S.assignments = prev.assignments;
       if (!data.log && Array.isArray(prev.log)) S.log = prev.log;
