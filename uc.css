@@ -1891,9 +1891,20 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gloghead span { color: var(--beige-40); font: 500 10px/1 var(--mono); letter-spacing: .08em; }
 /* ⚠️ 一天可能有很多筆，螢幕高度是固定的 —— 讓內容自己捲，不要把殼撐開。 */
 .glogbody { overflow-y: auto; padding-right: 4px; }
-.glogbody .gentry { position: relative; padding: 11px 34px 11px 0; }
+.glogbody .gentry { position: relative; padding: 11px 0 11px 0; }
+/* 兩顆動作靠右上。複製明顯、刪除安靜 —— 權重差別就是提醒你哪一個可以隨便按。 */
+.gacts { position: absolute; top: 7px; right: 0; display: flex; align-items: center; gap: 4px; }
+.gcopy {
+  padding: 3px 9px; color: var(--salmon); background: transparent; cursor: pointer;
+  border: 1px solid var(--salmon-30); border-radius: 0;
+  font: 500 10px/1.5 var(--mono); letter-spacing: .08em;
+  transition: color .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
+}
+.gcopy:hover { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.gcopy:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+.gcopy.is-ok { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
 /* 刪除鈕：平常很淡，滑到那一筆才清楚 —— 不可逆的動作不該一直在招手。 */
-.gdel { position: absolute; top: 8px; right: 0; width: 26px; height: 26px;
+.gdel { width: 24px; height: 24px;
   display: grid; place-items: center; padding: 0; cursor: pointer;
   color: var(--beige-40); background: none; border: 0;
   opacity: .45; transition: opacity .18s var(--ease), color .18s var(--ease); }
@@ -2438,12 +2449,6 @@ html.task-open, html.task-open body { overflow: hidden; }
   .edtr input.hide { width: 18px; height: 18px; }
 }
 
-/* 大主題只是分類提示 —— 退成一行安靜的等寬小字，不要鮭紅底標籤。 */
-.bpctheme {
-  grid-column: 1; min-width: 0; margin-top: 7px;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  color: var(--beige-40); font: 500 9px/1.3 var(--mono); letter-spacing: .14em;
-}
 /* O 與 KR 同樣大小、同樣顏色 —— 靠上面那個小標籤區分，不靠字級。 */
 .bpclabel {
   grid-column: 1; margin-top: 9px; color: var(--salmon); opacity: .7;
@@ -2453,9 +2458,10 @@ html.task-open, html.task-open body { overflow: hidden; }
   grid-column: 1; margin-top: 3px; font-family: var(--serif); font-size: 14px;
   line-height: 1.45; font-weight: 700; color: var(--beige);
 }
-.bpctaskstate { grid-column: 1; width: max-content; margin-top: 8px; padding: 2px 6px;
-  color: var(--beige-70); border: 1px solid var(--beige-18); font: 500 8px/1.3 var(--mono);
-  letter-spacing: .1em; }
+/* 這一格放「屬於哪個能力」。是分類，所以做成標籤而不是內文。 */
+.bpctaskstate { grid-column: 1; width: max-content; margin-top: 7px; padding: 3px 7px;
+  color: var(--beige-70); border: 1px solid var(--beige-18); font: 500 9px/1.3 var(--mono);
+  letter-spacing: .12em; }
 .bpctask.has-task .bpctaskstate { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
 .bpctask small { grid-column: 1; display: block; margin-top: 7px; color: var(--beige-70);
   font: 400 10.5px/1.45 var(--sans); }

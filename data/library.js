@@ -11,6 +11,10 @@
    書單來自 1_關係科學資料庫/02_書單/課程推薦書單.md，
    全部是真實存在的標題；14 門課使用同一套品牌色紙雕封面，不放假截圖。
    dims = 這堂課對應哪些能力維度（31 筆裡有 14 筆掛了）。
+
+   ⚠️ **課程沒有「章數」。** 每堂就是一支獨立影片（使用者 2026-09-18 確認）。
+   舊資料裡的「4 章／3 章」是沒有來源的數字，卻一直印在學員看得到的卡片上，
+   2026-09-18 整批移除。`len` 現在只給電子書用（「必修」「11 本」是真的分類）。
    **目前介面沒有在用它** —— 原本的「為你安排」推薦區已依使用者要求刪除（「有點多餘」）。
    資料留著是因為它是真的課程歸類，不是為了那一區才存在；`#selftest` 仍會檢查
    維度代號有效、且每一維至少掛得到一堂課。要做「點菜單」之類的功能可以直接接。
@@ -27,33 +31,33 @@ window.UC_LIBRARY = {
 
   items: [
     /* 必修 */
-    { tab: 'req', id: 'req-01', no: '01', t: '戀愛三步驟', dims: ['values'], sub: '邂逅吸引 → 走入心房 → 親密關係', len: '4 章', src: '', cover: 'assets/course-covers/03-chat-abstract-v1.webp' },
-    { tab: 'req', id: 'req-02', no: '02', t: '信念系統', dims: ['values'], sub: '信念 → 行為 → 結果', len: '4 章', src: '', cover: 'assets/course-covers/01-awareness-abstract-color-v3.webp' },
-    { tab: 'req', id: 'req-03', no: '03', t: '負責任版本', dims: ['flirt'], sub: '受害者 → 負責任', len: '5 章', src: '', cover: 'assets/course-covers/03-responsible-version-dark-v1.webp' },
+    { tab: 'req', id: 'req-01', no: '01', t: '戀愛三步驟', dims: ['values'], sub: '邂逅吸引 → 走入心房 → 親密關係', src: '', cover: 'assets/course-covers/03-chat-abstract-v1.webp' },
+    { tab: 'req', id: 'req-02', no: '02', t: '信念系統', dims: ['values'], sub: '信念 → 行為 → 結果', src: '', cover: 'assets/course-covers/01-awareness-abstract-color-v3.webp' },
+    { tab: 'req', id: 'req-03', no: '03', t: '負責任版本', dims: ['flirt'], sub: '受害者 → 負責任', src: '', cover: 'assets/course-covers/03-responsible-version-dark-v1.webp' },
     /* ⚠️ 從選修搬到必修，但 id 保持 opt-06 —— 換 id 等於換一堂課，連結會接錯。 */
-    { tab: 'req', id: 'opt-06', no: '04', t: '感情價值觀｜三門', dims: ['values'], sub: '認識吸引・經營關係・終身伴侶', len: '3 章', src: '', cover: 'assets/course-covers/06-relationship-values-doors-abstract-v1.webp' },
+    { tab: 'req', id: 'opt-06', no: '04', t: '感情價值觀｜三門', dims: ['values'], sub: '認識吸引・經營關係・終身伴侶', src: '', cover: 'assets/course-covers/06-relationship-values-doors-abstract-v1.webp' },
 
     /* 選修 */
-    { tab: 'opt', id: 'opt-05', no: '05', t: '說故事技巧', dims: ['values','emo'], sub: '故事模版與畫故事', len: '4 章', src: '', cover: 'assets/course-covers/05-storytelling-coffee-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-13', no: '06', t: '網聊救台灣', dims: ['flirt','circle'], sub: '學員實際對話診斷', len: '5 章', src: '', cover: 'assets/course-covers/13-online-chat-phone-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-05', no: '05', t: '說故事技巧', dims: ['values','emo'], sub: '故事模版與畫故事', src: '', cover: 'assets/course-covers/05-storytelling-coffee-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-13', no: '06', t: '網聊救台灣', dims: ['flirt','circle'], sub: '學員實際對話診斷', src: '', cover: 'assets/course-covers/13-online-chat-phone-abstract-v1.webp' },
     /* 冷讀拆成三階，三張封面先共用同一張（使用者指定）。 */
-    { tab: 'opt', id: 'opt-04', no: '07', t: '冷讀聊天｜入門', dims: ['flirt','emo'], sub: '不是要讀得準，是更容易切入', len: '3 章', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-16', no: '08', t: '冷讀聊天｜進階', dims: ['flirt','emo'], sub: '內容待補', len: '待補', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-17', no: '09', t: '冷讀聊天｜高階', dims: ['flirt','emo'], sub: '內容待補', len: '待補', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-04', no: '07', t: '冷讀聊天｜入門', dims: ['flirt','emo'], sub: '不是要讀得準，是更容易切入', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-16', no: '08', t: '冷讀聊天｜進階', dims: ['flirt','emo'], sub: '冷讀的兩面性', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-17', no: '09', t: '冷讀聊天｜高階', dims: ['flirt','emo'], sub: '工具冷讀技巧', src: '', cover: 'assets/course-covers/04-cold-reading-abstract-v1.webp' },
     /* 封面還沒有：cover 留空，卡片會退成純文字版，不會變成破圖。 */
-    { tab: 'opt', id: 'opt-15', no: '10', t: '型男穿搭', dims: ['image'], sub: '內容待補', len: '待補', src: '', cover: '' },
-    { tab: 'opt', id: 'opt-07', no: '11', t: '約會地圖', dims: ['flirt','circle'], sub: '地點、動線、峰終安排', len: '3 章', src: '', cover: 'assets/course-covers/07-date-map-toast-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-15', no: '10', t: '型男穿搭', dims: ['image'], sub: '你的外表是你內在世界的呈現', src: '', cover: '' },
+    { tab: 'opt', id: 'opt-07', no: '11', t: '約會地圖', dims: ['flirt','circle'], sub: '地點、動線、峰終安排', src: '', cover: 'assets/course-covers/07-date-map-toast-abstract-v1.webp' },
     /* 調情系統拆成兩堂（使用者 2026-09-18）。聊天那堂沿用 opt-08 —— 換 id 會讓
        已經貼好的連結變孤兒；肢體接觸是新的一堂，拿新的 opt-18。
        ⚠️ 原本的副標與章數是「整堂」的，拆開之後兩邊都不適用，先標待補。
        封面比照冷讀的作法，兩堂共用原本那一張。 */
-    { tab: 'opt', id: 'opt-08', no: '12', t: '調情｜聊天', dims: ['flirt'], sub: '內容待補', len: '待補', src: '', cover: 'assets/course-covers/08-flirting-hands-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-18', no: '13', t: '調情｜肢體接觸', dims: ['flirt'], sub: '內容待補', len: '待補', src: '', cover: 'assets/course-covers/08-flirting-hands-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-09', no: '14', t: '好奇心', dims: ['emo'], sub: '好奇心 vs 身家調查', len: '2 章', src: '', cover: 'assets/course-covers/09-curiosity-apple-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-10', no: '15', t: '演化心理學', dims: ['image','values'], sub: '四大價值與 be / do / have', len: '3 章', src: '', cover: 'assets/course-covers/10-evolutionary-psychology-brain-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-11', no: '16', t: '幽默系統', dims: ['emo'], sub: '幽默六梗與推拉黃金法則', len: '3 章', src: '', cover: 'assets/course-covers/11-humor-microphone-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-12', no: '17', t: '約會攝影', dims: ['image'], sub: '替她拍好照片這件事', len: '2 章', src: '', cover: 'assets/course-covers/12-date-photography-camera-abstract-v1.webp' },
-    { tab: 'opt', id: 'opt-14', no: '18', t: '性事課', dims: ['flirt'], sub: '安排在最後段的課程', len: '3 章', src: '', cover: 'assets/course-covers/14-sexual-wellbeing-bed-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-08', no: '12', t: '調情｜聊天', dims: ['flirt'], sub: '測試 → 調情 → 升溫', src: '', cover: 'assets/course-covers/08-flirting-hands-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-18', no: '13', t: '調情｜肢體接觸', dims: ['flirt'], sub: '測試 → 調情 → 升溫', src: '', cover: 'assets/course-covers/08-flirting-hands-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-09', no: '14', t: '好奇心', dims: ['emo'], sub: '好奇心 vs 身家調查', src: '', cover: 'assets/course-covers/09-curiosity-apple-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-10', no: '15', t: '演化心理學', dims: ['image','values'], sub: '四大價值與 be / do / have', src: '', cover: 'assets/course-covers/10-evolutionary-psychology-brain-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-11', no: '16', t: '幽默系統', dims: ['emo'], sub: '幽默六梗與推拉黃金法則', src: '', cover: 'assets/course-covers/11-humor-microphone-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-12', no: '17', t: '約會攝影', dims: ['image'], sub: '替她拍好照片這件事', src: '', cover: 'assets/course-covers/12-date-photography-camera-abstract-v1.webp' },
+    { tab: 'opt', id: 'opt-14', no: '18', t: '性事課', dims: ['flirt'], sub: '安排在最後段的課程', src: '', cover: 'assets/course-covers/14-sexual-wellbeing-bed-abstract-v1.webp' },
 
     /* 電子書與書單 */
     { tab: 'book', id: 'book-E', no: 'E', t: 'UC 原創電子書', sub: '11 本・待補上檔案', len: '11 本', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },

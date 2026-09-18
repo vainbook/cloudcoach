@@ -1847,9 +1847,11 @@
       return '<button class="bpcdim bpctask has-task" data-task-id="' + esc(it.id)
         + '" data-figure-dim="' + esc(it.dim) + '" aria-haspopup="dialog" aria-controls="taskModal">'
         + '<span class="bpcey">' + ('0' + (i + 1)).slice(-2) + ' · ' + esc(it.id) + '</span>'
-        + '<span class="bpctheme">' + esc(d ? d.label : it.dim) + '</span>'
-        + '<span class="bpctaskstate">當前任務</span>'
-        + (it.sub ? '<span class="bpclabel">目標</span>'
+        /* ⚠️ 這一格原本寫「當前任務」—— 但這個牌組裡**每一張都是**當前任務，
+           那四個字在每張卡上重複一次，等於沒說（使用者 2026-09-18）。
+           換成「屬於哪個能力」，同一個位置才真的帶資訊。 */
+        + '<span class="bpctaskstate">' + esc(d ? d.label : it.dim) + '</span>'
+        + (it.sub ? '<span class="bpclabel">主題</span>'
             + '<span class="bpcgoal">' + esc(it.sub) + '</span>' : '')
         + '<span class="bpclabel">任務</span>'
         + '<strong>' + esc(it.kr) + '</strong>'
@@ -2361,9 +2363,21 @@
     function utc(x) { var p = String(x).split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
     return Math.round((utc(a) - utc(b)) / 86400000);
   }
+  /* 教練有沒有設過 90 天起始日。沒設過的話畫面要說清楚，不能裝作有。 */
+  function growthStartSet() {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String((S.coachReport && S.coachReport.growthStart) || ''));
+  }
+
   function growthStart() {
-    var v = S.coachReport && S.coachReport.growthStart;
-    return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : window.UC_GROWTH.start;
+    if (growthStartSet()) return S.coachReport.growthStart;
+    /* ⚠️ **沒設定就不要拿示範資料的日期當真人的起點。**
+       舊版退回 UC_GROWTH.start（2026-05-25，那是 demo 事件掛的日期），
+       於是新學員一進來就看到「90 / 90 已完成」——
+       今天距離那個日期早就超過 90 天了（2026-09-18 使用者回報）。
+       正式站退回「今天」＝第 1 天；demo 仍用 UC_GROWTH.start，
+       不然範例事件全部落在範圍外，整張日曆會是空的。 */
+    return (window.UC_STORE && window.UC_STORE.isRemote())
+      ? isoToday() : window.UC_GROWTH.start;
   }
   function growthRecords() {
     var base = (window.UC_STORE && window.UC_STORE.isRemote()) ? [] : (window.UC_GROWTH.events || []);
@@ -2438,7 +2452,12 @@
   function ghudHTML(start, today, records) {
     var n = isoDiff(today, start) + 1;
     var state, doneWeeks;
-    if (n < 1) { state = '<b>還沒開始</b><span>' + esc(start) + ' 起算</span>'; doneWeeks = 0; }
+    if (!growthStartSet()) {
+      /* ⚠️ 起始日還沒設定 —— 說出來，不要用一個看起來很正常的數字混過去。 */
+      state = '<b>' + n + '</b><span>／ 90 天　·　起始日未設定</span>';
+      doneWeeks = Math.ceil(Math.max(n, 1) / 7);
+    }
+    else if (n < 1) { state = '<b>還沒開始</b><span>' + esc(start) + ' 起算</span>'; doneWeeks = 0; }
     else if (n > 90) { state = '<b>90 / 90</b><span>已完成</span>'; doneWeeks = 13; }
     else { state = '<b>' + n + '</b><span>／ 90 天</span>'; doneWeeks = Math.ceil(n / 7); }
 
@@ -2599,9 +2618,14 @@
               + '<div><p>' + esc(growthType(e.kind).label) + '</p><h3>' + esc(e.t || '這一天的紀錄') + '</h3>'
               + (e.outcome ? '<div>' + esc(e.outcome) + '</div>' : '')
               + (e.note ? '<small>' + esc(e.note) + '</small>' : '') + '</div>'
+              + '<span class="gacts">'
+              /* ⚠️ 複製**不看權限** —— 教練寫的紀錄學員也該能複製去群組討論。
+                 只有刪除才分角色。複製做得比刪除明顯：帶文字、有外框；
+                 刪除維持淡淡的圖示，不可逆的動作不該一直在招手。 */
+              + '<button type="button" class="gcopy" data-gcopy="' + esc(e.id) + '">複製</button>'
               + (canDelete(e) ? '<button type="button" class="gdel" data-gdel="' + esc(e.id) + '"'
                   + ' title="刪除這一筆" aria-label="刪除這一筆">' + trashIcon() + '</button>' : '')
-              + '</article>';
+              + '</span></article>';
           }).join('') + '</div></div>';
     }
     var selectedRecords = byDate[GSELECT] || [];
@@ -2732,6 +2756,28 @@
     /* ⚠️ 刪除是**不可逆**的，所以一定要先問一次。
        ⚠️ 先問後端、成功了才動本機 —— 反過來的話後端失敗時畫面已經少一筆，
        使用者以為刪掉了，下次登入又冒出來。 */
+    [].forEach.call(body.querySelectorAll('[data-gcopy]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.dataset.gcopy;
+        /* 範例資料也要複製得到，所以從畫面上那一份（records）找，不是只找 S.log。 */
+        var one = records.filter(function (x) { return x && x.id === id; })[0];
+        if (!one) return;
+        var how = window.UC_SHARE && window.UC_SHARE.copy
+          ? window.UC_SHARE.copy(growthEntryText(one)) : Promise.resolve('fail');
+        how.then(function (r) {
+          if (r === 'fail') { toast('這個瀏覽器不讓我複製，請手動選取'); return; }
+          btn.classList.add('is-ok');
+          btn.textContent = '已複製';
+          setTimeout(function () {
+            if (!btn.isConnected) return;
+            btn.classList.remove('is-ok');
+            btn.textContent = '複製';
+          }, 1800);
+          toast('已複製，可以貼到群組跟教練討論');
+        });
+      });
+    });
+
     [].forEach.call(body.querySelectorAll('[data-gdel]'), function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.dataset.gdel;
@@ -2869,7 +2915,9 @@
       + (i.cover ? '<img src="' + esc(i.cover) + '" alt="" loading="lazy" decoding="async">' : '')
       + '<i class="num">' + esc(i.no) + '</i></span>'
       + '<b>' + esc(i.t) + '</b><s>' + esc(i.sub) + '</s>'
-      + '<em class="num">' + esc(i.len) + '</em></button>';
+      /* 沒有 len 就整個不畫 —— 課程沒有章數（使用者 2026-09-18），
+         留一個空的 <em> 會在卡片底部留一條莫名其妙的空行。 */
+      + (i.len ? '<em class="num">' + esc(i.len) + '</em>' : '') + '</button>';
   }
 
   /* ── 課程工具（資源頁的一個分頁）──────────────────────
