@@ -413,6 +413,24 @@ function studentLoad_(body) {
  * ⚠️ 'rest' 回來只能**填空的那幾格**，不可以整包蓋掉 ——
  * 中間那兩秒使用者可能已經在填東西了（見 store.js 的 mergeRest）。
  */
+/* 這位學員叫什麼。看自己就用自己的綁定；教練看別人就去綁定表查那一位。
+   ⚠️ 綁定表在 requireBinding_ 的時候已經讀進 _bread，這裡不會多一次讀取。 */
+function nameOf_(b, sid) {
+  if (String(sid) === String(b.student_id || '')) {
+    return { studentName: String(b.student_name || ''),
+             lineDisplayName: String(b.line_display_name || '') };
+  }
+  var bb = bindingBody_();
+  for (var i = 0; i < bb.rows.length; i++) {
+    var r = rowObj_(bb.rows[i], bb.map);
+    if (String(r.student_id) !== String(sid)) continue;
+    if (String(r.access_scope) === 'manage') continue;   /* 教練自己那列不算 */
+    return { studentName: String(r.student_name || ''),
+             lineDisplayName: String(r.line_display_name || '') };
+  }
+  return { studentName: '', lineDisplayName: '' };       /* 還沒綁定就留空，前端顯示「學員」 */
+}
+
 function studentPayload_(b, sid, part) {
   /* part 的三種值：
        'boot'  → 第一眼要用的（答案／報告／任務）＋ 共用的（藍圖／連結）
@@ -421,6 +439,7 @@ function studentPayload_(b, sid, part) {
                  所以「教練自己的」答案與報告從頭到尾沒人看（使用者 2026-09-18 確認）。
                  實測那一段是 829ms，砍掉直接省下來。
      不給 part → 全部。 */
+  var who = nameOf_(b, sid);      /* 查一次就好，下面兩個欄位共用 */
   var wantBoot = part !== 'rest' && part !== 'coach';
   var wantRest = part !== 'boot' && part !== 'coach';
   var wantShared = part !== 'rest';      /* 藍圖與課程連結是全體共用的，教練也要 */
@@ -431,8 +450,13 @@ function studentPayload_(b, sid, part) {
     /* 所有教練共用的範例學員。前端據此顯示「開啟範例學員」那顆按鈕。
        ⚠️ 回傳 id 不等於給權限 —— 真正能不能開，還是 targetStudent_() 說了算。 */
     demoStudentId: b.access_scope === 'manage' ? DEMO_STUDENT_ID : '',
-    studentName: String(b.student_name || ''),
-    lineDisplayName: String(b.line_display_name || ''),
+    /* ⚠️ **名字要拿「這位學員」的，不是拿呼叫者的。**
+       b 是**呼叫者**的綁定 —— 教練開學員的頁面時，b 是教練自己。
+       舊版直接用 b.student_name，於是教練看到的每一位學員都叫教練的名字，
+       連複製出去的成長紀錄標題都寫成「【教練名】的成長紀錄」
+       （2026-09-18 使用者回報）。 */
+    studentName: who.studentName,
+    lineDisplayName: who.lineDisplayName,
     accessScope: b.access_scope || 'self'
   };
 
@@ -1794,6 +1818,16 @@ function runSelftest_() {
      的 value（true）當成 kr_id 去寫 —— 往返一驗就現形。 */
   t('taskSave_ 的 current 沒有特例（itemId 就是 kr_id）',
     srcNoComments_(taskSave_).indexOf("field === 'current'") < 0);
+
+  /* ⚠️ 教練開學員頁面時，payload 的名字必須是**那位學員**的。
+     舊版拿呼叫者（教練自己）的，於是每位學員都叫教練的名字。 */
+  t('名字是查那位學員的，不是拿呼叫者的',
+    srcNoComments_(studentPayload_).indexOf('nameOf_(b, sid)') >= 0
+    && srcNoComments_(studentPayload_).indexOf('b.student_name') < 0);
+  t('nameOf_ 看的是自己還是別人',
+    srcNoComments_(nameOf_).indexOf('sid) === String(b.student_id') >= 0);
+  t('nameOf_ 不會把教練自己那列當成學員',
+    srcNoComments_(nameOf_).indexOf("access_scope) === 'manage'") >= 0);
 
   t('boot 不含成長與作業',
     !!bootKeys && bootKeys.indexOf('log') < 0 && bootKeys.indexOf('assignments') < 0);

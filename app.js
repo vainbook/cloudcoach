@@ -2456,8 +2456,8 @@
     records.slice().sort(function (a, b) { return String(a.d).localeCompare(String(b.d)); })
       .forEach(function (e) {
         lines.push(growthDateLabel(e.d) + '｜' + growthType(e.kind).label);
-        if (e.t) lines.push('發生了什麼：' + e.t);
-        if (e.outcome) lines.push('留下的觀察：' + e.outcome);
+        if (e.t) lines.push('標題：' + e.t);
+        if (e.outcome) lines.push('內容：' + e.outcome);
         if (e.note) lines.push('補充：' + e.note);
         lines.push('');
       });
@@ -2465,10 +2465,13 @@
     return lines.join('\n');
   }
   function growthEntryText(e) {
+    /* ⚠️ 欄位名要跟表單上看到的一致（使用者 2026-09-18）。
+       表單寫「標題」「紀錄」，複製出來卻是「發生了什麼」「想留下的觀察」——
+       那是舊版的欄位名，改欄位時漏掉了這裡。 */
     var lines = ['【' + (S.name || '學員') + '的成長紀錄】',
       growthDateLabel(e.d) + '｜' + growthType(e.kind).label,
-      '發生了什麼：' + (e.t || '')];
-    if (e.outcome) lines.push('想留下的觀察：' + e.outcome);
+      '標題：' + (e.t || '')];
+    if (e.outcome) lines.push('內容：' + e.outcome);
     if (e.note) lines.push('補充：' + e.note);
     return lines.join('\n');
   }
