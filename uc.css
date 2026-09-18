@@ -77,7 +77,7 @@ body {
 .brk-bl { bottom: 14px; left: 14px; border-bottom: 1.5px solid currentColor; border-left: 1.5px solid currentColor; }
 .brk-br { bottom: 14px; right: 14px; border-bottom: 1.5px solid currentColor; border-right: 1.5px solid currentColor; }
 /* 雙色橫線分隔符 */
-.divider { display: flex; align-items: center; gap: 8px; margin: 14px 0 22px; }
+.divider { display: flex; align-items: center; gap: 8px; margin: 10px 0 14px; }
 .divider i { display: block; width: 60px; height: 3px; background: currentColor; }
 .divider s { display: block; flex: 1; height: 1px; background: currentColor; opacity: .2; }
 /* 右側直書標籤 */
@@ -584,7 +584,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 .empty .divider i { width: 44px; }
 .empty .divider s { max-width: 100px; }
 .empty p { opacity: .65; }
-.rhead { padding: 44px 0 10px; }
+.rhead { padding: 26px 0 10px; }
 .rhead .rlead { font-size: 14.5px; line-height: 2; opacity: .72; margin: 0; }
 .rhead .rlead b { color: var(--salmon); font-weight: 700; }
 .rhead .warn {
@@ -592,6 +592,13 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
   border-left: 2px solid var(--salmon-30); padding-left: 12px;
 }
 #v-report section, #v-okr section, #v-growth section { padding: 46px 0 8px; }
+/* ⚠️ **第一個區塊不要再加一次上方留白。** 它下面就是 `.rhead`，而 `.rhead`
+   自己已經有 padding-top —— 兩層疊起來是 90px 的空白，主視覺（藍圖人物、
+   成長日曆的螢幕）因此被推出第一屏（使用者 2026-09-19）。
+   只動第一個，區塊之間的節奏不變。 */
+#v-report section:first-child,
+#v-okr section:first-child,
+#v-growth section:first-child { padding-top: 0; }
 #v-report h2 { margin-bottom: 0; }
 .snote { font-size: 12.5px; opacity: .5; margin: -8px 0 22px; }
 /* 欄位歸屬。教練與學員看同一套介面，只標出誰負責填寫；
@@ -1426,17 +1433,17 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .glegend p.call .ek, .glegend p.booked .ek { color: var(--salmon); }
 /* ═══ 課程藍圖：人物總覽 ═══════════════════════════════ */
 
-.vsw { display: inline-flex; gap: 2px; margin-top: 22px; border: 1px solid var(--beige-18); border-radius: 30px; padding: 4px; }
+.vsw { display: inline-flex; gap: 2px; margin-top: 12px; border: 1px solid var(--beige-18); border-radius: 30px; padding: 4px; }
 .vb {
   font-family: var(--sans); font-size: 12.5px; color: var(--beige-70);
   background: none; border: 0; border-radius: 30px; padding: 7px 18px; cursor: pointer;
   transition: background .2s, color .2s;
 }
 .vb.on { background: var(--salmon); color: var(--navy); font-weight: 600; }
-.bpcover-sec { padding-top: 20px !important; }
+.bpcover-sec { padding-top: 6px !important; }
 .bpcover {
   position: relative; max-width: var(--maxw); margin: 0 auto; overflow: hidden;
-  padding: 24px 0 8px;
+  padding: 8px 0 8px;
   background-image:
     linear-gradient(rgba(232, 228, 220, .025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(232, 228, 220, .025) 1px, transparent 1px);
@@ -2463,18 +2470,23 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 藍圖與任務合併後，人物固定在左、任務牌組固定在右。
    牌組高度不隨任務數量改變；超出範圍只捲動卡片，不拉長整頁。 */
 .bpctasklayout {
+  /* 人物與任務卡**共用這一個高度** —— 一個數字，兩邊一起動。
+     `540px` 是上限（視窗再高也不會更大）；矮視窗就扣掉上面的標題區與
+     下面浮動導覽列該留的空間，讓主視覺**整個進得了第一屏**（使用者 2026-09-19）。
+     380 ＝ 標題區約 307 ＋ 導覽列約 72。任務卡本來就有內部捲動，變矮只是少顯示一張。 */
+  --bpch: clamp(340px, 100vh - 380px, 540px);
   display: grid; grid-template-columns: minmax(260px, 400px) minmax(0, 1fr);
-  align-items: center; gap: 36px; min-height: 500px;
+  align-items: center; gap: 36px; min-height: 0;
 }
 .bpcover-task .bpcfigure {
-  grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: 540px;
+  grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: var(--bpch);
 }
 /* ⚠️ **人物是直式的**（原圖 242×698），所以決定它多大的是 `max-height`，不是寬度。
    只加寬欄位或放寬 `width` 完全沒有用 —— `object-fit: contain` 會把圖嵌在
    高度算出來的框裡，多出來的寬度全變成空白（2026-09-19 踩過一次）。
    寬度給 auto，框就貼著人物，不會在左邊留一段死空間。
    只動任務檢視，總覽那張維持原樣。 */
-.bpcover-task .bpcfigure img { width: auto; max-width: 100%; max-height: 540px; }
+.bpcover-task .bpcfigure img { width: auto; max-width: 100%; max-height: var(--bpch); }
 /* 人物左上角的能力切換。⚠️ 疊在人物上面，所以要給 z-index ——
    .bpcfigure 裡每一層都是明確排序的，少給一個就會被線稿蓋掉。 */
 .figdims {
@@ -2513,7 +2525,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 }
 
 .bpctaskdeck {
-  grid-column: 2; grid-row: 1; align-self: center; min-width: 0; height: 540px;
+  grid-column: 2; grid-row: 1; align-self: center; min-width: 0; height: var(--bpch);
   display: grid; grid-template-rows: auto minmax(0, 1fr);
   border-block: 1px solid var(--beige-18);
 }
