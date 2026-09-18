@@ -1015,6 +1015,16 @@ function studentList_() {
   var seen = {};
   rows.forEach(function (x) { seen[x.id] = x; });
   var bb = bindingBody_();
+
+  /* ⚠️ 教練自己不該出現在學員清單上（使用者 2026-09-18）。
+     舊版只在「從綁定表補進來」那一段跳過 manage，但教練在「學員」分頁上
+     如果也有一列，還是會被列出來 —— 那一段沒有檢查。 */
+  var coaches = {};
+  for (var c = 0; c < bb.rows.length; c++) {
+    var cr = rowObj_(bb.rows[c], bb.map);
+    if (String(cr.access_scope) === 'manage' && cr.student_id) coaches[String(cr.student_id)] = 1;
+  }
+
   for (var b = 0; b < bb.rows.length; b++) {
     var br = rowObj_(bb.rows[b], bb.map);
     var bid = String(br.student_id || '').trim();
@@ -1060,6 +1070,7 @@ function studentList_() {
     x.answered = filled[x.id] || 0;
     x.reportComplete = !!reportDone[x.id];
   });
+  rows = rows.filter(function (x) { return !coaches[x.id]; });   /* 教練不列進來 */
   rows.sort(function (p, q) { return p.id < q.id ? -1 : 1; });
   return rows;
 }

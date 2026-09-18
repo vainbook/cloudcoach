@@ -1420,6 +1420,41 @@
 
   var STUDENTS = null;
 
+  /* 換學員時的讀取狀態。
+     ⚠️ **不要做假的百分比。** 條子只表示「相對於實測的常態值跑到哪」，
+     跑到 88% 就停住 —— 剩下那段本來就不知道還要多久，畫滿只是在騙人。
+     一旦超過常態值就改報**實際秒數**，超過 8 秒直說「比平常久」。
+     常態值 2600ms 是 2026-09-18 量出來的（student.load 約 2.4～2.9 秒）。 */
+  var ST_EXPECT = 2600;
+
+  function stBusy(btn) {
+    btn.classList.add('is-busy');
+    var stage = btn.querySelector('.ststage');
+    var bar = btn.querySelector('.stbar u');
+    var was = stage ? stage.textContent : '';
+    var t0 = Date.now();
+    if (bar) bar.classList.add('is-load');
+
+    function tick() {
+      var ms = Date.now() - t0, sec = (ms / 1000).toFixed(1);
+      if (bar) bar.style.width = Math.min(88, Math.round(ms / ST_EXPECT * 88)) + '%';
+      if (!stage) return;
+      stage.textContent = ms < ST_EXPECT ? '讀取中…'
+        : (ms < 8000 ? '讀取中　' + sec + ' 秒' : '比平常久　' + sec + ' 秒');
+    }
+    tick();
+    var timer = setInterval(tick, 120);
+
+    return function (ok) {
+      clearInterval(timer);
+      if (bar) { bar.style.width = ok ? '100%' : '0%'; bar.classList.remove('is-load'); }
+      if (!ok) {
+        btn.classList.remove('is-busy');
+        if (stage) stage.textContent = was;      /* 失敗就把原本的階段字還回去 */
+      }
+    };
+  }
+
   function renderStudents() {
     var body = el('studentsBody');
     if (!window.UC_STORE || !window.UC_STORE.isRemote()) {
@@ -1451,11 +1486,16 @@
       var stage = x.reportComplete ? '報告已開放'
                 : (x.answered >= total ? '等你評測' : '填答中');
       return '<button type="button" class="strow' + (x.id === cur ? ' is-cur' : '') + '"'
-        + ' data-student="' + esc(x.id) + '">'
+        + ' data-student="' + esc(x.id) + '" title="' + esc(x.id) + '">'
+        /* ⚠️ 一列 = 一個人，塞得下就不要換行（使用者 2026-09-18：挑學員要更快）。
+           id 從主要位置拿掉 —— 挑人用的是名字，id 只有對帳時才需要。
+           LINE 名稱只在「跟姓名不一樣」時才補一句。 */
         + '<b class="stname">' + esc(x.name || x.lineName || x.id) + '</b>'
-        + '<s class="stid">' + esc(x.id) + (x.lineName && x.name ? ' ・ LINE：' + esc(x.lineName) : '') + '</s>'
+        + (x.lineName && x.name && x.lineName !== x.name
+            ? '<s class="stid">' + esc(x.lineName) + '</s>' : '')
+        + '<em class="ststage">' + esc(stage) + '</em>'
+        + '<span class="stnum">' + x.answered + '/' + total + '</span>'
         + '<i class="stbar"><u style="width:' + pct + '%"></u></i>'
-        + '<em class="ststage">' + esc(stage) + '　' + x.answered + '/' + total + '</em>'
         + '</button>';
     }).join('');
 
@@ -1470,19 +1510,21 @@
     body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + list.length + ' 位</p>'
       + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
       + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
-      + wrap('<div class="stlist">' + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>'
-             + demoBtn, 'rv');
+      /* 範例學員放最上面（使用者 2026-09-18）。 */
+      + wrap(demoBtn + '<div class="stlist">'
+             + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
 
     [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
       b.addEventListener('click', function () {
         var id = b.dataset.student;
-        b.classList.add('is-busy');
+        var done = stBusy(b);
         window.UC_STORE.switchStudent(id).then(function () {
+          done(true);
           STUDENTS = null;                  /* 進度會變，下次重讀 */
           toast('目前看的是 ' + id);
           nav('#/assess');
         }).catch(function (e) {
-          b.classList.remove('is-busy');
+          done(false);
           toast((e && e.message) || '換不過去，請再試一次');
         });
       });

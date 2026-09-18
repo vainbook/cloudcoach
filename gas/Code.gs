@@ -1829,6 +1829,9 @@ function runSelftest_() {
   t('nameOf_ 不會把教練自己那列當成學員',
     srcNoComments_(nameOf_).indexOf("access_scope) === 'manage'") >= 0);
 
+  t('學員清單不含教練帳號',
+    srcNoComments_(studentList_).indexOf('coaches[x.id]') >= 0);
+
   t('boot 不含成長與作業',
     !!bootKeys && bootKeys.indexOf('log') < 0 && bootKeys.indexOf('assignments') < 0);
   t('boot 含答案／報告／任務／藍圖',

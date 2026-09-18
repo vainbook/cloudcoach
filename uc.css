@@ -2698,28 +2698,42 @@ html.task-open, html.task-open body { overflow: hidden; }
    一列一位學員：名字、id、評測進度條、現在卡在哪一關。
    用按鈕不用連結 —— 點下去是「切換目前看誰」，不是導覽。 */
 .stlist { display: grid; gap: 10px; }
+/* ⚠️ 一列一個人，掃得越快越好（使用者 2026-09-18）。
+   名字｜LINE 名（只在跟姓名不同時出現）｜階段｜n/總｜進度條 —— 一排放完。 */
 .strow {
-  display: grid; grid-template-columns: 1fr auto; gap: 4px 14px;
-  width: 100%; padding: 16px 18px; text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: baseline;
+  gap: 0 12px; width: 100%; padding: 11px 16px; text-align: left; cursor: pointer;
   color: var(--beige); background: var(--navy-lift);
   border: 1px solid var(--beige-18); border-radius: 0;
   transition: border-color .2s var(--ease), background .2s var(--ease);
 }
 .strow:hover { border-color: var(--salmon); }
 .strow.is-cur { border-left: 3px solid var(--salmon); background: var(--navy-lift2); }
-.strow.is-busy { opacity: .5; pointer-events: none; }
-.stname { grid-column: 1; font-family: var(--serif); font-size: 17px; font-weight: 400; }
-.stid { grid-column: 1; font-family: var(--mono); font-size: 10.5px;
-  letter-spacing: .05em; text-decoration: none; opacity: .5; }
-.ststage { grid-column: 2; grid-row: 1 / span 2; align-self: center;
-  font-family: var(--mono); font-size: 10.5px; font-style: normal;
+/* ⚠️ 讀取中**不要整列變淡** —— 那正是使用者要看的那一列，
+   淡掉等於把狀態藏起來。只是不能再點而已。 */
+.strow.is-busy { pointer-events: none; border-color: var(--salmon-30); }
+.strow.is-busy .ststage { opacity: 1; color: var(--salmon); }
+.stbar u.is-load { transition: width .12s linear;
+  box-shadow: 0 0 6px rgba(232, 168, 152, .5); }
+.stname { grid-column: 1; font-family: var(--serif); font-size: 16px; font-weight: 400;
+  white-space: nowrap; }
+.stid { grid-column: 2; min-width: 0; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .05em; text-decoration: none; opacity: .45;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ststage { grid-column: 3; font-family: var(--mono); font-size: 10px; font-style: normal;
   letter-spacing: .05em; opacity: .65; white-space: nowrap; }
-.stbar { grid-column: 1 / -1; display: block; height: 2px; margin-top: 8px;
+.stnum { grid-column: 4; font-family: var(--mono); font-size: 10px;
+  font-variant-numeric: tabular-nums; opacity: .45; white-space: nowrap; }
+.stbar { grid-column: 1 / -1; display: block; height: 2px; margin-top: 7px;
   background: var(--beige-08); }
 .stbar u { display: block; height: 100%; background: var(--salmon); text-decoration: none; }
 @media (max-width: 560px) {
-  .strow { grid-template-columns: 1fr; }
-  .ststage { grid-column: 1; grid-row: auto; }
+  /* 窄螢幕放不下四欄：名字自己一行，其餘擠一行。 */
+  .strow { grid-template-columns: 1fr auto auto; padding: 10px 13px; }
+  .stname { grid-column: 1 / -1; }
+  .stid { grid-column: 1; }
+  .ststage { grid-column: 2; }
+  .stnum { grid-column: 3; }
 }
 
 /* ═══ 成長紀錄：三顆大按鈕 ═══════════════════════════
@@ -2785,8 +2799,9 @@ html.task-open, html.task-open body { overflow: hidden; }
 
 /* 範例學員：跟真學員視覺上要分得開 —— 虛線邊框＋沒有進度條。
    點錯人是這一頁最貴的錯誤。 */
+/* 範例學員移到清單上面，所以下邊距改成上邊距要拿掉。 */
 .stdemo {
-  display: grid; gap: 4px; width: 100%; margin-top: 14px; padding: 16px 18px;
+  display: grid; gap: 3px; width: 100%; margin: 0 0 10px; padding: 11px 16px;
   text-align: left; cursor: pointer;
   color: var(--beige-70); background: none;
   border: 1px dashed var(--beige-18); border-radius: 0;
