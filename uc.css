@@ -2463,19 +2463,31 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 藍圖與任務合併後，人物固定在左、任務牌組固定在右。
    牌組高度不隨任務數量改變；超出範圍只捲動卡片，不拉長整頁。 */
 .bpctasklayout {
-  display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  align-items: center; gap: 44px; min-height: 500px;
+  display: grid; grid-template-columns: minmax(260px, 400px) minmax(0, 1fr);
+  align-items: center; gap: 36px; min-height: 500px;
 }
 .bpcover-task .bpcfigure {
-  grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: 470px;
+  grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: 540px;
 }
+/* ⚠️ **人物是直式的**（原圖 242×698），所以決定它多大的是 `max-height`，不是寬度。
+   只加寬欄位或放寬 `width` 完全沒有用 —— `object-fit: contain` 會把圖嵌在
+   高度算出來的框裡，多出來的寬度全變成空白（2026-09-19 踩過一次）。
+   寬度給 auto，框就貼著人物，不會在左邊留一段死空間。
+   只動任務檢視，總覽那張維持原樣。 */
+.bpcover-task .bpcfigure img { width: auto; max-width: 100%; max-height: 540px; }
 /* 人物左上角的能力切換。⚠️ 疊在人物上面，所以要給 z-index ——
    .bpcfigure 裡每一層都是明確排序的，少給一個就會被線稿蓋掉。 */
 .figdims {
   position: absolute; left: 0; top: 4px; z-index: 6;
   display: grid; gap: 2px; width: max-content;
+  /* 兩欄由五列**共同**決定：文字對文字、星號對星號。 */
+  grid-template-columns: max-content max-content;
 }
 .figdim {
+  /* ⚠️ 這裡的 `max-content max-content` 是**後援**（不支援 subgrid 時用）。
+     每個按鈕各自算 max-content 的話，「生活圈」只有 3 個字，
+     它的星號就會比其他四列往左 —— 那正是要修的。 */
+  grid-column: 1 / -1;
   display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 7px;
   padding: 3px 6px; cursor: pointer; text-align: left;
   color: var(--beige-40); background: rgba(19, 27, 46, .55); border: 1px solid transparent;
@@ -2488,6 +2500,11 @@ html.task-open, html.task-open body { overflow: hidden; }
 .figdim.on { color: var(--beige); border-color: var(--salmon-30); background: rgba(19, 27, 46, .85); }
 .figdim.on s { opacity: 1; }
 .figdim:focus-visible { outline: 2px solid var(--salmon); outline-offset: 1px; }
+/* 五列共用同一組欄寬。文字長度不一樣（生活圈 3 字、其餘 4 字）也對得齊，
+   而且之後在 data/dimensions.js 改名也不用回來調數字。 */
+@supports (grid-template-columns: subgrid) {
+  .figdim { grid-template-columns: subgrid; }
+}
 
 @media (max-width: 720px) {
   .figdims { top: 0; gap: 1px; }
@@ -2496,7 +2513,7 @@ html.task-open, html.task-open body { overflow: hidden; }
 }
 
 .bpctaskdeck {
-  grid-column: 2; grid-row: 1; align-self: center; min-width: 0; height: 470px;
+  grid-column: 2; grid-row: 1; align-self: center; min-width: 0; height: 540px;
   display: grid; grid-template-rows: auto minmax(0, 1fr);
   border-block: 1px solid var(--beige-18);
 }
@@ -2530,6 +2547,9 @@ html.task-open, html.task-open body { overflow: hidden; }
   .bpcover-task .bpcfigure {
     grid-column: 1; grid-row: 1; justify-self: stretch; min-height: 310px;
   }
+  /* ⚠️ 桌機把人物放大到 540px（使用者 2026-09-19），**手機不跟**。
+     這裡是上下排，人物一高就把任務卡整個推出畫面。 */
+  .bpcover-task .bpcfigure img { max-height: 420px; }
   .bpctaskdeck { grid-column: 1; grid-row: 2; height: 390px; }
   .bpctaskdeck > header { padding-top: 12px; }
   .bpctaskscroll { padding-right: 5px; }
