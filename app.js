@@ -1528,6 +1528,16 @@
     return window.UC_OKR.taskToolMap[it.sheet] || '';
   }
 
+  /* 教材欄對得到哪一堂課的連結。對得到才會出現「傳送」。
+     ⚠️ 用**課名**比對，不是 id —— 教練在試算表上看到與選到的就是課名。
+     課名改了、連結還沒貼、或教練自己打了一段字 —— 都只是沒有按鈕，不會壞。 */
+  function taskCourseUrl(it) {
+    var L = window.UC_LIBRARY;
+    if (!it || !it.tool || !L || !L.items) return '';
+    var hit = L.items.filter(function (i) { return i.t === it.tool; })[0];
+    return hit && /^https?:\/\//i.test(hit.src || '') ? hit.src : '';
+  }
+
   function clearCurrentId(id) {
     if (S.taskNow) delete S.taskNow[id];
   }
@@ -1548,17 +1558,13 @@
         okrTo('list');
         return;
       }
-      var run = e.target.closest('[data-task-run]');
-      if (!run) return;
-      var id = run.dataset.taskId;
-      var it = taskItem(id);
-      var toolKey = taskToolKey(it);
-      if (!toolKey) {
-        openTaskContact(id, it);
-        return;
-      }
+      var toUrl = e.target.closest('[data-task-url]');
+      if (toUrl) { openExternal(toUrl.dataset.taskUrl); return; }
+
+      var toTool = e.target.closest('[data-task-tool]');
+      if (!toTool) return;
       closeTaskModal(false);
-      LIBOPEN = toolKey;
+      LIBOPEN = toTool.dataset.taskTool;
       LIBTAB = 'tool';
       nav('#/library');
     });
@@ -1578,11 +1584,20 @@
     TASKRETURN = trigger || document.activeElement;
     var meta = '';
     if (it) {
+      /* ⚠️ 「執行任務」那顆大鈕拿掉了（使用者 2026-09-18）。
+         轉跳改成貼在該欄旁邊的小「傳送」—— 要去哪裡由那一格的內容決定，
+         而不是一顆不知道會帶你去哪的按鈕。對不上就沒有按鈕，不會有死路。 */
+      var courseUrl = taskCourseUrl(it), toolKey = taskToolKey(it);
+      var go = function (attr, val) {
+        return ' <button type="button" class="taskgo" ' + attr + '="' + esc(val) + '">傳送</button>';
+      };
       meta = '<dl class="taskmeta">'
         + (it.sub ? '<dt>目標</dt><dd>' + esc(it.sub) + '</dd>' : '')
         + (it.n ? '<dt>檢核</dt><dd>完成 ' + esc(it.n) + ' 次</dd>' : '')
-        + (it.tool ? '<dt>教材</dt><dd>' + esc(it.tool) + '</dd>' : '')
-        + (it.sheet ? '<dt>工具</dt><dd>' + esc(it.sheet) + '</dd>' : '')
+        + (it.tool ? '<dt>教材</dt><dd>' + esc(it.tool)
+            + (courseUrl ? go('data-task-url', courseUrl) : '') + '</dd>' : '')
+        + (it.sheet ? '<dt>作業</dt><dd>' + esc(it.sheet)
+            + (toolKey ? go('data-task-tool', toolKey) : '') + '</dd>' : '')
         + '</dl>';
     }
     m.innerHTML = '<section class="taskpanel" role="dialog" aria-modal="true" aria-labelledby="taskTitle" tabindex="-1">'
@@ -1596,37 +1611,15 @@
       + '<div class="taskrule"><i></i><s></s></div>'
       + '<p class="taskbody">' + esc(it ? taskDetail(it) : ui.emptyBody) + '</p>'
       + meta
-      + '<div class="taskactions"><button type="button" class="btn gh" data-task-close="1">' + esc(ui.closeAction) + '</button>'
-      + '<button type="button" class="btn pri" ' + (it ? 'data-task-run="1" data-task-id="' + esc(it.id) + '"'
-        : 'data-task-edit="1"') + '>' + esc(it ? ui.runAction : ui.editAction) + '</button></div>'
+      + '<div class="taskactions"><button type="button" class="btn ' + (it ? 'pri' : 'gh')
+      + '" data-task-close="1">' + esc(ui.closeAction) + '</button>'
+      + (it ? '' : '<button type="button" class="btn pri" data-task-edit="1">'
+          + esc(ui.editAction) + '</button>') + '</div>'
       + '<span class="taskfolio num">' + esc(it ? it.id : dim.toUpperCase()) + '</span></section>';
     m.hidden = false;
     m.classList.add('on');
     document.documentElement.classList.add('task-open');
     figLit(dim);                 /* 面板開著的時候那一塊要一直亮著 */
-    var panel = m.querySelector('.taskpanel');
-    if (panel) panel.focus();
-  }
-
-  function openTaskContact(id, it) {
-    var O = window.UC_OKR, D = window.UC_DIMENSIONS, ui = O.taskUI;
-    var dim = it && it.dim;
-    var d = D.dims.filter(function (x) { return x.k === dim; })[0];
-    var m = ensureTaskModal();
-    if (!d || !it) return;
-    m.innerHTML = '<section class="taskpanel" role="dialog" aria-modal="true" aria-labelledby="taskTitle" tabindex="-1">'
-      + '<i class="taskbrk taskbrk-tl" aria-hidden="true"></i><i class="taskbrk taskbrk-tr" aria-hidden="true"></i>'
-      + '<i class="taskbrk taskbrk-bl" aria-hidden="true"></i><i class="taskbrk taskbrk-br" aria-hidden="true"></i>'
-      + '<span class="taskscan" aria-hidden="true"></span>'
-      + '<button type="button" class="taskx" data-task-close="1" aria-label="' + esc(ui.closeAction) + '">×</button>'
-      + '<p class="taskey">' + esc(ui.contactEyebrow) + ' · ' + esc(d.en) + '</p>'
-      + '<div class="taskhead"><span>' + esc(ui.themeLabel) + '</span><b>' + esc(d.label) + '</b></div>'
-      + '<h2 id="taskTitle">' + esc(ui.contactTitle) + '</h2>'
-      + '<div class="taskrule"><i></i><s></s></div>'
-      + '<p class="taskbody">' + esc(ui.contactBody) + '</p>'
-      + '<dl class="taskmeta"><dt>目前任務</dt><dd>' + esc(it.kr) + '</dd></dl>'
-      + '<div class="taskactions"><button type="button" class="btn pri" data-task-close="1">' + esc(ui.closeAction) + '</button></div>'
-      + '<span class="taskfolio num">' + esc(it.id) + '</span></section>';
     var panel = m.querySelector('.taskpanel');
     if (panel) panel.focus();
   }

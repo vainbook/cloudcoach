@@ -427,6 +427,33 @@ function seedLinks_() {
  * ⚠️ 配對只看**課程代號**。課程重新排序時編號會變、課名也可能改，
  * 但代號是身分，一旦發出去就不再變（見 site/data/library.js 的 id）。
  */
+/**
+ * 在某一欄套上下拉選單。
+ *
+ * ⚠️ **允許自由輸入**（setAllowInvalid(true)）。使用者 2026-09-18：
+ * 「做成下拉式選單，然後也可以讓我輸入純文字。」
+ * 用 requireValueInList 會把沒在清單上的字直接擋掉，那會讓教練沒辦法
+ * 臨時寫一個還沒建好的教材名稱 —— 選單是**給選**，不是**限制**。
+ * 打錯的代價在網頁上是「那一格沒有傳送鈕」，不是資料壞掉。
+ */
+function dropdown_(sh, col, list, rows) {
+  if (!col || !list || !list.length) return;
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(list, true)      /* true = 顯示下拉箭頭 */
+    .setAllowInvalid(true)               /* ⚠️ 不擋自由輸入，只在格子角落給一個提示 */
+    .setHelpText('可以從清單選，也可以自己打字。打字的話網頁上不會有「傳送」按鈕。')
+    .build();
+  sh.getRange(BLUEPRINT_HEADER_ROW + 1, col, rows, 1).setDataValidation(rule);
+}
+
+/** 「藍圖內容」的作業與教材兩欄套上下拉。跟著整理選單一起跑。 */
+function blueprintDropdowns_(sh) {
+  var map = blueprintMap_(sh);
+  var rows = Math.max(sh.getMaxRows() - BLUEPRINT_HEADER_ROW, 1);
+  dropdown_(sh, map['作業'], typeof TASK_NAMES !== 'undefined' ? TASK_NAMES : [], rows);
+  dropdown_(sh, map['教材'], typeof COURSE_NAMES !== 'undefined' ? COURSE_NAMES : [], rows);
+}
+
 function syncLinks_() {
   var sh = sheet_().getSheetByName(LINKS_SHEET);
   if (!sh) throw new AppError('INTERNAL_ERROR', '還沒有「' + LINKS_SHEET + '」分頁，先跑 setup()');

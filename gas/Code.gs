@@ -1447,10 +1447,12 @@ function menuDecorate() {
 function menuBlueprintSetup() {
   var sh = blueprintSheet_();
   decorateBlueprint_(sh);
+  blueprintDropdowns_(sh);        /* 作業與教材套下拉，但不擋自由輸入 */
   var result = validateBlueprint_();
   try { CacheService.getScriptCache().remove('bp'); } catch (e) {}
   SpreadsheetApp.flush();
   var message = '已整理「' + BLUEPRINT_SHEET + '」，目前 ' + result.count + ' 條 KR。\n'
+    + '「作業」與「教材」已套上下拉選單（仍可自己打字）。\n'
     + '藍圖快取已清除。';
   if (result.errors.length) message += '\n\n需要修正：\n• ' + result.errors.join('\n• ');
   else message += '\n\n必要欄位檢查通過。';
@@ -1722,6 +1724,15 @@ function runSelftest_() {
   t('課程連結有走快取', String(linksLoad_.toString()).indexOf('CacheService') >= 0);
   /* ⚠️ 不可以用「有沒有提到『連結』」來判斷 —— 欄位檢查那段本來就會提到它，
      那種寫法必然誤報（規則 58）。要看的是**有沒有寫進去**。 */
+  /* ⚠️ 下拉是「給選」不是「限制」—— 擋掉自由輸入的話，教練連一個
+     還沒建好的教材名稱都寫不進去。 */
+  t('下拉選單允許自由輸入',
+    String(dropdown_.toString()).indexOf('setAllowInvalid(true)') >= 0);
+  t('作業的下拉來自工具對照表', typeof TASK_NAMES !== 'undefined' && TASK_NAMES.length >= 10);
+  t('教材的下拉來自課表', typeof COURSE_NAMES !== 'undefined' && COURSE_NAMES.length >= 15);
+  t('整理藍圖時會套下拉',
+    String(menuBlueprintSetup.toString()).indexOf('blueprintDropdowns_') >= 0);
+
   t('同步課表不會寫到連結那一欄',
     String(syncLinks_.toString()).indexOf("col['連結']] =") < 0);
   t('同步課表是用課程代號配對，不是用編號',

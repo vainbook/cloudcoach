@@ -1712,6 +1712,17 @@ html.task-open, html.task-open body { overflow: hidden; }
 .taskmeta dt, .taskmeta dd { margin: 0; padding: 6px 0; }
 .taskmeta dt { font-family: var(--mono); font-size: 9px; letter-spacing: .13em; color: var(--salmon); opacity: .75; }
 .taskmeta dd { font-size: 12px; line-height: 1.7; color: var(--beige-70); }
+/* 「傳送」：跟旁邊的字差不多大（使用者 2026-09-18），貼著該欄的內容，
+   一眼看得出是「這一格可以帶我過去」，而不是整個視窗的主要動作。 */
+.taskgo {
+  display: inline-block; margin-left: 8px; padding: 2px 8px; vertical-align: 1px;
+  color: var(--salmon); background: transparent; cursor: pointer;
+  border: 1px solid var(--salmon-30); border-radius: 0;
+  font: 500 10px/1.5 var(--mono); letter-spacing: .08em;
+  transition: color .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
+}
+.taskgo:hover { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.taskgo:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
 .taskactions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 28px; padding-right: 34px; }
 .taskfolio { position: absolute; right: 18px; bottom: 15px; font-size: 9px; letter-spacing: .16em; color: var(--salmon); opacity: .45; }
 @keyframes taskveil-in { from { opacity: 0 } to { opacity: 1 } }
