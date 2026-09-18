@@ -23,6 +23,9 @@
   var DEBOUNCE = 600;          /* 打字停手多久才真的送。BACKEND-WORKFLOW.md §4 訂的 */
   /* 連兩次失敗就出聲。設 4 的話要等 14 秒才有反應 —— 使用者早就以為存好了（實測）。 */
   var MAX_RETRY = 2;
+  /* 單筆存檔實測 2～3 秒（GAS 的平台地板就佔 1.5 秒）。25 秒是「掛住了」的門檻，
+     不是「慢」的門檻 —— 抓太緊會把慢但正常的請求砍掉，反而更糟。 */
+  var CALL_TIMEOUT = 25000;
 
   var APP = null;
   var api = '';                /* GAS 的 /exec。空的就是 local 模式 */
@@ -298,11 +301,41 @@
        本機測不出來，因為當時的假 fetch 只檢查 action，沒檢查 Token 在不在（踩過）。 */
     if (!payload.idToken) payload.idToken = idToken;
     if (studentId && !payload.studentId) payload.studentId = studentId;
-    return fetch(api + (api.indexOf('?') < 0 ? '?' : '&') + '_ts=' + Date.now(), {
+
+    /* ⚠️ **一定要有逾時。** 連線不穩時 fetch 可能永遠不回應 ——
+       不是失敗、是掛著。沒有逾時的話 sending 會一直是 true、佇列凍住、
+       狀態永遠停在「儲存中」，而且不會重試（重試寫在失敗那條路上）。
+       2026-09-18 使用者回報「一直寫儲存中」就是這個。
+       ⚠️ 逾時要**比後端的常態值寬很多**：單筆存檔實測 2～3 秒，
+       抓 25 秒，不會誤砍慢但正常的請求。
+       ⚠️ 砍掉重送是安全的 —— 每一種寫入都用 requestId／id／欄位當鍵，
+       後端是更新同一列，不會變成兩筆（selftest 有守「重送同一筆是更新不是新增」）。 */
+    var ctl = null, killer = null;
+    try { ctl = new AbortController(); } catch (e) {}
+    var opts = {
       method: 'POST', mode: 'cors', redirect: 'follow', cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
-    }).then(function (r) { return r.json(); })
+    };
+    if (ctl) {
+      opts.signal = ctl.signal;
+      killer = setTimeout(function () { try { ctl.abort(); } catch (e) {} }, CALL_TIMEOUT);
+    }
+    function stopKiller() { if (killer) { clearTimeout(killer); killer = null; } }
+
+    return fetch(api + (api.indexOf('?') < 0 ? '?' : '&') + '_ts=' + Date.now(), opts)
+      .then(function (r) { stopKiller(); return r.json(); },
+            function (e) {
+              stopKiller();
+              /* 逾時被砍掉的錯誤訊息是 "The user aborted a request"，看不懂。
+                 換成看得懂的話，而且不要標成「資料不合法」那一類 —— 它要重試。 */
+              if (e && e.name === 'AbortError') {
+                var to = new Error('等太久沒有回應（超過 ' + Math.round(CALL_TIMEOUT / 1000) + ' 秒）');
+                to.code = 'TIMEOUT';
+                throw to;
+              }
+              throw e;
+            })
       .then(function (j) {
         var p = j && j.data && j.data._perf;
         /* 前端量到的總時間減掉伺服器回報的腳本時間 = 平台啟動 ＋ 302 ＋ 網路。

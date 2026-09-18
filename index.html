@@ -54,7 +54,7 @@ window.UC_START_LIFF = function () {
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"
       rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"></noscript>
-<link rel="stylesheet" href="uc.css?v=20260919d">
+<link rel="stylesheet" href="uc.css?v=20260919e">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"
   onload="this.dataset.ready='1';window.UC_START_LIFF()" onerror="this.dataset.failed='1'"></script>
@@ -143,19 +143,19 @@ window.UC_START_LIFF = function () {
   <a href="#/" id="navOut">登出</a>
 </nav>
 
-<script defer src="data/questions.js?v=20260919d"></script>
-<script defer src="data/dimensions.js?v=20260919d"></script>
-<script defer src="data/okr.js?v=20260919d"></script>
-<script defer src="data/library.js?v=20260919d"></script>
-<script defer src="data/tools.js?v=20260919d"></script>
-<script defer src="data/coach.js?v=20260919d"></script>
-<script defer src="data/growth.js?v=20260919d"></script>
-<script defer src="score.js?v=20260919d"></script>
+<script defer src="data/questions.js?v=20260919e"></script>
+<script defer src="data/dimensions.js?v=20260919e"></script>
+<script defer src="data/okr.js?v=20260919e"></script>
+<script defer src="data/library.js?v=20260919e"></script>
+<script defer src="data/tools.js?v=20260919e"></script>
+<script defer src="data/coach.js?v=20260919e"></script>
+<script defer src="data/growth.js?v=20260919e"></script>
+<script defer src="score.js?v=20260919e"></script>
 <!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
-<script defer src="store.js?v=20260919d"></script>
-<script defer src="app.js?v=20260919d"></script>
-<script defer src="edit.js?v=20260919d"></script>
+<script defer src="store.js?v=20260919e"></script>
+<script defer src="app.js?v=20260919e"></script>
+<script defer src="edit.js?v=20260919e"></script>
 <!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
-<script defer src="boot.js?v=20260919d"></script>
+<script defer src="boot.js?v=20260919e"></script>
 </body>
 </html>
