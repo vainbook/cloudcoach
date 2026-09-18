@@ -131,13 +131,10 @@
      呼叫 save()，所以要接後端只要接這一個出口 —— 不必去改那 21 個地方，
      也不會漏掉 cr 那種閉包別名（app.js 的教練報告寫的是 cr.xxx 不是 S.coachReport.xxx）。 */
   function save() {
-    /* 學員每次真的修改資料時，只留下日期，不記錄改了哪份文件。 */
-    if (ACTOR_ROLE === 'student') {
-      var today = new Date();
-      var iso = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2)
-        + '-' + ('0' + today.getDate()).slice(-2);
-      S.activityDays = normalizeActivityDays((S.activityDays || []).concat([iso]));
-    }
+    /* ⚠️ 登入日**不在這裡記**（2026-09-18 改）。
+       以前每次存檔就往 S.activityDays 塞一天，那份清單再跟著答案送上去，
+       結果它借住在評測那張表裡，害進度計數多算一題。
+       現在改成後端在登入時蓋章，前端只讀不寫。 */
     /* demo／離線照舊寫瀏覽器。配額爆掉不影響使用，所以這個 catch 是故意空的。 */
     if (!(window.UC_STORE && window.UC_STORE.isRemote())) {
       try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
@@ -2778,7 +2775,7 @@
       + '<div class="gdays' + (GCALMODE === 'date' ? ' mode-date' : '') + '">' + cells + '</div>'
       /* 設定類的東西放右下角：要用的時候找得到，平常不擋路。 */
       + '<div class="gcalfoot"><div class="gcallegend">'
-      + '<span><i class="gpen">' + penIcon() + '</i>當天編輯過文件</span>'
+      + '<span><i class="gpen">' + penIcon() + '</i>當天有登入</span>'
       + '<span>格內圖示最多顯示三筆</span></div>' + tools + '</div></div>', 'rv growthcal');
 
     /* ⚠️ **只換該動的那一塊。** 舊版每按一顆鍵就重寫整個 body，

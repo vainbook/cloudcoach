@@ -68,10 +68,8 @@
         display: answerText(byId[qid], S.answers[qid])
       };
     });
-    out['assessment|activity_days|answer'] = {
-      scope: 'assessment', itemId: 'activity_days', field: 'answer',
-      label: '90 天編輯簽到', value: (S.activityDays || []).join(','), display: ''
-    };
+    /* ⚠️ 登入日**不從前端送** —— 那是後端在登入時順手蓋的章
+       （帳號綁定的「登入日」欄）。前端只負責畫，不負責記。 */
 
     var cr = S.coachReport || {};
     var D = window.UC_DIMENSIONS ? window.UC_DIMENSIONS.dims : [];
@@ -395,6 +393,10 @@
         touched = true;
       }
     }
+    if (Array.isArray(data.activityDays) && data.activityDays.length) {
+      S.activityDays = data.activityDays;
+      touched = true;
+    }
     if (data.assignments) {
       S.assignments = S.assignments || {};
       Object.keys(data.assignments).forEach(function (k) {
@@ -426,7 +428,11 @@
       studentId = data.studentId || studentId;
       if (data.demoStudentId) demoId = data.demoStudentId;
       var rawAnswers = data.answers || {};
-      var activityDays = String(rawAnswers.activity_days || '').split(',').filter(Boolean);
+      /* ⚠️ 來源是 data.activityDays（後端從綁定列給的登入日）。
+         舊資料可能還躺在評測表裡，所以 activity_days 仍要從答案裡剔除 ——
+         留著的話它會被當成第 55 題畫出來。 */
+      var activityDays = Array.isArray(data.activityDays) ? data.activityDays
+        : String(rawAnswers.activity_days || '').split(',').filter(Boolean);
       delete rawAnswers.activity_days;
       /* ⚠️ data 可能只是 'boot' 那一包（沒有 log／assignments）——
          缺的就給空值，等 prefetchRest 補。不要因此把已經有的清掉。 */

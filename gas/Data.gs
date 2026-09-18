@@ -100,7 +100,8 @@ var SKEL = {
 };
 
 /* 任務狀態：我的 field → 那張表的欄名。白名單，不是黑名單。 */
-/* 借住在「學員填寫」但不是題目的 field_id。算作答進度時要跳過。 */
+/* 曾經借住在「學員填寫」的非題目 field_id。2026-09-18 搬到「學員」分頁了，
+   但舊資料還在，所以算進度時仍要跳過。 */
 var NOT_A_QUESTION = { activity_days: 1 };
 
 var TASK_COL = { current: '當前任務', done: '已完成', hidden: '已隱藏',

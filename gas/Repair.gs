@@ -198,3 +198,40 @@ function cleanTaskJunk() {
     : '沒有垃圾列，不用清。');
   return killed.length;
 }
+
+/* 把「學員填寫」裡殘留的 activity_days 列刪掉。
+ *
+ * 那是 2026-09-18 之前的設計 —— 編輯簽到借住在評測那張表，於是任何
+ * 「數那張表有幾列」的地方都會多算一題（學員清單出現過「55 / 54」，
+ * 總覽的公式多半也一起錯）。
+ *
+ * 現在日曆上的記號改成**登入日**，資料在「帳號綁定」的「登入日」欄，
+ * 由登入時順手蓋章，所以這些舊列不用搬、直接刪。
+ *
+ * ⚠️ **會刪列。** 只刪 field_id 是 activity_days（或 assessment.activity_days）的那幾列。
+ * 在編輯器選 dropActivityRows 執行，紀錄會列出刪了哪幾列。
+ */
+function dropActivityRows() {
+  var sh = skelSheet_('assessment'), map = skelMap_(sh);
+  var last = sh.getLastRow();
+  if (last <= SKEL_HEADER_ROW) { console.log('「學員填寫」沒有資料列。'); return 0; }
+
+  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
+                         sh.getLastColumn()).getValues();
+  var lines = [], who = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rowObj_(rows[i], map);
+    if (String(r.field_id || '').replace(/^assessment\./, '') !== 'activity_days') continue;
+    lines.push(SKEL_HEADER_ROW + 1 + i);
+    who.push(String(r.student_id || '（沒有學員 id）'));
+  }
+  if (!lines.length) { console.log('沒有殘留的 activity_days 列。'); return 0; }
+
+  /* ⚠️ 由下往上刪，不然刪一列之後下面的列號全部往上移。 */
+  for (var k = lines.length - 1; k >= 0; k--) sh.deleteRow(lines[k]);
+  skelDrop_('assessment');          /* 直接動表就要自己丟快取（規則 57） */
+
+  console.log('刪掉 ' + lines.length + ' 列：' + who.join('、')
+    + '\n「學員填寫」現在只剩題目，進度計數與總覽公式都會跟著正確。');
+  return lines.length;
+}
