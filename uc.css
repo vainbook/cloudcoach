@@ -2438,23 +2438,29 @@ html.task-open, html.task-open body { overflow: hidden; }
   .edtr input.hide { width: 18px; height: 18px; }
 }
 
+/* 大主題只是分類提示 —— 退成一行安靜的等寬小字，不要鮭紅底標籤。 */
 .bpctheme {
-  grid-column: 1; display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 8px;
-  color: var(--beige); font: 600 12px/1.35 var(--sans); letter-spacing: .03em;
+  grid-column: 1; min-width: 0; margin-top: 7px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--beige-40); font: 500 9px/1.3 var(--mono); letter-spacing: .14em;
 }
-.bpctheme em {
-  flex: none; padding: 2px 6px; color: var(--navy); background: var(--salmon);
-  font: 600 8px/1.35 var(--mono); font-style: normal; letter-spacing: .12em;
+/* O 與 KR 同樣大小、同樣顏色 —— 靠上面那個小標籤區分，不靠字級。 */
+.bpclabel {
+  grid-column: 1; margin-top: 9px; color: var(--salmon); opacity: .7;
+  font: 500 8px/1 var(--mono); letter-spacing: .14em;
 }
-.bpctheme span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.bpctask strong { grid-column: 1; margin-top: 9px; font-family: var(--serif); font-size: 14px;
-  line-height: 1.45; font-weight: 700; color: var(--beige); }
+.bpcgoal, .bpctask strong {
+  grid-column: 1; margin-top: 3px; font-family: var(--serif); font-size: 14px;
+  line-height: 1.45; font-weight: 700; color: var(--beige);
+}
 .bpctaskstate { grid-column: 1; width: max-content; margin-top: 8px; padding: 2px 6px;
   color: var(--beige-70); border: 1px solid var(--beige-18); font: 500 8px/1.3 var(--mono);
   letter-spacing: .1em; }
 .bpctask.has-task .bpctaskstate { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
 .bpctask small { grid-column: 1; display: block; margin-top: 7px; color: var(--beige-70);
   font: 400 10.5px/1.45 var(--sans); }
+/* 卡片裡第一個標籤不用再推開 —— 上面已經有「當前任務」那一塊了。 */
+.bpctaskstate + .bpclabel { margin-top: 10px; }
 
 /* 藍圖與任務合併後，人物固定在左、任務牌組固定在右。
    牌組高度不隨任務數量改變；超出範圍只捲動卡片，不拉長整頁。 */

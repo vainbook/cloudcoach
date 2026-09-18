@@ -1839,14 +1839,20 @@
     var items = currentTaskItems();
     var cards = items.map(function (it, i) {
       var d = byK[it.dim];
+      /* ⚠️ 權重：**O 與 KR 一樣重**，大主題只是分類提示（使用者 2026-09-18）。
+         舊版剛好相反 —— 大主題 12px 粗體＋鮭紅底標籤最吵，
+         而 O 只有 10.5px 淡色，是整張卡最弱的東西。
+         O 先於 KR：目標先框住方向，KR 才是這一步要做的事。
+         兩行各帶一個很小的標籤，不然同樣大小會分不出誰是誰。 */
       return '<button class="bpcdim bpctask has-task" data-task-id="' + esc(it.id)
         + '" data-figure-dim="' + esc(it.dim) + '" aria-haspopup="dialog" aria-controls="taskModal">'
         + '<span class="bpcey">' + ('0' + (i + 1)).slice(-2) + ' · ' + esc(it.id) + '</span>'
-        + '<span class="bpctheme"><em>' + esc(O.taskUI.themeLabel) + '</em>'
-        + '<span>' + esc(d ? d.label : it.dim) + '</span></span>'
+        + '<span class="bpctheme">' + esc(d ? d.label : it.dim) + '</span>'
         + '<span class="bpctaskstate">當前任務</span>'
+        + (it.sub ? '<span class="bpclabel">目標</span>'
+            + '<span class="bpcgoal">' + esc(it.sub) + '</span>' : '')
+        + '<span class="bpclabel">任務</span>'
         + '<strong>' + esc(it.kr) + '</strong>'
-        + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '')
         + '<i aria-hidden="true">↗</i></button>';
     }).join('');
     /* 空狀態不放按鈕：學員沒有權限安排，教練自己會去總覽（使用者 2026-09-17）。 */

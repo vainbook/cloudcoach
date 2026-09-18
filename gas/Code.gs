@@ -1759,6 +1759,37 @@ function runSelftest_() {
     restKeys = Object.keys(studentPayload_(fakeB, '__selftest_part__', 'rest'));
     allKeys = Object.keys(studentPayload_(fakeB, '__selftest_part__', null));
   } catch (e) {}
+  /* ⚠️ 寫得進去不代表讀得回來。這一項就是 2026-09-18 那個 bug 的護欄：
+     教練勾了當前任務、試算表也寫了，但讀出來的形狀跟前端對不上，
+     重新整理就消失。所以要**真的寫一次再讀一次**，不是只看有沒有呼叫到函式。 */
+  var TSENT = '__selftest_task__';
+  try {
+    var tsh = skelSheet_('task'), tbefore = tsh.getLastRow();
+    stateSave_('task', TSENT, 'K-TEST', 'current', '', true);
+    var back2 = stateLoad_('task', TSENT);
+    t('當前任務讀得回來，而且掛在那條 KR 身上',
+      !!(back2['K-TEST'] && back2['K-TEST'].current === true));
+    t('當前任務沒有被塞進維度底下（舊格式）',
+      Object.keys(back2).every(function (k) { return k === 'K-TEST'; }));
+
+    /* 收尾：哨兵列刪掉。⚠️ 直接動表就要自己丟快取（規則 57）。 */
+    var tmap = skelMap_(tsh), tlast = tsh.getLastRow();
+    if (tlast > SKEL_HEADER_ROW) {
+      var trows = tsh.getRange(SKEL_HEADER_ROW + 1, 1, tlast - SKEL_HEADER_ROW,
+                               tsh.getLastColumn()).getValues();
+      for (var w2 = trows.length - 1; w2 >= 0; w2--) {
+        if (String(rowObj_(trows[w2], tmap).student_id) === TSENT) {
+          tsh.deleteRow(SKEL_HEADER_ROW + 1 + w2);
+        }
+      }
+    }
+    skelDrop_('task');
+    t('當前任務的哨兵已清乾淨', Object.keys(stateLoad_('task', TSENT)).length === 0);
+    t('哨兵沒有留下多餘的列', tsh.getLastRow() === tbefore);
+  } catch (e) {
+    t('當前任務往返檢查沒有丟例外（' + String(e) + '）', false);
+  }
+
   t('boot 不含成長與作業',
     !!bootKeys && bootKeys.indexOf('log') < 0 && bootKeys.indexOf('assignments') < 0);
   t('boot 含答案／報告／任務／藍圖',

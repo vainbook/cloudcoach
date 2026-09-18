@@ -617,14 +617,15 @@ function stateLoad_(scope, studentId) {
       var kr = String(r.kr_id || '');
       if (!kr) continue;
       var box = out[kr] = out[kr] || {};
-      ['done', 'hidden', 'picked', 'key'].forEach(function (f) {
+      /* ⚠️ **current 跟其他四個一樣，掛在那條 KR 自己身上。**
+         舊版把它塞進「維度」底下（out[dim].current = kr）——
+         那是「每個維度只能有一條當前任務」時代的形狀。
+         前端早就改成「每條 KR 自己可以被勾、可以多條」，讀取卻沒跟著改，
+         於是教練勾了、也寫進試算表了，重新整理就消失
+         （2026-09-18 使用者回報，寫入正常、讀取對不上）。 */
+      ['current', 'done', 'hidden', 'picked', 'key'].forEach(function (f) {
         if (r[TASK_COL[f]] === true || r[TASK_COL[f]] === 'TRUE') box[f] = true;
       });
-      /* 當前任務在表上是「這一列是不是」，在前端是「這個維度指向哪一條」。 */
-      if (r[TASK_COL.current] === true || r[TASK_COL.current] === 'TRUE') {
-        var dim = String(r.dimension_key || '');
-        if (dim) (out[dim] = out[dim] || {}).current = kr;
-      }
       continue;
     }
 
