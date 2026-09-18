@@ -616,6 +616,9 @@ function stateLoad_(scope, studentId) {
     if (scope === 'task') {
       var kr = String(r.kr_id || '');
       if (!kr) continue;
+      /* 舊的寫入 bug 會留下 kr_id 是 'true' 的垃圾列；讀到就跳過。
+         新的寫入不會再產生，這只是讓既有的資料不要冒出來。 */
+      if (kr === 'true' || kr === 'false') continue;
       var box = out[kr] = out[kr] || {};
       /* ⚠️ **current 跟其他四個一樣，掛在那條 KR 自己身上。**
          舊版把它塞進「維度」底下（out[dim].current = kr）——
@@ -867,34 +870,16 @@ function taskSave_(studentId, itemId, field, value) {
   var sh = skelSheet_('task'), map = skelMap_(sh);
   var now = now_();
 
-  /* current 特別處理：前端送的 itemId 是**維度**，value 才是 kr_id。
-     同一個維度只能有一條當前任務，所以要先把同維度的其他列關掉。 */
-  if (field === 'current') {
-    var dim = String(itemId);
-    clearDimCurrent_(sh, map, studentId, dim, now);
-    if (isBlank_(value)) return now;
-    touchTaskRow_(sh, map, studentId, String(value), col, true, now);
-    return now;
-  }
+  /* ⚠️ **current 沒有特例。** 跟 done／hidden 一樣：itemId 是 kr_id，value 是 true/false。
 
+     舊版以為「itemId 是維度、value 是 kr_id」（每個維度只能有一條當前任務的時代），
+     於是收到 itemId='V-01'、value=true 時做了兩件錯事：
+       ① 去找 dimension_key === 'V-01' 的列 —— 找不到，等於沒做
+       ② 把當前任務寫到 kr_id === String(true) === 'true' 的列上
+     真正的那一列從頭到尾沒被寫到，所以教練勾了、重新整理就消失
+     （2026-09-18 使用者回報。上一輪只修了讀取那一半，寫入這半才是主因）。 */
   touchTaskRow_(sh, map, studentId, String(itemId), col, value === true, now);
   return now;
-}
-
-function clearDimCurrent_(sh, map, studentId, dim, now) {
-  var last = sh.getLastRow();
-  if (last <= SKEL_HEADER_ROW) return;
-  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
-                         sh.getLastColumn()).getValues();
-  for (var i = 0; i < rows.length; i++) {
-    var r = rowObj_(rows[i], map);
-    if (String(r.student_id) !== String(studentId)) continue;
-    if (String(r.dimension_key) !== dim) continue;
-    if (r[TASK_COL.current] !== true && r[TASK_COL.current] !== 'TRUE') continue;
-    var line = SKEL_HEADER_ROW + 1 + i;
-    sh.getRange(line, map[TASK_COL.current]).setValue(false);
-    sh.getRange(line, map['更新時間']).setValue(now);
-  }
 }
 
 function touchTaskRow_(sh, map, studentId, krId, col, on, now) {

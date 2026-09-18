@@ -167,3 +167,34 @@ function menuUpgradeOverview() {
   if (a !== ui.Button.OK) return;
   ui.alert(upgradeOverview_());
 }
+
+/* 一次性清理：把「任務狀態」裡 kr_id 是 true / false 的垃圾列刪掉。
+ *
+ * 那是 2026-09-18 之前的寫入 bug 留下來的 —— taskSave_ 誤把 value（true）
+ * 當成 kr_id，於是每勾一次當前任務就往那一列寫。新版不會再產生。
+ *
+ * ⚠️ 唯讀之外的動作：**會刪列**。只刪 kr_id 正好是 true/false 的，
+ * 其他一格不動。在編輯器選 cleanTaskJunk 執行，紀錄會列出刪了哪幾列。
+ */
+function cleanTaskJunk() {
+  var sh = skelSheet_('task'), map = skelMap_(sh);
+  var last = sh.getLastRow();
+  if (last <= SKEL_HEADER_ROW) { console.log('「任務狀態」沒有資料列。'); return; }
+
+  var rows = sh.getRange(SKEL_HEADER_ROW + 1, 1, last - SKEL_HEADER_ROW,
+                         sh.getLastColumn()).getValues();
+  var killed = [];
+  /* 由下往上刪，不然刪一列之後下面的列號全部往上移。 */
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var kr = String(rowObj_(rows[i], map).kr_id || '').trim();
+    if (kr !== 'true' && kr !== 'false') continue;
+    var line = SKEL_HEADER_ROW + 1 + i;
+    killed.push(line + '（kr_id=' + kr + '）');
+    sh.deleteRow(line);
+  }
+  skelDrop_('task');          /* 直接動表就要自己丟快取（規則 57） */
+  console.log(killed.length
+    ? '刪掉 ' + killed.length + ' 列垃圾：\n  ' + killed.reverse().join('\n  ')
+    : '沒有垃圾列，不用清。');
+  return killed.length;
+}

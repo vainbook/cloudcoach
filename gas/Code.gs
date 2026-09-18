@@ -1790,6 +1790,11 @@ function runSelftest_() {
     t('當前任務往返檢查沒有丟例外（' + String(e) + '）', false);
   }
 
+  /* ⚠️ 這一項才是抓到真兇的那個。上一輪只修了讀取，寫入仍然把 current
+     的 value（true）當成 kr_id 去寫 —— 往返一驗就現形。 */
+  t('taskSave_ 的 current 沒有特例（itemId 就是 kr_id）',
+    srcNoComments_(taskSave_).indexOf("field === 'current'") < 0);
+
   t('boot 不含成長與作業',
     !!bootKeys && bootKeys.indexOf('log') < 0 && bootKeys.indexOf('assignments') < 0);
   t('boot 含答案／報告／任務／藍圖',
