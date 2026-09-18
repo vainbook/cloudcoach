@@ -1482,7 +1482,9 @@
     var demo = window.UC_STORE.demoStudentId();
     var list = STUDENTS.filter(function (x) { return x.id !== demo; });
     var rows = list.map(function (x) {
-      var pct = total ? Math.round(x.answered / total * 100) : 0;
+      /* ⚠️ 上限 100 —— 後端如果又算進不是題目的列，至少不要讓進度條爆出格子外。
+         真正的修法在 studentList_ 的 NOT_A_QUESTION，這裡只是防線。 */
+      var pct = total ? Math.min(100, Math.round(x.answered / total * 100)) : 0;
       var stage = x.reportComplete ? '報告已開放'
                 : (x.answered >= total ? '等你評測' : '填答中');
       return '<button type="button" class="strow' + (x.id === cur ? ' is-cur' : '') + '"'

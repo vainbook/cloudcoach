@@ -561,6 +561,11 @@ function stateSaveAction_(body) {
   var b = requireBinding_(body);
   var sid = targetStudent_(b, body);
 
+  /* ⚠️ 用共用碼綁的教練沒有 student_id。他還沒挑學員就去改東西的話，
+     資料會寫到 student_id 是空的那一列 —— 孤兒資料，誰也讀不到。
+     擋在這裡，順便告訴他要先挑人。 */
+  if (!sid) throw new AppError('INVALID_INPUT', '請先從學員清單挑一位學員');
+
   var scope = String(body.scope || '');
   if (!STATE_SHEETS[scope]) throw new AppError('INVALID_INPUT', '不認識的資料範圍');
   requireWriteScope_(b, scope);
@@ -1037,7 +1042,10 @@ function findBindingByLine_(sub) {
       var cached = JSON.parse(hit);
       /* ⚠️ 標記來源。快取裡的 row 是「兩分鐘前的列號」——
          中間有人在試算表刪過列的話它就指錯地方，所以寫入一律不准用它。 */
-      if (cached && cached.student_id) { cached.fromCache = true; return cached; }
+      /* 同上：教練沒有 student_id，不能拿它當「這筆快取有效」的判斷。 */
+      if (cached && (cached.student_id || cached.access_scope === 'manage')) {
+        cached.fromCache = true; return cached;
+      }
     }
   } catch (e) { cache = null; }
 
@@ -1052,7 +1060,13 @@ function findBindingByLineFresh_(sub) {
   var b = bindingBody_();
   for (var i = 0; i < b.rows.length; i++) {
     var r = rowObj_(b.rows[i], b.map);
-    if (String(r.line_user_id) === String(sub) && r.student_id) {
+    /* ⚠️ **教練的綁定沒有 student_id。** 共用授權碼發出去時 student_id 是空的
+       （教練本來就不綁定特定學員），舊版這裡要求它有值，於是教練綁完之後
+       每一次請求都查不到自己那一列 —— 綁定成功，但系統當作沒綁，
+       前端只好一直要求再輸入一次碼（2026-09-18 使用者回報「好像不能用」）。
+       manage 的列一律認，不看 student_id。 */
+    if (String(r.line_user_id) === String(sub)
+        && (r.student_id || String(r.access_scope) === 'manage')) {
       r.row = b.first + i;
       return r;
     }
@@ -1828,6 +1842,23 @@ function runSelftest_() {
     srcNoComments_(nameOf_).indexOf('sid) === String(b.student_id') >= 0);
   t('nameOf_ 不會把教練自己那列當成學員',
     srcNoComments_(nameOf_).indexOf("access_scope) === 'manage'") >= 0);
+
+  /* ⚠️ 教練用共用碼綁定時 student_id 是空的。查綁定若要求它有值，
+     教練會綁完卻查不到自己，前端一直重問啟用碼。 */
+  t('查綁定時 manage 不需要 student_id',
+    srcNoComments_(findBindingByLineFresh_).indexOf("access_scope) === 'manage'") >= 0);
+  t('綁定快取也認得沒有 student_id 的教練',
+    srcNoComments_(findBindingByLine_).indexOf("access_scope === 'manage'") >= 0);
+
+  t('沒挑學員就寫入會被擋（教練沒有 student_id）',
+    srcNoComments_(stateSaveAction_).indexOf('請先從學員清單挑一位學員') >= 0);
+
+  /* ⚠️ 90 天編輯簽到借住在「學員填寫」，算進度時要跳過，
+     不然有簽到的人會出現「55 / 54」這種比題數還多的進度。 */
+  t('算作答進度會跳過不是題目的列',
+    srcNoComments_(studentList_).indexOf('NOT_A_QUESTION') >= 0);
+  t('跳過的清單認得帶前綴的寫法',
+    srcNoComments_(studentList_).indexOf("replace(/^assessment\\./") >= 0);
 
   t('學員清單不含教練帳號',
     srcNoComments_(studentList_).indexOf('coaches[x.id]') >= 0);

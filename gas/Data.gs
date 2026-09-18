@@ -100,6 +100,9 @@ var SKEL = {
 };
 
 /* 任務狀態：我的 field → 那張表的欄名。白名單，不是黑名單。 */
+/* 借住在「學員填寫」但不是題目的 field_id。算作答進度時要跳過。 */
+var NOT_A_QUESTION = { activity_days: 1 };
+
 var TASK_COL = { current: '當前任務', done: '已完成', hidden: '已隱藏',
                  picked: '加入書本', key: '書本重點' };
 var TASK_FIELDS = ['current', 'done', 'hidden', 'picked', 'key'];
@@ -1049,6 +1052,12 @@ function studentList_() {
       var ar = rowObj_(av[a], amap);
       var sid = String(ar.student_id || '');
       if (!sid) continue;
+      /* ⚠️ 「學員填寫」裡不是每一列都是題目。90 天編輯簽到（activity_days）
+         借用同一張表存，所以算進度時要跳過 —— 不跳的話有簽到的人都會多算一題，
+         出現「55 / 54」這種比題數還多的進度（2026-09-18 使用者回報）。
+         ⚠️ field_id 有兩種寫法（裸 id 與帶 assessment. 前綴），兩種都要認。 */
+      var fid = String(ar.field_id || '').replace(/^assessment\./, '');
+      if (NOT_A_QUESTION[fid]) continue;
       if (ar['已填'] === 1 || ar['已填'] === '1' || ar['已填'] === true) {
         filled[sid] = (filled[sid] || 0) + 1;
       }
