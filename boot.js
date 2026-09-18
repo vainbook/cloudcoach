@@ -651,14 +651,35 @@
         + (p.laps && p.laps.length
           ? '<tr><td colspan="4" class="perflaps">' + esc(p.laps.join('　・　')) + '</td></tr>' : '');
     }).join('');
-    ui('<p class="ey">Performance</p><h2>這次登入的時間分佈</h2>'
+    ui('<p class="ey">Performance</p><h2>這次的時間分佈</h2>'
       + '<table class="diagt perft"><tr><th>動作</th><th>總計</th><th>腳本內</th><th>平台＋網路</th></tr>'
       + (rows || '<tr><td colspan="4">還沒有呼叫紀錄</td></tr>') + '</table>'
       + '<p>「腳本內」是 GAS 自己跑的時間，那是我改得動的部分；'
       + '「平台＋網路」是啟動、302 重導與連線，那是地板。</p>'
+      + '<p class="perfhint">關掉之後照常使用，之後每一次呼叫都會記下來；'
+      + '想再看就按右下角的 ⏱。</p>'
       + '<button type="button" class="btn" id="perfClose">關掉</button>');
     var c = document.getElementById('perfClose');
-    if (c) c.addEventListener('click', done);
+    if (c) c.addEventListener('click', function () { done(); perfTab(); });
+  }
+
+  /* ⚠️ 面板原本是**登入那一刻的快照**，關掉就沒了。
+     但慢的地方不一定在登入 —— 教練點「學員」是登入之後才發生的事，
+     那一筆永遠進不了面板（2026-09-18 使用者反映「沒辦法這樣點」）。
+     所以關掉之後留一顆小按鈕，隨時可以把最新的分佈叫回來。 */
+  var perfBtn = null;
+  function perfTab() {
+    if (perfBtn) { perfBtn.hidden = false; return; }
+    perfBtn = document.createElement('button');
+    perfBtn.type = 'button';
+    perfBtn.className = 'perftab';
+    perfBtn.title = '看時間分佈';
+    perfBtn.textContent = '⏱';
+    perfBtn.addEventListener('click', function () {
+      perfBtn.hidden = true;
+      showPerf();
+    });
+    document.body.appendChild(perfBtn);
   }
 
   function enter(studentId, scope, payload) {

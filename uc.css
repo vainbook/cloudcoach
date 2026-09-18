@@ -2888,3 +2888,14 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 閒置時星空要貼齊螢幕四邊，不要被內距推進來。 */
 .gscreen.is-idle .gscreenin { padding: 0; align-items: stretch; }
 .gscreen.is-idle .gscreenin > * { grid-area: 1 / 1; }
+
+/* ?perf=1 的隨時可叫的小按鈕。只有加了旗標才會出現。 */
+.perftab {
+  position: fixed; right: 14px; bottom: 96px; z-index: 60;
+  width: 40px; height: 40px; display: grid; place-items: center;
+  color: var(--salmon); background: rgba(19, 27, 46, .92);
+  border: 1px solid var(--salmon-30); border-radius: 50%; cursor: pointer;
+  font-size: 17px; line-height: 1;
+}
+.perftab:hover { border-color: var(--salmon); }
+.perfhint { color: var(--beige-40); font-size: 11px; }

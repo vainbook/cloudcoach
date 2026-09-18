@@ -985,7 +985,18 @@ function plain_(v) {
 
 function studentList_() {
   /* ⚠️ 這一支是「教練挑學員」那條路 —— 原本要掃三張表、每張六次呼叫。
-     以實測的 110ms/次算，光固定開銷就一秒多。全部改走 skelRead_。 */
+     以實測的 110ms/次算，光固定開銷就一秒多。全部改走 skelRead_。
+
+     ⚠️ 它一共碰**四張表**：學員、帳號綁定、學員填寫、教練填寫。
+     一次讀表 300～2000ms 而且會抖（規則 56），所以這裡的地板是四次的總和。
+     後兩張走 batchGet 併成一個請求；前兩張不在 SKEL 裡，各自一次。
+     每一段都有 lap，慢在哪裡用 ?perf=1 看得到，不要用猜的。 */
+
+  /* 學員填寫與教練填寫併成一個 HTTPS 請求（見 skelPreload_）。
+     ⚠️ 要在第一次 skelRead_ 之前呼叫，晚一步就白做了。 */
+  skelPreload_(['assessment', 'report']);
+  lap_('批次讀兩表');
+
   var sh = sheetByName_(STUDENT_SHEET);
   var rows = [];
   if (sh) {
@@ -1006,6 +1017,8 @@ function studentList_() {
     }
   }
 
+  lap_('讀學員表');
+
   /* 綁定表裡出現、但「學員」分頁還沒建檔的，也要列出來 ——
      不然教練發了碼、學員綁好了，清單上卻看不到他。 */
   var seen = {};
@@ -1023,6 +1036,8 @@ function studentList_() {
     if (br.student_name) seen[bid].name = seen[bid].name || String(br.student_name);
     seen[bid].lastLogin = String(br.last_login_at || '');
   }
+
+  lap_('讀綁定表');
 
   /* 進度：一次掃完，不要一人一次。 */
   var filled = {}, reportDone = {};
@@ -1047,6 +1062,8 @@ function studentList_() {
       if (decodeValue_(rr['儲存值']) === true) reportDone[String(rr.student_id || '')] = true;
     }
   }
+
+  lap_('算進度');
 
   rows.forEach(function (x) {
     x.answered = filled[x.id] || 0;
