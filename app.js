@@ -483,16 +483,8 @@
     else location.hash = hash;
   }
 
-  /* ── 登入頁 ───────────────────────────────────────── */
-  el('loginForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    /* 接上後端之後這一頁根本進不來（go() 會先跳走），保險起見再擋一次。 */
-    if (window.UC_STORE && window.UC_STORE.isRemote()) { nav(landing()); return; }
-    var v = el('loginName').value.trim();
-    if (!v) return;
-    S.name = v; save();
-    nav('#/assess');
-  });
+  /* 「輸入名字」那個表單連同處理器一起拿掉了（2026-09-19）——
+     稱呼由 LINE 決定，或在評測 B01 自己填。 */
 
   /* ── 登出 ─────────────────────────────────────────
      ⚠️ demo 時代它只是 `<a href="#/">`，回首頁就等於登出。
@@ -1454,15 +1446,24 @@
       + '<p class="ey">Assessment Report ・ 教練評測完成</p>'
       + '<h1>' + esc(S.name || '學員') + '　情感能力評測</h1>'
       + '<div class="divider"><i></i><s></s></div>'
-      + (ACTOR_ROLE === 'student' ? '' : '<div class="rhact"><button type="button" class="btn" id="editReport">編輯評測</button></div>')
       + '</header>');
 
-    h += wrap(head('01', 'Ability Map', '情感能力')
-      + '<div class="chart" id="chart"></div>'
+    /* ⚠️ 教練用的功能收到右下角（使用者 2026-09-19：「這種給教練用的功能都移動到
+       右下方」）。學員看不到這顆，所以不會佔掉他的版面。 */
+    if (ACTOR_ROLE !== 'student') {
+      h = '<button type="button" class="cornerbtn" id="editReport">編輯評測</button>' + h;
+    }
+
+    /* ⚠️ 「01 情感能力」「02 教練的信」兩個節標題拿掉了（使用者 2026-09-19：
+       「這一頁不需要分…標題只保留最上面的」）。整頁只有一個標題，
+       標題下面直接是主視覺 —— 跟其他頁面同一個規則（規則 29）。 */
+    h += wrap('<div class="chart" id="chart"></div>'
       + '<p class="chint" id="chint">點維度名　·　看教練說明</p>', 'rv chartwrap');
 
-    var paper = wrap(head('02', 'Coach Letter', '教練的信')
-      + '<div class="letter">'
+    /* ⚠️ 標示留著，**只是不要那一整組「編號 ・ 英文眉標 ・ 標題 ・ 分隔線」**
+       （使用者 2026-09-19：「格式上不用、數字也不用，但信封內的文字要留著」）。
+       一行純文字的小標就夠 —— 它是在說「下面是一封信」，不是一個章節。 */
+    var paper = wrap('<h2 class="lhead">教練的信</h2><div class="letter">'
       + '<p class="lsalu">' + esc(S.name || '學員') + '，你好：</p>'
       + '<div class="lbody"><p class="lpara">' + esc(cr.letter) + '</p></div>'
       + '<div class="lsign"><span>' + esc(coachSignature(cr) || CO.name) + '</span>'
@@ -1761,10 +1762,9 @@
     var h = wrap('<header class="rhead"><p class="ey">Course Blueprint ・ ' + esc(O.source) + '</p>'
       + '<h1>課程藍圖</h1><div class="divider"><i></i><s></s></div>'
       /* 頁首只有標題；操作說明貼在人物或書本旁邊。 */
-      /* ⚠️ 「書」**不放在這裡**。使用者 2026-09-12：書暫時不用但不刪，
-         入口收進「總覽」右下角的小按鈕（okrList 最後那顆 .bkcorner）。 */
-      + '<div class="vsw"><button class="vb' + (OKRVIEW === 'tasks' ? ' on' : '') + '" data-view="tasks">任務</button>'
-      + '<button class="vb' + (OKRVIEW === 'list' || OKRVIEW === 'book' ? ' on' : '') + '" data-view="list">總覽</button></div>'
+      /* ⚠️ 「任務／總覽」切換器**從頁首拿掉了**（使用者 2026-09-19）——
+         它佔掉 54px，而主視覺正在跟第一屏搶空間。兩邊各留一顆轉跳鈕：
+         任務頁在牌組底下、總覽頁在最上面。書仍然只從總覽右下角進去。 */
       + '</header>');
 
     h += '<div id="okrPane">' + okrViewHTML(OKRVIEW, O, D, r, hasScore, byK) + '</div>';
@@ -1805,6 +1805,12 @@
 
   function bindOkrPane(pane) {
     if (!pane) return;
+    /* ⚠️ 轉跳鈕現在**在 pane 裡面**（以前的 `.vsw` 在頁首，不會被重畫）。
+       okrTo() 每次都把 pane 的 innerHTML 整個換掉，這裡不重綁的話
+       第一次切過去就再也回不來（2026-09-19 踩到）。 */
+    [].forEach.call(pane.querySelectorAll('[data-view]'), function (b) {
+      b.addEventListener('click', function () { okrTo(b.dataset.view); });
+    });
     bindBook(pane);
     /* 右下角的書入口。只有「總覽」畫得出來，換檢視時整個 pane 重畫，按鈕自然消失。 */
     [].forEach.call(pane.querySelectorAll('[data-openbook]'), function (b) {
@@ -1973,12 +1979,20 @@
       + '<span>' + (ACTOR_ROLE === 'student' ? '教練安排後，任務卡會出現在這裡。'
         : '在總覽勾選「當前任務」就會出現在這裡。') + '</span></div>';
 
-    return wrap('<div class="bpcover bpcover-task"><p class="bpctag">Current Missions</p>'
+    /* 「Current Missions」那行小標拿掉了（使用者 2026-09-19）——
+       下面的牌組自己就寫著「目前任務」，重複一次只是佔掉人物的高度。 */
+    return wrap('<div class="bpcover bpcover-task">'
       + '<div class="bpctasklayout">' + figureHTML() + figDimsHTML()
       + '<section class="bpctaskdeck"><header><div><p class="ey">Mission Deck</p><h2>目前任務</h2></div>'
       + '<strong class="num">' + items.length + '</strong></header>'
-      + '<div class="bpctaskscroll">' + (cards || empty) + '</div></section></div>'
-      + '<p class="cap bpccap">人物代表正在前進的你；右側卡片是教練目前安排、可以立即執行的任務。</p></div>', 'bpcover-sec');
+      + '<div class="bpctaskscroll">' + (cards || empty) + '</div></section>'
+      /* ⚠️ 轉跳鈕在**牌組外面**（下緣那條線之下）。放進牌組裡的話它會吃掉
+         一張卡的高度 —— 而它本來就可以掉出第一屏（使用者 2026-09-19）。 */
+      + '<button type="button" class="bpcswitch" data-view="list">總覽　<i aria-hidden="true">→</i></button>'
+      + '</div>'
+      /* 說明那一行拿掉了（使用者 2026-09-19）—— 人物與任務卡自己說得夠清楚，
+         多一行字只是把主視覺往上擠。 */
+      + '</div>', 'bpcover-sec');
   }
 
   /* 人物：**一張手繪線稿**（`assets/figure/line-front.webp`，242×698、48KB）。
@@ -2431,8 +2445,11 @@
 
     /* 書的入口。收在右下角、不佔版面 —— 平常沒人用，需要時找得到就好。 */
     var corner = '<button class="bkcorner" type="button" data-openbook="1" title="開啟書本檢視">書</button>';
+    /* 回任務頁的路。頁首的切換器拿掉之後，這是唯一的入口，所以放在最上面。 */
+    var back = wrap('<div class="bpcswitchrow"><button type="button" class="bpcswitch is-back"'
+      + ' data-view="tasks"><i aria-hidden="true">←</i>　任務</button></div>', 'bpcswitchsec');
 
-    return corner + wrap('<div class="edt" data-no-copy-edit="1" data-field-scope="blueprint.coach-settings">'
+    return corner + back + wrap('<div class="edt" data-no-copy-edit="1" data-field-scope="blueprint.coach-settings">'
       + '<p class="fieldtag coach">教練填寫</p>'
       + '<div class="edth"><span>' + esc(ui.total) + ' ' + O.items.length + ' 條</span>'
       + '<span>' + esc(ui.hiddenCount) + ' <b>' + nHidden + '</b></span>'
@@ -2646,25 +2663,98 @@
      代價是邊緣會被切掉，所以重要的東西（星系核心、行星）要放在中央偏內，
      被切到的只能是星點與航道。
      ⚠️ 窗框不畫在圖裡：圖會被裁，框就跟著跑掉了。框交給 CSS 畫在螢幕邊緣。 */
+  /* 星點。**用亂數生但固定種子** —— 手寫二十顆一定會擺得太平均，
+     而平均正是「假」的主因。r 用 rnd()*rnd() 壓向小值：真實的天空絕大多數
+     是很暗的小星，亮星只有幾顆。 */
+  function skyStars(n, seed) {
+    var s = seed, out = '';
+    function rnd() { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }
+    for (var i = 0; i < n; i++) {
+      var x = (rnd() * 400).toFixed(1), y = (rnd() * 260).toFixed(1);
+      /* r 是**光暈**的半徑，不是星的大小。 */
+      var r = (0.9 + rnd() * rnd() * 3.6).toFixed(2);
+      /* ⚠️ 上限壓到 .74。亮度一高，小圓點就從「星」變回「點」。 */
+      var o = (0.14 + rnd() * rnd() * 0.6).toFixed(2);
+      /* ⚠️ **一顆星 = 光暈 ＋ 核心，兩個圓。**
+         漸層是等比例縮放的，所以只用一個圓的話，大星的實心核心會跟著變大，
+         看起來是「有柔邊的圓盤」而不是「很亮的一點」（使用者 2026-09-19：
+         「越大顆的改善越少」）。真實的光相反：亮星的**光暈**大，核心永遠是一個點。
+         所以核心半徑**固定**在 0.42，只有光暈跟著亮度長。 */
+      out += '<circle class="star" cx="' + x + '" cy="' + y + '" r="' + r + '" opacity="' + o + '"/>'
+        + '<circle class="starcore" cx="' + x + '" cy="' + y + '" r="0.42" opacity="'
+        + Math.min(1, o * 1.5).toFixed(2) + '"/>';
+    }
+    return out;
+  }
+
+  /* ⚠️ 舊版是「用線條畫出來的星系」：兩道描邊旋臂、一圈虛線航道、一個描邊行星。
+     那些都是**圖解的語彙**，所以看起來像示意圖不像天空（使用者 2026-09-19：
+     「目前的 svg 太假」）。改成用漸層堆光暈 —— 天體是光，不是輪廓。 */
   function skySVG() {
     return '<svg class="gsky" viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'
-      /* 星系：暈、兩道旋臂、核心 */
-      + '<ellipse class="halo" cx="252" cy="104" rx="86" ry="31" transform="rotate(-16 252 104)"/>'
-      + '<path class="arm" d="M252 104c26-23 64-20 82 9"/>'
-      + '<path class="arm" d="M252 104c-26 23-64 20-82-9"/>'
-      + '<circle class="core" cx="252" cy="104" r="4.2"/>'
-      /* 行星：左下角，大半沉在畫面外 */
-      + '<circle class="planet" cx="84" cy="256" r="72"/>'
-      + '<ellipse class="ring" cx="84" cy="256" rx="104" ry="22" transform="rotate(-12 84 256)"/>'
-      /* 航道 */
-      + '<path class="lane" d="M-10 186C70 146 180 140 410 172"/>'
-      /* 星點：散開一點，被裁掉幾顆也無所謂 */
-      + '<circle class="star" cx="48" cy="46" r="1.8"/><circle class="star" cx="122" cy="26" r="1.1"/>'
-      + '<circle class="star" cx="168" cy="70" r="1.5"/><circle class="star" cx="206" cy="34" r="1"/>'
-      + '<circle class="star" cx="318" cy="52" r="1.7"/><circle class="star" cx="366" cy="120" r="1.2"/>'
-      + '<circle class="star" cx="142" cy="140" r="1"/><circle class="star" cx="300" cy="182" r="1.5"/>'
-      + '<circle class="star" cx="68" cy="128" r="1.2"/><circle class="star" cx="352" cy="228" r="1.1"/>'
-      + '<circle class="star s-lit" cx="212" cy="156" r="2.2"/>'
+      + '<defs>'
+      /* 星系：核心亮、往外化開。三段而不是兩段，中間那段才是「臂」的感覺。 */
+      + '<radialGradient id="gxyCore">'
+      +   '<stop offset="0%" stop-color="#E8A898" stop-opacity=".62"/>'
+      +   '<stop offset="22%" stop-color="#E8A898" stop-opacity=".2"/>'
+      +   '<stop offset="58%" stop-color="#E8A898" stop-opacity=".055"/>'
+      +   '<stop offset="100%" stop-color="#E8A898" stop-opacity="0"/>'
+      + '</radialGradient>'
+      /* 星雲：大、極淡、偏米白。它的作用是讓黑不是純黑。 */
+      + '<radialGradient id="gxyNeb">'
+      +   '<stop offset="0%" stop-color="#E8E4DC" stop-opacity=".07"/>'
+      +   '<stop offset="60%" stop-color="#E8E4DC" stop-opacity=".022"/>'
+      +   '<stop offset="100%" stop-color="#E8E4DC" stop-opacity="0"/>'
+      + '</radialGradient>'
+      /* 行星：受光的那一側亮一點點，背光側沉進背景。 */
+      + '<linearGradient id="gplanet" x1="0" y1="0" x2=".7" y2="1">'
+      +   '<stop offset="0%" stop-color="#E8E4DC" stop-opacity=".085"/>'
+      +   '<stop offset="46%" stop-color="#E8E4DC" stop-opacity=".022"/>'
+      +   '<stop offset="100%" stop-color="#131B2E" stop-opacity=".5"/>'
+      + '</linearGradient>'
+      /* 大氣：只在邊緣一圈，中間必須透明，否則整顆會糊掉。 */
+      /* ⚠️ 星點**不能是實心圓**。銳利的邊就是「這是一個 UI 圓點」的訊號
+         （使用者 2026-09-19：「點點還是偏假，我覺得是邊緣太銳利了」）。
+         中心實、四成處開始收、邊緣歸零 —— 那才是一團光。 */
+      + '<radialGradient id="gstar">'
+      +   '<stop offset="0%" stop-color="#E8E4DC" stop-opacity=".95"/>'
+      +   '<stop offset="12%" stop-color="#E8E4DC" stop-opacity=".62"/>'
+      +   '<stop offset="30%" stop-color="#E8E4DC" stop-opacity=".2"/>'
+      +   '<stop offset="60%" stop-color="#E8E4DC" stop-opacity=".045"/>'
+      +   '<stop offset="100%" stop-color="#E8E4DC" stop-opacity="0"/>'
+      + '</radialGradient>'
+      + '<radialGradient id="gair">'
+      +   '<stop offset="82%" stop-color="#E8E4DC" stop-opacity="0"/>'
+      +   '<stop offset="94%" stop-color="#E8E4DC" stop-opacity=".07"/>'
+      +   '<stop offset="100%" stop-color="#E8E4DC" stop-opacity="0"/>'
+      + '</radialGradient>'
+      + '</defs>'
+
+      /* 最遠的一層：星雲。先畫，讓後面的東西壓在它上面。 */
+      + '<ellipse cx="238" cy="96" rx="180" ry="96" fill="url(#gxyNeb)"/>'
+      + '<ellipse cx="72" cy="196" rx="120" ry="74" fill="url(#gxyNeb)" opacity=".7"/>'
+
+      /* 星點分兩批：遠景很多很小，近景少而亮 —— 深度是靠兩層疊出來的。 */
+      + skyStars(64, 20260919)
+      + '<g opacity=".55">' + skyStars(26, 77315) + '</g>'
+
+      /* 星系本體：一個旋轉的橢圓光暈 ＋ 一顆核心。沒有描邊。 */
+      + '<g transform="rotate(-17 252 100)">'
+      +   '<ellipse cx="252" cy="100" rx="96" ry="34" fill="url(#gxyCore)"/>'
+      +   '<ellipse cx="252" cy="100" rx="52" ry="15" fill="url(#gxyCore)" opacity=".8"/>'
+      + '</g>'
+      /* 核心小一點、再讓它化進光暈裡 —— 實心的一點會看起來像 UI 的圓點。 */
+      + '<circle class="core" cx="252" cy="100" r="3.4"/>'
+
+      /* 行星：左下角，大半沉在畫面外。受光邊只有一道很細的弧。 */
+      + '<circle cx="76" cy="262" r="86" fill="url(#gair)"/>'
+      + '<circle class="planet" cx="76" cy="262" r="78" fill="url(#gplanet)"/>'
+      + '<path class="limb" d="M-2 262a78 78 0 0 1 128-60"/>'
+
+      /* 一顆會呼吸的星。只要一顆 —— 整片都在閃就變成雜訊。
+         ⚠️ 它是**米白的不是鮭粉的**。飽和的橘點在星空裡一眼就假。 */
+      + '<circle class="star s-lit" cx="206" cy="168" r="4.6"/>'
+      + '<circle class="starcore s-lit" cx="206" cy="168" r="0.5"/>'
       + '</svg>';
   }
 
@@ -2672,24 +2762,44 @@
        閒置 → 太空船　｜　填寫 → 輸入面板　｜　翻閱 → 那一天的日誌
      ⚠️ 三種狀態**共用同一個高度** —— 高度一變整頁就會跳一下，
      而使用者的手指剛按完的地方就跑掉了。那個跳動比任何裝飾都傷。 */
-  function gscreenHTML(formHTML, logHTML, logCount, dayNo, start, today, total) {
+  function gscreenHTML(formHTML, logHTML, logCount, dayNo, start, today, total, kinds) {
     var n = isoDiff(today, start) + 1;
     var stat = n < 1 ? '待啟程' : (n > 90 ? '航程完成' : 'DAY ' + n + ' / 90');
     var inner, mode, badge;
-    if (formHTML) { inner = formHTML; mode = 'form'; badge = 'NEW RECORD'; }
-    else if (logCount) { inner = logHTML; mode = 'log'; badge = 'DAY ' + dayNo + ' LOG'; }
+    /* ⚠️ **窗外那片天三種狀態都要在。** 原本只有閒置狀態畫 skySVG()，所以一按
+       「留一筆」，玻璃裡的銀河就整個不見，只剩一個空的暗盒子 —— 表單當然搭不起來
+       （使用者 2026-09-19：「從銀河跳過去的填寫面板搭不太起來」）。
+       正確的關係是：**天窗一直開著，面板浮在上面**，後面的景失焦但還在。 */
+    var view = skySVG() + '<i class="gport" aria-hidden="true"></i>';
+    var veil = '<i class="gveil" aria-hidden="true"></i>';
+    if (formHTML) { inner = view + veil + formHTML; mode = 'form'; badge = 'NEW RECORD'; }
+    else if (logCount) { inner = view + veil + logHTML; mode = 'log'; badge = 'DAY ' + dayNo + ' LOG'; }
     else {
       mode = 'idle'; badge = stat;
-      /* 星空鋪滿整個螢幕，字疊在上面。 */
-      inner = skySVG() + '<i class="gport" aria-hidden="true"></i>'
+      inner = view
         + '<div class="gidle"><p class="gidlel">UC Training</p>'
         + '<p class="gidles">' + (n < 1 || n > 90 ? '選一天看紀錄，或按下面留一筆'
             : 'Day ' + dayNo + ' 還沒有紀錄　·　按下面留下第一筆') + '</p></div>';
     }
+    /* 四角的 L 型括號（品牌元素）。⚠️ 用四個節點不是四個 ::before ——
+       一個元素只有兩個偽元素，而暗角與邊光已經佔掉了。 */
+    /* ⚠️ 修飾詞要**帶前綴**。第一版寫成 `tl / tr / bl / br`，結果撞到樣式表裡
+       一個全域的 `.tl`（成長軌跡用的，`margin: 30px 0 26px`）——
+       左上那個括號就被推下去 30px，四個角對不齊（2026-09-19 踩到）。
+       兩個字母的 class 太便宜了，遲早跟別人撞。 */
+    var corners = '<i class="gcorner gc-tl"></i><i class="gcorner gc-tr"></i>'
+      + '<i class="gcorner gc-bl"></i><i class="gcorner gc-br"></i>';
+    /* ⚠️ 三顆鍵**在螢幕裡面**（使用者 2026-09-19：「按鈕是在螢幕內部，
+       像是 HUD 的一部分」）。放在外面的話，螢幕再怎麼做成玻璃，
+       下面那排實體鍵都會把它打回「一台機器」。 */
     return '<div class="gscreen is-' + mode + '">'
       + '<div class="gscreenbar"><span class="gled"></span><b>UC-90</b><s>' + esc(badge) + '</s>'
       + '<em>' + total + ' REC</em></div>'
-      + '<div class="gscreenin">' + inner + '</div>'
+      /* ⚠️ 括號畫在**內容區**不是整塊面板上 —— 掛在面板上的話它會貼著外緣，
+         跟狀態列與 HUD 撞在一起，看起來就是沒對齊（使用者 2026-09-19）。
+         框住「看出去的那片天」才是它該框的東西。 */
+      + '<div class="gscreenin">' + corners + inner + '</div>'
+      + '<div class="gkinds">' + (kinds || '') + '</div>'
       + '<i class="gscanline" aria-hidden="true"></i></div>';
   }
 
@@ -2816,11 +2926,12 @@
        上面是主機（螢幕 ＋ 三顆鍵），下面是日曆（讀數 ＋ 控制 ＋ 格子 ＋ 圖例）。
        填寫與翻閱都發生在螢幕裡，不要再有第三塊散在頁尾。 */
     body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日曆</h1>'
-      + '<div class="divider"><i></i><s></s></div><p class="lead">往前回看做過的事，也能一眼感受距離下一天還有多遠。</p>'
+      /* 導言拿掉了（使用者 2026-09-19）—— 它把螢幕往下推，而螢幕自己就說得清楚。 */
+      + '<div class="divider"><i></i><s></s></div>'
       + restNoticeHTML('成長紀錄') + '</header>')
       + wrap('<div class="gconsole">'
-      + gscreenHTML(form, log, selectedRecords.length, dayNo, start, today, records.length)
-      + '<div class="gkinds">' + kinds + '</div></div>'
+      + gscreenHTML(form, log, selectedRecords.length, dayNo, start, today, records.length, kinds)
+      + '</div>'
       + '<div class="gcalendar">'
       + ghudHTML(start, today, records)
       + '<div class="gweekdays"><span>一</span><span>二</span><span>三</span><span>四</span>'
@@ -2837,7 +2948,8 @@
     function screenHTML() {
       var sel = byDate[GSELECT] || [];
       var no = isoDiff(GSELECT, start) + 1;
-      return gscreenHTML(formHTML(), logHTML(sel, no), sel.length, no, start, today, records.length);
+      return gscreenHTML(formHTML(), logHTML(sel, no), sel.length, no, start, today,
+                         records.length, kinds);
     }
 
     function paintScreen() {
@@ -2847,6 +2959,7 @@
       box.innerHTML = screenHTML();
       host.parentNode.replaceChild(box.firstChild, host);
       bindScreen();
+      bindKinds();                 /* 鍵在螢幕裡，重畫後要重綁 */
       [].forEach.call(body.querySelectorAll('[data-gopen]'), function (x) {
         x.classList.toggle('on', x.dataset.gopen === GFORM);
       });
@@ -2855,6 +2968,11 @@
       });
     }
 
+    bindKinds();
+    /* ⚠️ 三顆鍵搬進螢幕之後，**每次 paintScreen 都會把它們換成新節點**。
+       綁在這裡（只跑一次）就只有第一次有效 —— 所以真正的綁定在 bindKinds()，
+       由 bindScreen() 每次重畫後再叫一次（2026-09-19）。 */
+    function bindKinds() {
     [].forEach.call(body.querySelectorAll('[data-gopen]'), function (b) {
       b.addEventListener('click', function () {
         GFORM = b.dataset.gopen;
@@ -2870,6 +2988,7 @@
         }
       });
     });
+    }
     [].forEach.call(body.querySelectorAll('[data-gdate]'), function (b) {
       b.addEventListener('click', function () { GSELECT = b.dataset.gdate; GFORM = null; GEDIT = null; paintScreen(); });
     });

@@ -279,9 +279,7 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 .hero-div i { width: 44px; }
 .hero-div s { max-width: 120px; }
 .hero-lead { font-size: 14.5px; line-height: 2; opacity: .8; animation: rise .9s var(--ease) 2s both; }
-.hero-form { display: flex; flex-direction: column; gap: 10px; margin-top: 30px; animation: rise .9s var(--ease) 2.2s both; }
-.hero-form input { text-align: center; }
-.hero-alt { margin: 20px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fade 1s ease 2.5s both; }
+.hero-alt { margin: 34px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fade 1s ease 2.5s both; }
 .hero-alt small { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; opacity: .38; }
 .line-entry {
   display: none; flex-direction: column; align-items: center; gap: 10px;
@@ -317,7 +315,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 }
 .line-wait { margin: 14px 0 0; line-height: 1.7; }
 .line-retry { margin-top: 12px; }
-[data-uc-boot="line"] .hero-form,
 [data-uc-boot="line"] .hero-alt { display: none; }
 [data-uc-boot="line"][data-uc-line-state="ready"] .line-entry { display: flex; }
 [data-uc-boot="line"][data-uc-line-state="loading"] .line-progress { display: block; }
@@ -332,9 +329,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 }
 @media (min-width: 720px) {
   .hero-h { font-size: 54px; }
-  .hero-form { flex-direction: row; }
-  .hero-form input { text-align: left; }
-  .hero-form .btn { white-space: nowrap; }
 }
 @media (max-width: 560px) {
   /* LIFF 開啟後要立刻能操作；桌機的長入場節奏在手機上會像載入卡住。 */
@@ -346,7 +340,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
   .hero-sub { animation-delay: .22s; animation-duration: .55s; }
   .hero-div { animation-delay: .26s; animation-duration: .55s; }
   .hero-lead { animation-delay: .3s; animation-duration: .55s; }
-  .hero-form { animation-delay: .36s; animation-duration: .55s; }
   .hero-alt { animation-delay: .42s; animation-duration: .55s; }
   .line-entry { animation-delay: .36s; animation-duration: .55s; }
 }
@@ -584,7 +577,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 .empty .divider i { width: 44px; }
 .empty .divider s { max-width: 100px; }
 .empty p { opacity: .65; }
-.rhead { padding: 26px 0 10px; }
+.rhead { padding: 26px 0 4px; }
 .rhead .rlead { font-size: 14.5px; line-height: 2; opacity: .72; margin: 0; }
 .rhead .rlead b { color: var(--salmon); font-weight: 700; }
 .rhead .warn {
@@ -598,7 +591,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
    選擇器寫寬一格，壞的地方會在你想不到的地方冒出來。 */
 #v-report > .pagepad > section,
 #v-okr > .pagepad > section,
-#v-growth > .pagepad > section { padding: 46px 0 8px; }
+#v-growth > .pagepad > section { padding: 22px 0 8px; }
 /* ⚠️ **第一個區塊不要再加一次上方留白。** 它下面就是 `.rhead`，而 `.rhead`
    自己已經有 padding-top —— 兩層疊起來是 90px 的空白，主視覺（藍圖人物、
    成長日曆的螢幕）因此被推出第一屏（使用者 2026-09-19）。
@@ -606,6 +599,11 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 #v-report > .pagepad > section:first-child,
 #v-okr > .pagepad > section:first-child,
 #v-growth > .pagepad > section:first-child { padding-top: 0; }
+/* 藍圖再往上擠一點：人物的**頭頂要貼著「任務／總覽」切換鈕的下緣**
+   （使用者 2026-09-19）。只剩線稿本身的透明留白（原圖 698px 的前 11 列）拿不掉。
+   只動藍圖 —— 報告與成長的標題下面還有導言，收到 0 會太擠。 */
+#v-okr > .pagepad > section:first-child { padding-bottom: 0; }
+#v-okr .rhead { padding-bottom: 0; }
 #v-report h2 { margin-bottom: 0; }
 .snote { font-size: 12.5px; opacity: .5; margin: -8px 0 22px; }
 /* 欄位歸屬。教練與學員看同一套介面，只標出誰負責填寫；
@@ -822,7 +820,13 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 }
 /* ── 課程藍圖 ──────────────────────────────────────── */
 
-#v-library section, #v-tools section { padding: 44px 0 8px; }
+/* ⚠️ 同上：只管頂層區塊，而且第一個不重複加上方留白。
+   原本標題與分類之間空了 114px（4 ＋ 8 ＋ 44 ＋ 26），
+   使用者 2026-09-19：「資源的下面有一段空白，往上拉」。 */
+#v-library > .pagepad > section,
+#v-tools > .pagepad > section { padding: 22px 0 8px; }
+#v-library > .pagepad > section:first-child,
+#v-tools > .pagepad > section:first-child { padding: 0 0 4px; }
 .axes { display: grid; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
 .ax { background: var(--navy); padding: 18px 18px 20px; }
 .ax .ey { margin: 0 0 6px; }
@@ -833,7 +837,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift); padding: 2px 5px; border-radius: 2px; }
 /* ── 課程資源 ──────────────────────────────────────── */
 
-.tabs { display: flex; gap: 4px; overflow-x: auto; margin: 26px 0 18px; scrollbar-width: none; }
+.tabs { display: flex; gap: 4px; overflow-x: auto; margin: 0 0 16px; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab {
   flex: none; display: flex; align-items: baseline; gap: 7px;
@@ -1218,6 +1222,19 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
   background: var(--salmon); opacity: .5; border-radius: 2px 2px 0 0;
 }
+/* 內側的航空郵簡斜紋。**只是要讓它一眼看起來像一封信**，不是裝飾比賽 ——
+   所以只有兩個規範內的色、透明度壓到 .34，遠看是一圈紋理不是一圈色帶。
+   ⚠️ `pointer-events: none`：它蓋在信上面，不擋選字與點擊。 */
+.paper::after {
+  content: ''; position: absolute; inset: 10px; pointer-events: none;
+  border: 5px solid transparent; border-radius: 2px; opacity: .34;
+  border-image: repeating-linear-gradient(45deg,
+    var(--salmon) 0 9px, transparent 9px 18px,
+    var(--navy) 18px 27px, transparent 27px 36px) 5;
+}
+@media (max-width: 720px) {
+  .paper::after { inset: 7px; border-width: 4px; border-image-slice: 4; }
+}
 .paper .wrap { padding: 0 26px; }
 .paper section:first-child { padding-top: 42px; }
 .paper section:last-child { padding-bottom: 42px; }
@@ -1246,6 +1263,9 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
    所以段落不編號、不加小標當標題 —— 組合特徵的名字改成句首的粗體引語，
    讀起來是「你會靠近，也會退開……」而不是一張條列表。 */
 .letter { max-width: 34em; margin: 4px auto 0; }
+/* 信的小標。米白紙上的深藍字，不用分隔線也不用編號。 */
+.lhead { font-family: var(--serif); font-size: 19px; font-weight: 700;
+  color: var(--salmon-ink); margin: 0 0 22px; letter-spacing: .04em; }
 .lsalu { font-family: var(--serif); font-size: 17px; margin: 0 0 22px; }
 .lpara { font-size: 14.5px; line-height: 2.15; margin: 0 0 20px; text-indent: 0; }
 /* 句首的粗體引語要跟正文分開，不然會連成「技術到位，骨架空白你會靠近」。
@@ -1440,26 +1460,33 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .glegend p.call .ek, .glegend p.booked .ek { color: var(--salmon); }
 /* ═══ 課程藍圖：人物總覽 ═══════════════════════════════ */
 
-.vsw { display: inline-flex; gap: 2px; margin-top: 12px; border: 1px solid var(--beige-18); border-radius: 30px; padding: 4px; }
-.vb {
-  font-family: var(--sans); font-size: 12.5px; color: var(--beige-70);
-  background: none; border: 0; border-radius: 30px; padding: 7px 18px; cursor: pointer;
-  transition: background .2s, color .2s;
+/* ═══ 任務 ⇄ 總覽 的轉跳鈕 ═══════════════════════════════
+   原本是頁首的 `.vsw` 膠囊切換器，2026-09-19 拿掉 —— 它佔掉 54px，
+   而主視覺正在跟第一屏搶空間（使用者：「這樣整體能再往上移動一點」）。
+   現在任務頁在牌組底下、總覽頁在最上面，各一顆。 */
+.bpcswitch {
+  /* 版面的第二列、第二欄 —— 也就是牌組下緣那條線的正下方，靠右。 */
+  grid-column: 2; grid-row: 2;
+  justify-self: end; display: inline-flex; align-items: center;
+  margin-top: 10px; padding: 7px 14px; cursor: pointer;
+  font-family: var(--sans); font-size: 12px; color: var(--beige-70);
+  background: none; border: 1px solid var(--beige-18); border-radius: 30px;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
 }
-.vb.on { background: var(--salmon); color: var(--navy); font-weight: 600; }
-.bpcover-sec { padding-top: 6px !important; }
+.bpcswitch i { font-style: normal; font-size: 11px; opacity: .7; }
+.bpcswitch:hover { border-color: var(--salmon); color: var(--beige); }
+.bpcswitch:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+.bpcswitchrow { display: flex; }
+.bpcswitch.is-back { margin: 0 auto 0 0; }
+#v-okr > .pagepad > .bpcswitchsec { padding: 0 0 10px; }
+.bpcover-sec { padding-top: 0 !important; }
 .bpcover {
   position: relative; max-width: var(--maxw); margin: 0 auto; overflow: hidden;
-  padding: 8px 0 8px;
+  padding: 0 0 8px;
   background-image:
     linear-gradient(rgba(232, 228, 220, .025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(232, 228, 220, .025) 1px, transparent 1px);
   background-size: 48px 48px;
-}
-.bpctag {
-  margin: 0 0 18px; text-align: center; font-family: var(--mono); font-size: 9.5px;
-  font-weight: 500; letter-spacing: .24em; text-transform: uppercase;
-  color: var(--beige); opacity: .44;
 }
 .bpcgrid {
   display: grid; grid-template-columns: minmax(215px, 1fr) minmax(180px, 236px) minmax(215px, 1fr);
@@ -1633,7 +1660,6 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 }
 @keyframes bpcfigure-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 @keyframes bpcscan { 0% { opacity: 0; transform: translateY(0) } 20% { opacity: .65 } 100% { opacity: 0; transform: translateY(340px) } }
-.bpccap { margin: 20px auto 0; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .bpcfigure { animation: none; }
   .bpcfigure[data-lit="upper"] .fxheart { animation: none; }
@@ -1649,7 +1675,6 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   .fxnet { width: 300px; height: 336px; }
   .bpcdim { grid-column: auto; grid-row: auto; min-height: 112px; padding: 15px 17px; }
   .bpcdim:hover { transform: none; }
-  .bpccap { text-align: left; }
 }
 @media (max-width: 520px) {
   .bpcgrid { grid-template-columns: 1fr; }
@@ -1810,35 +1835,59 @@ html.task-open, html.task-open body { overflow: hidden; }
    高度一變整頁就會跳一下，那個跳動比任何裝飾都傷。 */
 /* 主機：螢幕嵌在殼裡，三顆鍵在螢幕下方 —— 整塊就是一台機器。 */
 .gconsole {
-  margin: 24px 0 18px; padding: 12px; background-color: var(--navy-lift);
-  background-image:
-    linear-gradient(rgba(232, 228, 220, .02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 228, 220, .02) 1px, transparent 1px);
-  background-size: 13px 13px;
-  border: 1px solid var(--beige-18);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, .3);
+  /* 上方留白拿掉了（使用者 2026-09-19：「把螢幕往上拉」）——
+     那 24px 原本是跟導言那行字隔開用的，而導言已經刪掉了。 */
+  /* ⚠️ 外框的底色、格線、邊框、陰影**全部拿掉**。
+     螢幕自己就是那塊面板 —— 外面再包一層卡片，就等於玻璃後面又墊一張紙，
+     使用者 2026-09-19：「整個面板背面一樣是線條的，這樣沒有」。 */
+  margin: 0 0 18px; padding: 0; background: none; border: 0; box-shadow: none;
 }
-.gconsole .gkinds { margin: 12px 0 0; }
 
+/* ═══ 螢幕：一層玻璃，不是一台機器 ═══════════════════════
+   使用者 2026-09-19：「螢幕概念是我要的，但做出來不夠精緻跟融入…
+   做成透明面板的感覺呢？」
+
+   原本是實心的 #0E1526 底 ＋ 26px 格線 ＋ 內陰影 70px ＋ 暗角，
+   四樣東西都在說「這是一個盒子」。拿掉之後靠三件事撐起質感：
+     ① 邊緣的光 —— 玻璃之所以看起來是玻璃，是因為邊會反光
+     ② 四角的 L 型括號 —— 品牌本來就有的元素，比整圈粗框輕
+     ③ 一道非常淡的斜向反光
+   ⚠️ **不要再加第四樣。** 精緻感是靠少而準，不是靠多。 */
 .gscreen {
   position: relative; overflow: hidden; margin: 0;
-  background-color: #0E1526;                       /* 比 navy 再深一階：關著的螢幕 */
-  background-image:
-    linear-gradient(rgba(232, 228, 220, .028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 228, 220, .028) 1px, transparent 1px);
-  background-size: 26px 26px;
-  border: 1px solid var(--beige-18);
-  box-shadow: inset 0 0 70px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .3);
+  /* 往裡看是暗的（那是外太空），但**不是實心** —— 用 navy 的不同透明度堆出深度。 */
+  background:
+    linear-gradient(168deg, rgba(19, 27, 46, .34) 0%, rgba(19, 27, 46, .72) 62%, rgba(19, 27, 46, .86) 100%);
+  border: 1px solid var(--beige-08);
+  /* 光從上面來，所以**底部要有一點陰影**。少了這一層，玻璃看起來就是一個
+     平的長方形；加了它才有厚度。⚠️ 只壓底部，整圈內陰影會變回「盒子」。 */
+  box-shadow: inset 0 -26px 34px -26px rgba(0, 0, 0, .55),
+              0 16px 40px rgba(0, 0, 0, .28);
 }
-/* CRT 的暗角。用一層遮罩壓邊緣，不要在每個角落畫括號。 */
+@supports (backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px)) {
+  /* 有支援才上。⚠️ 低階手機上這個會掉幀，所以只當加分，不當必要條件。 */
+  .gscreen { -webkit-backdrop-filter: blur(1.5px) saturate(1.06); backdrop-filter: blur(1.5px) saturate(1.06); }
+}
+/* ① 邊緣的光。上緣最亮（光從上面來），兩側淡，底下幾乎沒有。 */
+.gscreen::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  border-radius: inherit;
+  background:
+    linear-gradient(rgba(232, 228, 220, .5), rgba(232, 228, 220, 0) 1.5px) top    / 100% 1.5px no-repeat,
+    linear-gradient(rgba(232, 228, 220, .14), rgba(232, 228, 220, 0)) left   / 1px 100% no-repeat,
+    linear-gradient(rgba(232, 228, 220, .14), rgba(232, 228, 220, 0)) right  / 1px 100% no-repeat;
+}
+/* ③ 斜向反光。大、淡、只有一道 —— 兩道就變成擦不乾淨的玻璃。 */
 .gscreen::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 3;
-  background: radial-gradient(120% 80% at 50% 45%, transparent 55%, rgba(0, 0, 0, .55) 100%);
+  background: linear-gradient(104deg,
+    rgba(232, 228, 220, .055) 0%, rgba(232, 228, 220, .012) 26%, transparent 46%);
 }
 .gscreenbar {
   position: relative; z-index: 2; display: flex; align-items: center; gap: 9px;
-  padding: 9px 13px; border-bottom: 1px solid var(--beige-08);
-  color: var(--beige-40); font: 500 9px/1 var(--mono); letter-spacing: .16em;
+  /* 沒有底線 —— 有線就變成「機殼上的一條溝」，那正是要拿掉的機器感。 */
+  padding: 13px 18px 6px;
+  color: var(--beige-40); font: 500 9px/1 var(--mono); letter-spacing: .2em;
   text-transform: uppercase;
 }
 .gled { width: 5px; height: 5px; border-radius: 50%; background: var(--salmon);
@@ -1856,8 +1905,9 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* 掃描線：慢、淡、只有一條。快或亮就變成廉價特效。 */
 .gscanline {
   position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 1; pointer-events: none;
-  background: linear-gradient(rgba(232, 168, 152, 0), rgba(232, 168, 152, .055));
-  animation: gsweep 7s linear infinite;
+  /* 從 .055 降到 .022：要的是「移動時感覺得到」，不是「看得到一條線」。 */
+  background: linear-gradient(rgba(232, 168, 152, 0), rgba(232, 168, 152, .022));
+  animation: gsweep 9s linear infinite;
 }
 @keyframes gsweep { 0% { transform: translateY(-64px); } 100% { transform: translateY(420px); } }
 
@@ -1866,22 +1916,53 @@ html.task-open, html.task-open body { overflow: hidden; }
    不然淺色的字碰到亮星點會糊掉。 */
 .gidle { position: relative; z-index: 2; display: grid; justify-items: center; gap: 6px;
   align-self: end; width: 100%; padding: 26px 0 2px; text-align: center;
-  background: linear-gradient(rgba(14, 21, 38, 0), rgba(14, 21, 38, .82) 62%); }
+  /* ⚠️ 原本是 rgba(14,21,38)＝舊的 #0E1526。色票護欄只掃 hex，抓不到 rgba 寫法，
+     所以它躲過了那次清理。換成 navy。 */
+  background: linear-gradient(rgba(19, 27, 46, 0), rgba(19, 27, 46, .8) 62%); }
 /* 窗外：鋪滿整個螢幕。slice 會把圖填滿並裁切，直的橫的都不留白邊。 */
-.gsky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
-.gsky .halo { fill: none; stroke: var(--beige-08); stroke-width: 1; }
-.gsky .arm { fill: none; stroke: var(--salmon); stroke-width: 1.6; stroke-linecap: round; opacity: .85; }
-.gsky .core { fill: var(--salmon); stroke: none; }
-.gsky .planet { fill: rgba(27, 36, 64, .92); stroke: var(--beige-40); stroke-width: 1.5; }
-.gsky .ring { fill: none; stroke: var(--beige-18); stroke-width: 1.2; }
-.gsky .lane { fill: none; stroke: var(--beige-08); stroke-width: 1; stroke-dasharray: 4 9; }
-.gsky .star { fill: var(--beige-40); stroke: none; }
+.gsky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0;
+  transition: filter .28s var(--ease), opacity .28s var(--ease); }
+/* ⚠️ 開面板時**景要失焦不是消失**。這是「HUD 蓋在視野上」唯一說得通的關係 ——
+   景不見了，那塊玻璃就只是一個暗盒子（使用者 2026-09-19）。 */
+.gscreen.is-form .gsky, .gscreen.is-log .gsky { filter: blur(2.2px); opacity: .72; }
+/* 壓一層暗幕讓字讀得到。⚠️ 不要壓太黑 —— 目的是讓景退後，不是把它關掉。 */
+.gveil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(130% 100% at 50% 46%,
+    rgba(19, 27, 46, .44) 0%, rgba(19, 27, 46, .74) 100%); }
+/* ⚠️ 天體是**光**，不是輪廓。舊版用描邊畫旋臂、虛線畫航道、描邊畫行星，
+   那是圖解的語彙，所以看起來像示意圖（使用者 2026-09-19：「svg 太假」）。
+   現在形狀與顏色都在 <defs> 的漸層裡，這裡只剩三個真的需要描邊的東西。 */
+/* 核心也是一團光 —— 用星點那顆漸層，只是染成鮭粉。 */
+.gsky .core { fill: url(#gstar); stroke: none; opacity: .8;
+  filter: none; mix-blend-mode: screen; }
+/* 行星不描邊 —— 只有受光的那一道弧，而且要細、要淡、只有上緣。 */
+.gsky .planet { stroke: none; }
+.gsky .limb { fill: none; stroke: var(--beige); stroke-width: 1; opacity: .22; stroke-linecap: round; }
+/* 一顆星兩個圓：.star 是光暈（漸層、會跟著亮度變大），.starcore 是核心
+   （實心、半徑固定）。核心讓它「亮」，光暈讓它「軟」。 */
+.gsky .star { fill: url(#gstar); stroke: none; }
+.gsky .starcore { fill: var(--beige); stroke: none; }
 /* 一顆會呼吸的星 —— 只要一顆，整片都在閃就變成雜訊。 */
-.gsky .s-lit { fill: var(--salmon); animation: gtwinkle 3.4s ease-in-out infinite; }
-@keyframes gtwinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* ⚠️ **這裡不要再寫 fill。** 原本寫成 `fill: var(--beige)`，因為它排在
+   `.star` 後面，把漸層整個蓋掉 —— 那顆星就變成一個實心的白圓盤，
+   跟旁邊所有星都不一樣（使用者 2026-09-19：「中間那顆最大的是不一樣的算法？」）。
+   它要的只有「會呼吸」，配色沿用 .star／.starcore 就好。 */
+.gsky .s-lit { animation: gtwinkle 3.4s ease-in-out infinite; }
+@keyframes gtwinkle { 0%, 100% { opacity: .28; } 50% { opacity: .82; } }
 
 /* 窗框：畫在螢幕邊緣，不畫在圖裡 —— 圖會被裁，框跟著裁就穿幫了。
    兩根窗櫺把視野切成三格，那是「在艙內」最強的線索。 */
+/* 四角的 L 型括號。UC 的品牌元素，比整圈粗框輕，而且只在角落出現，
+   眼睛會自己把它補成一個框。 */
+.gscreenin .gcorner {
+  position: absolute; z-index: 4; width: 13px; height: 13px; margin: 0;
+  pointer-events: none; border: 1px solid var(--salmon); opacity: .4;
+}
+.gscreenin .gcorner.gc-tl { top: 0;    left: 0;    border-right: 0; border-bottom: 0; }
+.gscreenin .gcorner.gc-tr { top: 0;    right: 0;   border-left: 0;  border-bottom: 0; }
+.gscreenin .gcorner.gc-bl { bottom: 0; left: 0;    border-right: 0; border-top: 0; }
+.gscreenin .gcorner.gc-br { bottom: 0; right: 0;   border-left: 0;  border-top: 0; }
+
 .gport { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   box-shadow: inset 0 0 0 1px var(--beige-08);
   background:
@@ -1897,7 +1978,8 @@ html.task-open, html.task-open body { overflow: hidden; }
 
 /* ── 翻閱：那一天的日誌也在螢幕裡 ── */
 .gscreen .gscreenin.has-log, .gscreen.is-log .gscreenin { align-items: start; }
-.glog { width: 100%; max-width: 560px; display: grid; gap: 10px;
+.glog { position: relative; z-index: 2;
+  width: 100%; max-width: 560px; display: grid; gap: 10px;
   align-self: start; height: 100%; grid-template-rows: auto 1fr; }
 .gloghead { display: flex; align-items: end; justify-content: space-between; gap: 12px;
   padding-bottom: 9px; border-bottom: 1px solid var(--beige-08); }
@@ -1936,25 +2018,60 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gdel:hover { color: var(--salmon); }
 .gdel[disabled] { opacity: .25; cursor: default; }
 .gdel svg { width: 15px; height: 15px; }
-.gdel .gy { fill: none; stroke: currentColor; stroke-width: 1.6;
+/* ⚠️ **`.gy` 的配色只寫一次。** 原本 `.gkico .gy` 與 `.gdel .gy` 各寫一份，
+   而日曆格子裡的 `.gmark .gy` **誰都沒寫到** —— 那些圖案就吃瀏覽器預設的
+   黑色實心，在深藍底上看起來像一坨黑影（2026-09-19 使用者回報）。
+   同一個東西寫在兩個地方，第三個地方就會被漏掉。 */
+.gy { fill: none; stroke: currentColor; stroke-width: 1.6;
   stroke-linecap: round; stroke-linejoin: round; }
+
+/* ═══ 日期欄位的原生日曆圖示 ═══════════════════════════════
+   ⚠️ `<input type="date">` 右邊那顆是**瀏覽器自己畫的**，預設是深色的 ——
+   在深藍底上就是一坨黑影（使用者 2026-09-19：「日曆的圖案變黑影了」）。
+   它不在任何一個 class 底下，所以查 .gy 怎麼查都是正常的。
+   `invert(1)` 把它翻成白的，再壓透明度讓它退到該有的層級。 */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); opacity: .34; cursor: pointer;
+  transition: opacity .18s var(--ease);
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
+/* ⚠️ 米白紙上不能翻 —— 那裡本來就是深色圖示配淺底，翻了會變成白的看不見。 */
+.paper input[type="date"]::-webkit-calendar-picker-indicator { filter: none; opacity: .5; }
+.gy.pk, .gy.tr { fill: currentColor; stroke: none; }
 /* 手機沒有 hover，直接給到看得見但不搶戲的程度。 */
 @media (pointer: coarse) { .gdel { opacity: .7; } }
 .glogbody .gentry:first-child { padding-top: 2px; }
 
 /* ── 填寫：表單長得像螢幕上的輸入行，不是貼上去的網頁表單 ──
    標籤走等寬字、小寫距，欄位只有一條底線，游標所在的那一行亮起來。 */
-.gscreen .gcalform { width: 100%; max-width: 560px; margin: 0; padding: 0;
+/* ⚠️ `position: relative` ＋ z-index 是**必要的**，不是裝飾。
+   `.gsky` / `.gport` / `.gveil` 都是定位元素，而定位元素一律畫在未定位元素之上 ——
+   表單不提 z-index 的話會被暗幕整個蓋住（同規則見 .bpcfigure 那段）。 */
+/* ⚠️ **整份表單共用一套格線。** 原本標題、每一列標籤、按鈕列各自是獨立的盒子，
+   於是左邊出現兩條互相競爭的對齊線（標題貼最左、輸入框卻從 76px 才開始）。
+   改成一個 grid，標籤掛在左欄、內容全部對齊右欄 —— 一條主線，規格表的讀法。
+   ⚠️ `display: contents` 讓 <label> 的兩個子元素**直接變成 grid 項目**，
+   而 label 的「點文字聚焦輸入框」照常有效。 */
+.gscreen .gcalform { position: relative; z-index: 2;
+  width: 100%; max-width: 520px; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 52px minmax(0, 1fr);
+  column-gap: 14px; row-gap: 13px; align-items: start;
   background: none; border: 0; }
-.gscreen .gcalform h2 { margin: 0 0 14px; font: 400 19px/1.2 var(--serif);
-  color: var(--beige); }
-.gscreen .gcalform > label {
-  display: grid; grid-template-columns: 64px 1fr; align-items: start; gap: 12px;
-  margin: 0 0 12px; color: var(--beige-40);
-}
+/* ⚠️ **這裡不要用襯線體。** 整塊 HUD 的聲音是等寬與無襯線（狀態列、欄位標籤、
+   三顆鍵都是），中間插一個襯線標題就像換了一份文件（使用者 2026-09-19：
+   「字型感覺不太搭」）。而且狀態列已經說了 NEW RECORD ——
+   這一行講的是「哪一種紀錄」，是模式名不是標題，收斂一點才對。 */
+.gscreen .gcalform h2 { grid-column: 2; margin: 0 0 3px;
+  font: 500 15px/1.3 var(--sans); letter-spacing: .05em; color: var(--beige); }
+.gscreen .gcalform > label { display: contents; }
 .gscreen .gcalform > label > span {
-  padding-top: 8px; font: 500 9.5px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase;
+  grid-column: 1; padding-top: 7px; color: var(--beige-40);
+  /* 中文不需要 uppercase，字距也不能照英文那樣拉 —— .18em 會把兩個字拆散。 */
+  font: 500 9.5px/1 var(--mono); letter-spacing: .08em;
 }
+.gscreen .gcalform > label > input,
+.gscreen .gcalform > label > textarea { grid-column: 2; }
 /* 前面那個小三角是提示符，讓每一行看起來像在等你輸入。 */
 .gscreen .gcalform > label > span::before { content: '▸ '; color: var(--salmon); opacity: .55; }
 .gscreen .gcalform input, .gscreen .gcalform textarea {
@@ -1969,16 +2086,25 @@ html.task-open, html.task-open body { overflow: hidden; }
   outline: none; border-bottom-color: var(--salmon);
   box-shadow: 0 1px 0 0 var(--salmon), 0 6px 14px -10px var(--salmon);
 }
-.gscreen .gcalform textarea[name="outcome"] { height: 92px; min-height: 0; resize: none; line-height: 1.8; }
-.gscreen .gcalform > div { display: flex; justify-content: end; gap: 8px; margin-top: 16px; }
+/* 標題是這一筆紀錄的門面，給它大一級；紀錄是正文，行距要鬆。 */
+.gscreen .gcalform input[name="title"] { font-size: 15px; }
+.gscreen .gcalform textarea[name="outcome"] { height: 96px; min-height: 0; resize: none;
+  font-size: 13.5px; line-height: 1.9; }
+.gscreen .gcalform > div { grid-column: 2; display: flex; justify-content: end; gap: 8px; margin-top: 3px; }
+/* HUD 的控制項都收小了，按鈕跟著收 —— 不然它會變成整塊面板最重的東西。 */
+.gscreen .gcalform .btn { padding: 8px 16px; font-size: 12.5px; }
 
 @media (max-width: 620px) {
   /* ⚠️ 手機的表單是上下堆疊的，比桌機高。閒置高度要跟著改，
      不然按一下按鈕，螢幕長高、按鈕被推下去 213px —— 手指剛按完的地方就跑掉了。 */
   .gscreenin { min-height: 416px; padding: 14px 13px; }
-  .gscreen .gcalform > label { grid-template-columns: 1fr; gap: 2px; margin-bottom: 10px; }
-  .gscreen .gcalform > label > span { padding-top: 0; }
-  .gscreen .gcalform h2 { margin: 0 0 10px; font-size: 18px; }
+  /* 手機單欄：標籤改成掛在輸入框正上方。 */
+  .gscreen .gcalform { grid-template-columns: minmax(0, 1fr); row-gap: 3px; }
+  .gscreen .gcalform h2, .gscreen .gcalform > label > span,
+  .gscreen .gcalform > label > input, .gscreen .gcalform > label > textarea,
+  .gscreen .gcalform > div { grid-column: 1; }
+  .gscreen .gcalform > label > span { padding-top: 9px; }
+  .gscreen .gcalform h2 { margin: 0 0 6px; font-size: 16px; }
   .gscreen .gcalform textarea[name="outcome"] { height: 92px; }
   .gscreen .gcalform > div { margin-top: 12px; }
   .gshipart { width: min(300px, 92%); }
@@ -2006,8 +2132,10 @@ html.task-open, html.task-open body { overflow: hidden; }
   text-transform: uppercase; color: var(--beige); opacity: .44; }
 .ghudday { margin: 0; display: flex; align-items: baseline; gap: 7px;
   color: var(--beige-70); font: 500 10px/1 var(--mono); letter-spacing: .08em; }
-.ghudday b { color: var(--salmon); font-size: 26px; line-height: 1;
-  font-variant-numeric: tabular-nums; }
+/* 26 → 17px（使用者 2026-09-19：「90/90 太大了，降低質感」）。
+   它是一個讀數不是標題 —— 大到跟標題一樣重，整塊 HUD 就變成廣告看板。 */
+.ghudday b { color: var(--salmon); font-size: 17px; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 
 /* ⚠️ 13 格 = 13 週。連續長條只看得出模糊比例，有刻度才看得出走到第幾週。 */
 .ghudbar { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; margin: 13px 0 12px; }
@@ -2480,22 +2608,34 @@ html.task-open, html.task-open body { overflow: hidden; }
   /* 人物與任務卡**共用這一個高度** —— 一個數字，兩邊一起動。
      `540px` 是上限（視窗再高也不會更大）；矮視窗就扣掉上面的標題區與
      下面浮動導覽列該留的空間，讓主視覺**整個進得了第一屏**（使用者 2026-09-19）。
-     380 ＝ 標題區約 307 ＋ 導覽列約 72。任務卡本來就有內部捲動，變矮只是少顯示一張。 */
-  --bpch: clamp(340px, 100vh - 380px, 540px);
+     258 ＝ 標題區約 186 ＋ 導覽列約 72。任務卡本來就有內部捲動，變矮只是少顯示一張。
+     ⚠️ 上限從 540 拉到 600：「Current Missions」那行拿掉之後，人物頭頂已經貼著
+     「任務／總覽」切換鈕的下緣，多出來的空間就還給人物（使用者 2026-09-19）。 */
+  --bpch: clamp(340px, 100vh - 258px, 620px);
   /* ⚠️ `position: relative` 是給 `.figdims` 用的 —— 星星要對齊**人物那一格**的上緣。
      沒有它的話 offsetParent 會變成 `.bpcover`，`top` 就得自己去湊差值。 */
   position: relative;
   /* 卡片收窄：內容是兩行短句，撐 380px 右半邊一直是空的（使用者 2026-09-19）。
      兩欄各自靠邊，中間的空隙自己長出來。 */
-  display: grid; grid-template-columns: minmax(260px, 400px) minmax(230px, 292px);
-  justify-content: space-between;
-  align-items: center; gap: 36px; min-height: 0;
+  /* ⚠️ `gap: 0` 是刻意的。人物要**置中在星號右緣與卡片左緣之間**，
+     中間留一道格線間距的話，那道間距就會把置中點往左偏半個 gap。
+     間隔改由人物自己的左內距負責 —— 一個數字管到底。 */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 292px);
+  align-items: center; gap: 0; min-height: 0;
 }
 .bpcover-task .bpcfigure {
-  grid-column: 1; grid-row: 1; justify-self: start; width: 100%; min-height: var(--bpch);
-  /* 人物往右挪，讓出左上角給星星（使用者 2026-09-19）。人物本來就置中，
-     加左內距等於把置中的基準往右推。 */
-  padding-left: 48px;
+  /* ⚠️ 不要 `width: 100%` —— 它跟下面的 margin-left 一起會讓框**溢出格線**
+     （524 寬的框從 353 開始，右緣 877，蓋到卡片底下）。讓它自己吃滿剩下的寬度。 */
+  grid-column: 1; grid-row: 1; justify-self: stretch; min-height: var(--bpch);
+  /* ⚠️ 人物要**置中在星號與任務卡之間**（使用者 2026-09-19）。
+     星號是絕對定位、不佔格線的寬度，所以左邊讓開一段**跟星號一樣寬**的距離，
+     置中的基準就從「整欄」變成「星號右緣到卡片左緣」。
+
+     ⚠️ **一定要用 margin 不能用 padding。** 人物身上疊著兩層絕對定位的特效
+     （`.fxnet` 生活圈網絡、`.fxheart` 心臟），它們對齊的是這個框的**外緣**。
+     用 padding 的話只有人物往右跑，特效留在原地 —— 差了 53px，看起來就是
+     「背景跑掉了」（2026-09-19 使用者回報）。margin 是整個框一起移動。 */
+  margin-left: 107px;
 }
 /* ⚠️ **人物是直式的**（原圖 242×698），所以決定它多大的是 `max-height`，不是寬度。
    只加寬欄位或放寬 `width` 完全沒有用 —— `object-fit: contain` 會把圖嵌在
@@ -2560,12 +2700,33 @@ html.task-open, html.task-open body { overflow: hidden; }
 }
 .bpctaskscroll {
   min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  display: grid; align-content: start; gap: 10px; padding: 14px 9px 14px 0;
+  display: grid; align-content: start; gap: 8px; padding: 12px 9px 12px 0;
   scrollbar-width: thin; scrollbar-color: var(--salmon) transparent;
 }
 .bpctaskscroll::-webkit-scrollbar { width: 5px; }
 .bpctaskscroll::-webkit-scrollbar-thumb { background: var(--salmon); }
-.bpctaskscroll .bpcdim { width: 100%; min-height: 112px; grid-column: auto; grid-row: auto; padding: 15px 20px; }
+/* 條狀（使用者 2026-09-19：「應該是上下縮窄，更像是條狀的」）。
+   ⚠️ **不是把方塊壓扁** —— 我先試過只改 min-height 與內距，結果內容要 100px、
+   盒子只有 63px，`clip-path` 直接把「任務」那一行裁掉，卡片變成看不到資訊。
+   要收窄就得改排版：標籤與內容**並排**而不是上下堆，三列變三行。
+     第 1 行　編號　｜　能力標籤
+     第 2 行　主題　｜　內容
+     第 3 行　任務　｜　內容 */
+.bpctaskscroll .bpcdim {
+  /* ⚠️ `min-height` **不能是 0**。卡片是 grid 項目，塞不下的時候 grid 會把它
+     **壓扁**而不是讓容器捲動 —— 內容要 74px、盒子被壓成 51px，`clip-path`
+     就把「任務」那一行裁掉（2026-09-19 踩到，卡片看起來像沒資料）。
+     84 ＝ 三行（編號／主題／任務）＋ 上下內距 ＋ 一點餘裕，量出來的值。 */
+  width: 100%; min-height: 84px; grid-column: auto; grid-row: auto;
+  grid-template-columns: auto 1fr auto;
+  align-content: center; row-gap: 3px; column-gap: 10px; padding: 10px 14px;
+}
+.bpctaskscroll .bpcdim .bpcey { grid-column: 1; align-self: center; margin: 0; }
+.bpctaskscroll .bpcdim .bpctaskstate { grid-column: 2; justify-self: start; margin: 0; }
+.bpctaskscroll .bpcdim .bpclabel { grid-column: 1; align-self: center; margin: 0; }
+.bpctaskscroll .bpcdim .bpcgoal,
+.bpctaskscroll .bpcdim strong { grid-column: 2; margin: 0; font-size: 13px; line-height: 1.4; }
+.bpctaskscroll .bpcdim > i { grid-column: 3; grid-row: 1 / -1; align-self: center; }
 .bpctaskscroll .bpcdim:hover { transform: translateX(3px); }
 .bpctaskempty {
   min-height: 100%; display: grid; place-content: center; justify-items: start; gap: 8px;
@@ -2581,11 +2742,15 @@ html.task-open, html.task-open body { overflow: hidden; }
   }
   /* ⚠️ 桌機把人物放大到 540px（使用者 2026-09-19），**手機不跟**。
      這裡是上下排，人物一高就把任務卡整個推出畫面。
-     左內距也是桌機專用的（讓出左上角給星星）—— 手機是滿版單欄，
-     留著會讓人物整個偏右 48px。 */
-  .bpcover-task .bpcfigure { padding-left: 0; }
+     左邊那段讓位也是桌機專用的（讓出左上角給星星）—— 手機是滿版單欄，
+     留著會讓人物整個偏右。 */
+  .bpcover-task .bpcfigure { margin-left: 0; }
   .bpcover-task .bpcfigure img { max-height: 420px; }
   .bpctaskdeck { grid-column: 1; grid-row: 2; height: 390px; }
+  /* ⚠️ 手機是**單欄**。轉跳鈕若還留在第 2 欄，grid 會為它長出一個隱含的欄，
+     按鈕就卡在牌組右邊浮著（2026-09-19 使用者回報）。
+     排到第 3 列，還是靠右 —— 位置語彙不變，只是換成上下排。 */
+  .bpcswitch { grid-column: 1; grid-row: 3; justify-self: end; }
   .bpctaskdeck > header { padding-top: 12px; }
   .bpctaskscroll { padding-right: 5px; }
   .bpctaskscroll .bpcdim { min-height: 106px; }
@@ -2699,6 +2864,18 @@ html.task-open, html.task-open body { overflow: hidden; }
 .bkcorner:hover { border-color: var(--salmon); color: var(--beige); }
 .bkcorner:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
 
+/* 教練專用的操作收到右下角（使用者 2026-09-19）。跟 .bkcorner 同一個位置語彙，
+   只是帶文字所以做成膠囊。⚠️ 要避開底部的導覽膠囊，所以往上讓一段。 */
+.cornerbtn {
+  position: fixed; right: 18px; bottom: 74px; z-index: 40;
+  padding: 9px 16px; border-radius: 30px; cursor: pointer;
+  background: var(--navy-lift); border: 1px solid var(--beige-18);
+  color: var(--beige-70); font-family: var(--sans); font-size: 12.5px;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.cornerbtn:hover { border-color: var(--salmon); color: var(--beige); }
+.cornerbtn:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
+
 /* ═══ 登入閘門（正式站的 LINE 登入）═══════════════════
    從 LINE 開啟時會蓋在最上面，驗證完就消失。demo 模式完全不會出現。 */
 .gate {
@@ -2773,52 +2950,41 @@ html.task-open, html.task-open body { overflow: hidden; }
 /* ⚠️ 這三顆**不要融入背景**（使用者 2026-09-18：「做成像是遊戲機台的按鈕」）。
    它們是機台上的實體鍵：有厚度、按下去會沉下去、鬆手彈回來。
    厚度用 box-shadow 的第四個值做，不是加邊框 —— 加邊框只會變成更粗的線。 */
-.gkinds { display: flex; justify-content: center; gap: 22px; margin: 26px 0 14px; }
-/* ⚠️ 「看起來像按鈕」靠的是**三層**，缺一層就只是個方框：
-     ① 座：鍵周圍一圈暗環，像面板上挖的孔
-     ② 厚度：底下一道實心暗邊，鬆手時看得到側面
-     ③ 打光：頂緣一道亮線、表面由上而下微微變暗
-   按下去時三層要一起變 —— 沉 5px、厚度歸零、亮線換成內凹陰影。 */
+/* ═══ HUD：三顆鍵在螢幕**裡面** ═══════════════════════════
+   使用者 2026-09-19：「按鈕會很破壞玻璃面板的感覺…或許把整個螢幕設計進去，
+   按鈕是在螢幕內部，像是 HUD 的一部分」。
+
+   ⚠️ 所以**不能再是實體鍵**。原本那三層（座、厚度、打光）是在模擬一顆
+   壓在面板上的塑膠鍵 —— 玻璃上不會有那種東西。
+   改成儀表讀數的語彙：一道細線隔開、圖案與字都很輕、選中的那個才亮起來。 */
+.gkinds {
+  position: relative; z-index: 2; display: flex; margin: 0;
+  border-top: 1px solid var(--beige-08);
+}
 .gkind {
-  position: relative; width: 88px;
+  position: relative; flex: 1 1 0; min-width: 0;
   display: grid; justify-items: center; align-items: center;
-  gap: 6px; padding: 12px 6px 10px; text-align: center;
-  color: var(--beige); cursor: pointer; border: 0; border-radius: 3px;
-  background:
-    linear-gradient(var(--navy-lift2), var(--navy-lift));
-  /* ⚠️ 陰影要**薄**。厚一點點就會從「有質感的鍵」掉到「卡通按鈕」，
-     而那條線比想像中近（2026-09-18 一次就踩過）。厚度 3px 就夠。 */
-  box-shadow:
-    0 0 0 1px var(--beige-18),                  /* 鍵身的邊 */
-    0 3px 0 rgba(0, 0, 0, .34),                 /* 厚度 */
-    0 0 0 4px rgba(0, 0, 0, .14),               /* 座：挖在面板上的孔 */
-    inset 0 1px 0 rgba(232, 228, 220, .1);      /* 頂緣打光 */
-  transition: transform .09s var(--ease), box-shadow .09s var(--ease),
-              background .2s var(--ease);
+  gap: 4px; padding: 8px 6px 9px; text-align: center;
+  color: var(--beige-40); cursor: pointer; border: 0; background: none;
+  transition: color .2s var(--ease), background .2s var(--ease);
 }
-.gkind:hover { box-shadow:
-    0 0 0 1px var(--salmon), 0 3px 0 rgba(0, 0, 0, .34),
-    0 0 0 4px rgba(0, 0, 0, .14), inset 0 1px 0 rgba(232, 228, 220, .1); }
-.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: 7px; }
-/* 按下與「正在填這一類」都是同一個姿態：整顆沉進座裡。 */
-.gkind:active, .gkind.on {
-  transform: translateY(3px);
-  box-shadow:
-    0 0 0 1px var(--salmon),
-    0 0 0 4px rgba(0, 0, 0, .14),
-    inset 0 2px 4px rgba(0, 0, 0, .3);
+/* 鍵與鍵之間只用一道細線分開 —— 不用框，框會把 HUD 變回按鈕列。 */
+.gkind + .gkind { box-shadow: inset 1px 0 0 var(--beige-08); }
+.gkind:hover { color: var(--beige-70); background: rgba(232, 228, 220, .035); }
+.gkind:focus-visible { outline: 2px solid var(--salmon); outline-offset: -3px; }
+/* 選中：底下一道鮭粉的指示線 ＋ 字亮起來。這是儀表的講法，不是按鈕的講法。 */
+.gkind.on { color: var(--beige); background: rgba(232, 168, 152, .07); }
+.gkind.on::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px;
+  background: var(--salmon);
 }
-.gkind.on { color: var(--navy);
-  background: linear-gradient(rgba(255, 255, 255, .22), rgba(255, 255, 255, 0)), var(--salmon); }
-/* 圖案是主角，字只是名牌 —— 小、等寬、不搶。 */
-.gkind b { font: 500 9.5px/1 var(--mono); letter-spacing: .08em; }
+.gkind.on .gkico { color: var(--salmon); }
+.gkind b { font: 500 8.5px/1 var(--mono); letter-spacing: .1em; }
 /* ⚠️ 圖示外面**不要那一圈環**。鍵身已經是一個框了，再套一個圈就是框中框。 */
-.gkico { display: grid; place-items: center; width: 30px; height: 30px; color: var(--salmon); }
+.gkico { display: grid; place-items: center; width: 18px; height: 18px; color: currentColor; }
 .gkico svg { width: 20px; height: 20px; }
 .gkind.on .gkico { color: var(--navy); }
-/* glyphSvg 畫的是 .gy，配色跟軌上的圖案同一套。 */
-.gkico .gy { fill: none; stroke: currentColor; }
-.gkico .gy.pk, .gkico .gy.tr { fill: currentColor; stroke: none; }
+
 .gfkind { margin: 2px 0 10px; font-family: var(--serif); font-size: 20px; font-weight: 400; }
 @media (max-width: 560px) {
   .gkinds { gap: 15px; }
@@ -2917,8 +3083,6 @@ html.task-open, html.task-open body { overflow: hidden; }
 .gflvb:focus-visible { outline: 2px solid var(--salmon); outline-offset: 2px; }
 
 /* 報告頁首的按鈕列（編輯評測 ＋ 傳到 LINE）。手機上並排放不下就換行。 */
-.rhact { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-@media (max-width: 480px) { .rhact .btn { flex: 1 1 100%; } }
 
 /* ═══ 鎖住的欄位要看得出來被鎖住 ═══════════════════════
    applyFieldAccess 會把不該由你填的欄位設成 disabled／readonly，
