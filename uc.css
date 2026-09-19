@@ -279,8 +279,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 .hero-div i { width: 44px; }
 .hero-div s { max-width: 120px; }
 .hero-lead { font-size: 14.5px; line-height: 2; opacity: .8; animation: rise .9s var(--ease) 2s both; }
-.hero-alt { margin: 34px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fade 1s ease 2.5s both; }
-.hero-alt small { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; opacity: .38; }
 .line-entry {
   display: none; flex-direction: column; align-items: center; gap: 10px;
   margin-top: 30px; animation: rise .7s var(--ease) .36s both;
@@ -315,7 +313,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 }
 .line-wait { margin: 14px 0 0; line-height: 1.7; }
 .line-retry { margin-top: 12px; }
-[data-uc-boot="line"] .hero-alt { display: none; }
 [data-uc-boot="line"][data-uc-line-state="ready"] .line-entry { display: flex; }
 [data-uc-boot="line"][data-uc-line-state="loading"] .line-progress { display: block; }
 [data-uc-boot="line"][data-uc-line-state="loading"] .hero-lead { display: none; }
@@ -340,7 +337,6 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
   .hero-sub { animation-delay: .22s; animation-duration: .55s; }
   .hero-div { animation-delay: .26s; animation-duration: .55s; }
   .hero-lead { animation-delay: .3s; animation-duration: .55s; }
-  .hero-alt { animation-delay: .42s; animation-duration: .55s; }
   .line-entry { animation-delay: .36s; animation-duration: .55s; }
 }
 /* ── 評測頁（一頁式・米白考卷）───────────────────────
@@ -596,9 +592,13 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
    自己已經有 padding-top —— 兩層疊起來是 90px 的空白，主視覺（藍圖人物、
    成長日曆的螢幕）因此被推出第一屏（使用者 2026-09-19）。
    只動第一個，區塊之間的節奏不變。 */
-#v-report > .pagepad > section:first-child,
-#v-okr > .pagepad > section:first-child,
-#v-growth > .pagepad > section:first-child { padding-top: 0; }
+/* ⚠️ **`:first-of-type` 不是 `:first-child`。** 報告頁的「編輯評測」浮動鈕是
+   `.pagepad` 的第一個子元素，`:first-child` 就選不到標題區了 —— 那一頁的標題
+   因此比其他頁低 22px（使用者 2026-09-19：「報告好像跟其他頁不一樣高」）。
+   `:first-of-type` 的意思是「第一個 section」，前面塞什麼都不影響。 */
+#v-report > .pagepad > section:first-of-type,
+#v-okr > .pagepad > section:first-of-type,
+#v-growth > .pagepad > section:first-of-type { padding-top: 0; }
 /* 藍圖再往上擠一點：人物的**頭頂要貼著「任務／總覽」切換鈕的下緣**
    （使用者 2026-09-19）。只剩線稿本身的透明留白（原圖 698px 的前 11 列）拿不掉。
    只動藍圖 —— 報告與成長的標題下面還有導言，收到 0 會太擠。 */
@@ -825,8 +825,8 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
    使用者 2026-09-19：「資源的下面有一段空白，往上拉」。 */
 #v-library > .pagepad > section,
 #v-tools > .pagepad > section { padding: 22px 0 8px; }
-#v-library > .pagepad > section:first-child,
-#v-tools > .pagepad > section:first-child { padding: 0 0 4px; }
+#v-library > .pagepad > section:first-of-type,
+#v-tools > .pagepad > section:first-of-type { padding: 0 0 4px; }
 .axes { display: grid; gap: 1px; background: var(--beige-08); border: 1px solid var(--beige-08); }
 .ax { background: var(--navy); padding: 18px 18px 20px; }
 .ax .ey { margin: 0 0 6px; }

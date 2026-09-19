@@ -528,7 +528,8 @@
     nav('#/report');
   }
 
-  el('demoBtn').addEventListener('click', enterDemo);
+  /* ⚠️ demo 的入口**只有 logo**。首頁那顆「載入範例學員」拿掉了 ——
+     看得見的 demo 鈕，學員一定會按到（使用者 2026-09-19）。 */
   el('logoDemoBtn').addEventListener('click', enterDemo);
 
   /* ── 評測頁 ───────────────────────────────────────── */
@@ -2543,8 +2544,9 @@
       ? isoToday() : window.UC_GROWTH.start;
   }
   function growthRecords() {
-    var base = (window.UC_STORE && window.UC_STORE.isRemote()) ? [] : (window.UC_GROWTH.events || []);
-    return base.concat(S.log || []).filter(function (e) {
+    /* ⚠️ **不要再疊一層唯讀範例。** 範例紀錄現在由 UC_SAMPLE() 灌進 S.log，
+       這裡再 concat 一次的話每一筆都會出現兩遍（2026-09-19 改動）。 */
+    return (S.log || []).filter(function (e) {
       return e && GTYPES.some(function (t) { return t.k === e.kind; });
     }).map(function (e) {
       if (e.d) return e;
@@ -3161,10 +3163,13 @@
     });
 
     var pane = el('libPane');
-    pane.innerHTML = '<p class="snote">' + esc(tab.note) + '</p>'
-      + (k === 'tool' ? toolsHtml()
+    /* 分頁的那行灰字說明拿掉了（使用者 2026-09-19：「不用解釋」）——
+       分頁名稱與卡片自己說得清楚，多一行字只是把卡片往下推。
+       文案還留在 data/library.js 的 note，要用再接回來。 */
+    pane.innerHTML = (k === 'tool' ? toolsHtml()
                       : '<div class="grid">' + L.items.filter(function (i) { return i.tab === k; })
                           .map(function (i) { return tile(i); }).join('') + '</div>');
+
     bindTiles(pane);
     if (!initial) reveal(pane);          // 新內容淡入，但捲動位置不動
   }

@@ -171,7 +171,13 @@ window.UC_SAMPLE = function () {
       letter: '阿睿，你已經具備很好的形象與互動能力，接下來三個月我們會先建立內在方向與穩定生活圈，讓你不只會開始一段互動，也能走進真正想要的關係。',
       coachName: 'UC Coach', complete: true
     },
-    log: []
+    /* ⚠️ 成長紀錄**要真的放進 log**，不是在畫面上疊一層唯讀的範例
+       （使用者 2026-09-19：「demo 版也要有完整的功能與內容，就是學員的實際畫面」）。
+       原本它們只從 UC_GROWTH.events 疊在畫面上，不在狀態裡 ——
+       於是編輯與刪除的按鈕全部不出現，那兩個功能在 demo 裡等於不存在。
+       深拷貝：demo 可以隨便改，不要動到那份原始資料。 */
+    log: (window.UC_GROWTH && window.UC_GROWTH.events)
+      ? JSON.parse(JSON.stringify(window.UC_GROWTH.events)) : []
   };
 };
 

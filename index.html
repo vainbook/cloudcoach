@@ -54,7 +54,7 @@ window.UC_START_LIFF = function () {
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"
       rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"></noscript>
-<link rel="stylesheet" href="uc.css?v=20260919z">
+<link rel="stylesheet" href="uc.css?v=20260919-fc9b0175">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"
   onload="this.dataset.ready='1';window.UC_START_LIFF()" onerror="this.dataset.failed='1'"></script>
@@ -70,7 +70,9 @@ window.UC_START_LIFF = function () {
     <i class="brk brk-bl"></i><i class="brk brk-br"></i>
 
     <div class="hero-in">
-      <button class="hero-demo-mark" type="button" id="logoDemoBtn" aria-label="進入共用 Demo">
+      <!-- ⚠️ aria-label 不要寫「進入共用 Demo」—— 那等於用讀螢幕軟體
+           把隱藏入口廣播出去，學員照樣找得到。標成它看起來的樣子就好。 -->
+      <button class="hero-demo-mark" type="button" id="logoDemoBtn" aria-label="UC Training">
         <svg class="hero-mark" viewBox="0 0 80 80" aria-hidden="true">
           <circle cx="40" cy="40" r="37" fill="none" stroke="currentColor" stroke-width="1.5"/>
           <text x="40" y="46" text-anchor="middle">uc</text>
@@ -91,13 +93,10 @@ window.UC_START_LIFF = function () {
       <p class="hero-lead" id="heroLead">歡迎回來。<br>
         先使自己完整，再學習愛與被愛。</p>
 
-      <!-- 「輸入你的名字」那一版拿掉了（2026-09-19）。稱呼由 LINE 決定、
-           或在評測 B01 自己填 —— 這個欄位打了誰都不採信，只是白打。
-           demo 現在只有一條路：載入範例學員。 -->
-      <p class="hero-alt">
-        <button class="btn gh" type="button" id="demoBtn">載入範例學員</button>
-        <small>demo 版本，資料只存在這台裝置</small>
-      </p>
+      <!-- 「輸入你的名字」與「載入範例學員」兩顆都拿掉了（2026-09-19）。
+           ⚠️ demo **只留 logo 那個隱藏入口**（#logoDemoBtn）——
+           首頁擺一顆看得見的 demo 鈕，學員一定會按到，然後看到的是別人的假資料。
+           稱呼由 LINE 決定，或在評測 B01 自己填。 -->
 
       <div class="line-entry" id="lineEntry">
         <button class="btn pri" type="button" id="lineEnterBtn">雲端教練陪跑</button>
@@ -140,18 +139,18 @@ window.UC_START_LIFF = function () {
   <a href="#/" id="navOut">登出</a>
 </nav>
 
-<script defer src="data/questions.js?v=20260919z"></script>
-<script defer src="data/dimensions.js?v=20260919z"></script>
-<script defer src="data/okr.js?v=20260919z"></script>
-<script defer src="data/library.js?v=20260919z"></script>
-<script defer src="data/tools.js?v=20260919z"></script>
-<script defer src="data/coach.js?v=20260919z"></script>
-<script defer src="data/growth.js?v=20260919z"></script>
-<script defer src="score.js?v=20260919z"></script>
+<script defer src="data/questions.js?v=20260919-fc9b0175"></script>
+<script defer src="data/dimensions.js?v=20260919-fc9b0175"></script>
+<script defer src="data/okr.js?v=20260919-fc9b0175"></script>
+<script defer src="data/library.js?v=20260919-fc9b0175"></script>
+<script defer src="data/tools.js?v=20260919-fc9b0175"></script>
+<script defer src="data/coach.js?v=20260919-fc9b0175"></script>
+<script defer src="data/growth.js?v=20260919-fc9b0175"></script>
+<script defer src="score.js?v=20260919-fc9b0175"></script>
 <!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
-<script defer src="store.js?v=20260919z"></script>
-<script defer src="app.js?v=20260919z"></script>
+<script defer src="store.js?v=20260919-fc9b0175"></script>
+<script defer src="app.js?v=20260919-fc9b0175"></script>
 <!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
-<script defer src="boot.js?v=20260919z"></script>
+<script defer src="boot.js?v=20260919-fc9b0175"></script>
 </body>
 </html>
