@@ -54,7 +54,7 @@ window.UC_START_LIFF = function () {
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"
       rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600&family=Caveat:wght@500;600&display=swap"></noscript>
-<link rel="stylesheet" href="uc.css?v=20260919-fc9b0175">
+<link rel="stylesheet" href="uc.css?v=20260923-b28a4f00">
 <!-- SDK 從解析 head 時就開始下載；boot.js 稍後接手初始化，不必等所有 App 程式載完。 -->
 <script id="uc-liff-sdk" src="https://static.line-scdn.net/liff/edge/2/sdk.js" async fetchpriority="high"
   onload="this.dataset.ready='1';window.UC_START_LIFF()" onerror="this.dataset.failed='1'"></script>
@@ -121,10 +121,9 @@ window.UC_START_LIFF = function () {
 
 <!-- ═══ 其餘頁面由 app.js 渲染 ═══════════════════════ -->
 <section class="view" id="v-assess"><div class="top"><span class="uc-logo">uc</span><b class="tname">情感能力評測</b><div class="uc-session" data-uc-session></div></div><div class="wrap pagepad" id="assessBody"></div></section>
-<section class="view" id="v-report"><div class="top"><span class="uc-logo">uc</span><b class="tname">評測報告書</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="reportBody"></div></section>
 <section class="view" id="v-okr"><div class="top"><span class="uc-logo">uc</span><b class="tname">課程藍圖</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="okrBody"></div></section>
-<section class="view" id="v-growth"><div class="top"><span class="uc-logo">uc</span><b class="tname">成長紀錄</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="growthBody"></div></section>
-<section class="view" id="v-library"><div class="top"><span class="uc-logo">uc</span><b class="tname">資源與工具</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="libBody"></div></section>
+<section class="view" id="v-growth"><div class="top"><span class="uc-logo">uc</span><b class="tname">成長日誌</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="growthBody"></div></section>
+<section class="view" id="v-library"><div class="top"><span class="uc-logo">uc</span><b class="tname">冒險</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="libBody"></div></section>
 
 <!-- 教練專用：所有學員的清單。只有 access_scope = manage 看得到（app.js 控制 hidden）。 -->
 <section class="view" id="v-students"><div class="top"><span class="uc-logo">uc</span><b class="tname">學員清單</b><div class="uc-session" data-uc-session></div></div><div class="pagepad" id="studentsBody"></div></section>
@@ -132,25 +131,24 @@ window.UC_START_LIFF = function () {
 <nav class="nav" id="nav" hidden>
   <a href="#/students" id="navStudents" hidden>學員</a>
   <a href="#/assess">評測</a>
-  <a href="#/report">報告</a>
   <a href="#/okr">藍圖</a>
-  <a href="#/growth">成長</a>
-  <a href="#/library">資源</a>
+  <a href="#/library">冒險</a>
+  <a href="#/growth">日誌</a>
   <a href="#/" id="navOut">登出</a>
 </nav>
 
-<script defer src="data/questions.js?v=20260919-fc9b0175"></script>
-<script defer src="data/dimensions.js?v=20260919-fc9b0175"></script>
-<script defer src="data/okr.js?v=20260919-fc9b0175"></script>
-<script defer src="data/library.js?v=20260919-fc9b0175"></script>
-<script defer src="data/tools.js?v=20260919-fc9b0175"></script>
-<script defer src="data/coach.js?v=20260919-fc9b0175"></script>
-<script defer src="data/growth.js?v=20260919-fc9b0175"></script>
-<script defer src="score.js?v=20260919-fc9b0175"></script>
+<script defer src="data/questions.js?v=20260923-b28a4f00"></script>
+<script defer src="data/dimensions.js?v=20260923-b28a4f00"></script>
+<script defer src="data/okr.js?v=20260923-b28a4f00"></script>
+<script defer src="data/library.js?v=20260923-b28a4f00"></script>
+<script defer src="data/tools.js?v=20260923-b28a4f00"></script>
+<script defer src="data/coach.js?v=20260923-b28a4f00"></script>
+<script defer src="data/growth.js?v=20260923-b28a4f00"></script>
+<script defer src="score.js?v=20260923-b28a4f00"></script>
 <!-- store.js 要在 app.js 之前 —— app.js 啟動時會回頭把自己交給它 -->
-<script defer src="store.js?v=20260919-fc9b0175"></script>
-<script defer src="app.js?v=20260919-fc9b0175"></script>
+<script defer src="store.js?v=20260923-b28a4f00"></script>
+<script defer src="app.js?v=20260923-b28a4f00"></script>
 <!-- LINE 登入。要在 app.js 之後 —— 它會用到 UC_APP。 -->
-<script defer src="boot.js?v=20260919-fc9b0175"></script>
+<script defer src="boot.js?v=20260923-b28a4f00"></script>
 </body>
 </html>

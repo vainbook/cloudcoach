@@ -329,10 +329,6 @@ window.UC_SELFTEST = function () {
     t('藍圖 ' + it.id + ' 的維度存在', !!dimSet[it.dim]);
     t('藍圖 ' + it.id + ' 有 KR 文字', typeof it.kr === 'string' && it.kr.length > 0);
     t('藍圖 ' + it.id + ' 的章節在範圍內', it.ch >= 0 && it.ch < O.epigraphs.length);
-    if (it.n != null) t('藍圖 ' + it.id + ' 的量化目標為正整數', it.n > 0 && it.n === Math.round(it.n));
-    /* 地圖節點只放短標籤，太長會撞到隔壁節點 */
-    t('藍圖 ' + it.id + ' 有 short 短標籤', typeof it.short === 'string' && it.short.length > 0);
-    t('藍圖 ' + it.id + ' 的 short 不超過 7 字（' + (it.short || '').length + '）', (it.short || '').length <= 7);
     if (it.sheet) t('藍圖 ' + it.id + ' 的工作表 ' + it.sheet + ' 在 sheets 裡找得到',
       O.sheets.some(function (x) { return x.k === it.sheet; }));
   });
@@ -429,8 +425,7 @@ window.UC_SELFTEST = function () {
     t('任務工具對應的工作表「' + sheet + '」存在', O.sheets.some(function (x) { return x.k === sheet; }));
     t('任務工具對應「' + sheet + ' → ' + O.taskToolMap[sheet] + '」存在', !!toolKeys[O.taskToolMap[sheet]]);
   });
-  log.push('── 藍圖　' + O.items.length + ' 條 KR（量化 '
-    + O.items.filter(function (i) { return i.n; }).length + '）　工作表 ' + O.sheets.length
+  log.push('── 藍圖　' + O.items.length + ' 條 KR　工作表 ' + O.sheets.length
     + '　資源 ' + L.items.length + '（已掛維度 ' + L.items.filter(function (i) { return i.dims; }).length
     + '）　工具 ' + T.items.length);
 

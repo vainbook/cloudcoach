@@ -109,6 +109,30 @@
     }
   }
 
+  /* 評測完成通知是唯一明確要求「送回目前打開的 LINE 對話」的動作。
+     這裡不開選人視窗：目前對話支援 sendMessages 就直接送；不支援或被 LINE
+     拒絕就只複製文字，讓學員貼回原本的教練群組。 */
+  function sendCurrentOrCopy(text) {
+    text = String(text == null ? '' : text).trim();
+    if (!text) return Promise.resolve('fail');
+    var available = false;
+    try {
+      var c = window.liff && liff.getContext && liff.getContext();
+      available = !!(window.liff && liff.isInClient && liff.isInClient()
+        && c && ['utou', 'room', 'group'].indexOf(c.type) >= 0
+        && liff.isApiAvailable && liff.isApiAvailable('sendMessages'));
+    } catch (e) { available = false; }
+    if (!available) return copyText(text);
+    try {
+      return liff.sendMessages([{ type: 'text', text: text.slice(0, 4900) }])
+        .then(function () { lastError = ''; return 'send'; })
+        .catch(function (e) { lastError = friendly(e); return copyText(text); });
+    } catch (e) {
+      lastError = friendly(e);
+      return copyText(text);
+    }
+  }
+
   /* LINE 的錯誤碼翻成看得懂的話。
      ⚠️ INVALID_RECEIVER 很容易被誤讀成「權限沒開」，其實是收件者不對 ——
      sendMessages 只能送進**官方帳號的聊天室**，從別的對話開就一定是這個錯。 */
@@ -234,6 +258,7 @@
   window.UC_SHARE = {
     text: shareText,
     copy: copyText,
+    current: sendCurrentOrCopy,
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
     canSend: function () { return hasPicker() || hasSend() || !!navigator.share; },
@@ -253,6 +278,22 @@
      掛在後面的話那兩種情況下 UC_SHARE 是 undefined，按鈕直接爆掉。 */
 
   var q = location.search;
+  /* LINE 登入回來時會在網址留下 code、state 與 LIFF 跳轉資訊。
+     SDK 及後端驗證完成前不能動它們，但驗證成功後也不能繼續留著：
+     ① 重新整理會重放一次已用過的 callback，可能又掉回登入頁；
+     ② 網址被複製或截圖時會夾帶不必要的登入參數。
+     perf 可能被包在 liff.state 裡，所以先記住再清理。 */
+  var wantsPerf = /[?&]perf=1/.test(decodeURIComponent(q));
+
+  function cleanLineCallbackUrl(hash) {
+    var params;
+    try { params = new URLSearchParams(location.search); } catch (e) { return; }
+    ['code', 'state', 'liffClientId', 'liffRedirectUri', 'liff.state',
+     'error', 'error_description'].forEach(function (key) { params.delete(key); });
+    var search = params.toString();
+    history.replaceState(null, '', location.pathname + (search ? '?' + search : '')
+      + (hash || location.hash || '#/'));
+  }
   /* ?diag=1：LIFF 初始化完就把診斷印出來，不進登入流程。 */
   if (/[?&]diag=1/.test(q)) {
     sdkReady()
@@ -430,7 +471,7 @@
   function routeLabel(hash) {
     if (hash === '#/students') return '準備學員清單';
     if (hash === '#/assess') return '準備情感能力評測';
-    if (hash === '#/report') return '準備評測報告';
+    if (hash === '#/report') return '準備評測內容';
     if (hash === '#/okr') return '回到課程藍圖';
     return '回到上次的位置';
   }
@@ -443,11 +484,14 @@
     setTimeout(function () {
       lineStage('done');
       clearWaiting();
+      /* 要在 nav() 之前清掉，因為 app.js 的 hash 導覽會原樣保留
+         location.search。先清理，後面每一頁才都是乾淨網址。 */
+      cleanLineCallbackUrl('#/');
       if (window.UC_APP && window.UC_APP.nav) window.UC_APP.nav(destination);
       /* ⚠️ 從 LINE 開 liff.line.me/...?perf=1 時，網址有機會先變成
          `?liff.state=%3Fperf%3D1`。SDK 通常會在 init 之後還原，
          但解碼後再比對一次比較保險，兩種寫法都認得。 */
-      if (/[?&]perf=1/.test(decodeURIComponent(location.search))) {
+      if (wantsPerf) {
         setTimeout(function () {
           try { showPerf(); } catch (e) { console.warn('perf 面板失敗', e); }
         }, 0);

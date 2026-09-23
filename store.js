@@ -559,9 +559,7 @@
       it.kr = r.kr;
       it.tool = r.tool || '';
       it.sheet = r.sheet || '';
-      it.short = r.short || r.kr;
       it.note = r.note || '';
-      it.n = r.n == null ? null : r.n;
       next.push(it);
     });
     if (next.length) O.items = next;         /* 表上停用的條目就不會出現 */

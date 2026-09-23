@@ -110,6 +110,30 @@
     return out;
   }
 
+  /* 新版共用寫作器是一題一份整合內容。舊版四欄 id 留在 legacyFields，
+     讓已填過的故事可以先合併顯示，不會因介面改版而消失。 */
+  function storyFocusFields() {
+    var sections = {};
+    STORY_SECTIONS.forEach(function (section) { sections[section.id] = section; });
+    return storyGroups().map(function (group) {
+      var section = sections[group.section] || {};
+      var example = group.example
+        ? '頭條式標題：' + group.example.headline
+          + '\n\n具體事件與劇情：' + group.example.event
+          + '\n\n故事傳遞的價值：' + group.example.value
+          + '\n\n對話脈絡與引導問句：' + group.example.context
+        : '';
+      return {
+        id: group.id + '-content', t: group.t, parent: section.t || '',
+        sub: '從「' + group.t + '」找出一件你真的經歷過、也願意分享的事。',
+        scope: '依序整理頭條式標題、具體事件與劇情、故事傳遞的價值，以及對話脈絡與引導問句。',
+        ph: '頭條式標題：\n\n具體事件與劇情：\n\n故事傳遞的價值：\n\n對話脈絡與引導問句：',
+        example: example,
+        legacyFields: group.fields.map(function (field) { return { id: field.id, t: field.t }; })
+      };
+    });
+  }
+
   window.UC_TOOLS = {
     review: false,
 
@@ -119,7 +143,15 @@
         lead: '先設計一種你自己也會喜歡的生活。',
         body: '真正的魅力，不只是會不會聊天，更來自你正在過什麼樣的生活。一個人對自己的日子有好奇、有投入，也有想前往的方向，就會自然有故事、想法和生命力可以與人分享。\n\n社交技巧是傳遞這些內容的工具，但它不能代替生活本身。只有當你先喜歡自己的生活，別人才有機會看見你、理解你，也喜歡和你一起經歷這樣的生活。',
         assignment: {
-          id: 'lifeblueprint', version: 1,
+          id: 'lifeblueprint', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '生活藍圖',
+          title: '描寫你的生活藍圖', progressUnit: '個主題',
+          placeholder: '目前狀況：\n\n想達到的目標：\n\n準備如何實踐：\n\n為什麼想要：',
+          formatGuide: [
+            { t: '目前狀況', body: '先寫這個主題現在真實的樣子，包括已經做到的部分與仍然卡住的地方。' },
+            { t: '想達到的目標', body: '寫下你希望未來出現的具體改變，讓人能看見你想過的生活。' },
+            { t: '準備如何實踐', body: '寫下一個可以開始執行的做法，也可以補上頻率或時間安排。' },
+            { t: '為什麼想要', body: '寫下這個改變對你的生活或關係有什麼意義。' }
+          ],
           note: '這份作業不是承諾書，課程不會要求你立刻實踐寫下的每件事。但你至少要能夠說清楚：你期待自己過什麼樣的生活，以及為什麼這件事對你重要。',
           prompt: '請在同一格內依序寫下：① 目前的狀況、② 想達到的目標、③ 準備如何實踐、④ 為什麼想要。可以挑一個或多個細項來寫，也可以補充下方沒有提到的內容。',
           fields: [
@@ -140,15 +172,20 @@
         lead: '認識自己的故事，再把故事整理成可以自然展開的聊天素材。',
         body: '這份作業同時對應〈戀愛三步驟〉與〈說故事〉課。先為十二個題目各找出一件人生重大事件，再把故事整理成有核心、有價值，也能從對話自然延伸的素材。',
         assignment: {
-          id: 'chattopics', version: 1, title: '建立你的聊天話題庫', progressUnit: '個故事',
+          id: 'chattopics', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '戀愛三步驟',
+          title: '建立你的聊天話題庫', progressUnit: '個故事',
           note: '先完成第一輪，再回來補第二輪。〈戀愛三步驟〉先替十二個題目各選一件重大事件；上完〈說故事〉後，再補齊劇情細節、想傳遞的價值與對話脈絡。',
           prompt: '三大主軸共十二個題目。每個題目都要完成「頭條式標題、具體事件與劇情、故事傳遞的價值、對話脈絡與引導問句」四欄。',
+          formatGuide: STORY_FIELDS.map(function (field) {
+            return { t: field.t, body: field.help };
+          }),
           steps: [
             { no: '01', t: '戀愛三步驟', body: '先找出每個題目中最想分享的重大事件，寫下標題與事件骨架。' },
             { no: '02', t: '說故事', body: '回來做減法與加法，補足感受、價值和能自然帶出故事的引導問句。' }
           ],
           sections: STORY_SECTIONS,
-          groups: storyGroups()
+          groups: storyGroups(),
+          fields: storyFocusFields()
         } },
 
       { k: 'datemap', t: '約會地圖', en: 'Date Map', status: 'preview',
