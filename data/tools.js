@@ -134,10 +134,71 @@
     });
   }
 
+  function repeatedFocusFields(prefix, count, title, config) {
+    return Array.from({ length: count }, function (_, i) {
+      var no = ('0' + (i + 1)).slice(-2);
+      var field = {
+        id: prefix + '-' + no,
+        t: title + ' ' + (i + 1),
+        sub: config.sub,
+        scope: config.scope,
+        ph: config.ph,
+        formatGuide: config.formatGuide || [],
+        example: config.example || ''
+      };
+      if (i === 0 && Array.isArray(config.legacyFields)) field.legacyFields = config.legacyFields;
+      return field;
+    });
+  }
+
+  function listEntryFields(prefix, count, label) {
+    return Array.from({ length: count }, function (_, i) {
+      var no = ('0' + (i + 1)).slice(-2);
+      return { id: prefix + '-' + no, t: label + ' ' + no };
+    });
+  }
+
+  var PERSONALITY_TRAITS = [
+    '真誠', '開放', '勇敢', '自信', '善良', '溫柔', '熱情', '樂觀',
+    '幽默', '好奇', '可靠', '負責', '堅定', '耐心', '細心', '體貼',
+    '同理', '自律', '創意', '行動力', '包容', '獨立', '謙遜', '沉著'
+  ];
+
+  function personalityFields() {
+    return Array.from({ length: 3 }, function (_, i) {
+      return {
+        id: 'personality-' + ('0' + (i + 1)).slice(-2),
+        t: '人格特質 ' + (i + 1),
+        sub: '選一個真的曾經在你的選擇與行動裡出現過的特質，再用故事說明它。',
+        scope: '不用挑「最好聽」的詞，而是找一個你真正認得出來的自己。想想你曾經在什麼時候因為這個特質做了一個選擇，以及你準備如何在這次課程中主動表達它。',
+        ph: '為什麼這是我：\n\n代表我的故事：\n\n這次課程中的應用：',
+        choiceRequired: true,
+        options: PERSONALITY_TRAITS,
+        formatGuide: [
+          { t: '為什麼這是我', body: '寫下這個特質平常如何出現在你的行動、選擇或與人相處的方式裡。重點不是證明自己完美，而是把真實的自己說清楚。' },
+          { t: '代表我的故事', body: '選一件具體事件：當時發生了什麼、你做了什麼，這個特質又如何被看見。' },
+          { t: '這次課程中的應用', body: '寫下一個能實際行動的做法。例如在練習、人際互動或完成作業時，你會怎麼運用與傳遞這個特質。' }
+        ]
+      };
+    });
+  }
+
   window.UC_TOOLS = {
     review: false,
 
     items: [
+      { k: 'selfknowledge', t: '認識自己', en: 'Know Yourself', status: 'active',
+        cover: 'assets/course-covers/01-awareness-abstract-color-v3.webp',
+        lead: '找出三個已經存在於你身上、也能代表你的特質。',
+        body: '自信不是勉強把自己說得很好，而是認得出來：我是誰，我曾經怎麼做出選擇，又希望別人看見什麼樣的我。\n\n這些特質不需要重新發明，它們可能早已出現在你的生活。這份作業會幫你從故事中把它們找回來，並在這次課程中更主動地運用與傳遞。',
+        assignment: {
+          id: 'selfknowledge', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '認識自己',
+          title: '找出代表你的三個特質', progressUnit: '個特質',
+          note: '三題請選擇不同特質。不用追求最理想的形容詞，先從你真的做過、也能說出故事的部分開始。',
+          prompt: '從特質清單中選出三個最能代表你的詞。每個特質都寫下：為什麼這是你、哪一個故事能代表，以及你會怎麼把它應用在這次課程。',
+          fields: personalityFields()
+        } },
+
       { k: 'lifeblueprint', t: '生活藍圖', en: 'Life Blueprint', status: 'active',
         cover: 'assets/course-covers/tool-01-life-blueprint-v1.webp',
         lead: '先設計一種你自己也會喜歡的生活。',
@@ -172,7 +233,7 @@
         lead: '認識自己的故事，再把故事整理成可以自然展開的聊天素材。',
         body: '這份作業同時對應〈戀愛三步驟〉與〈說故事〉課。先為十二個題目各找出一件人生重大事件，再把故事整理成有核心、有價值，也能從對話自然延伸的素材。',
         assignment: {
-          id: 'chattopics', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '戀愛三步驟',
+          id: 'chattopics', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '聊天話題庫',
           title: '建立你的聊天話題庫', progressUnit: '個故事',
           note: '先完成第一輪，再回來補第二輪。〈戀愛三步驟〉先替十二個題目各選一件重大事件；上完〈說故事〉後，再補齊劇情細節、想傳遞的價值與對話脈絡。',
           prompt: '三大主軸共十二個題目。每個題目都要完成「頭條式標題、具體事件與劇情、故事傳遞的價值、對話脈絡與引導問句」四欄。',
@@ -188,181 +249,167 @@
           fields: storyFocusFields()
         } },
 
-      { k: 'datemap', t: '約會地圖', en: 'Date Map', status: 'preview',
-        cover: 'assets/course-covers/tool-03-date-map-v1.webp',
-        lead: '把一次約會的地點、順序與轉場整理成完整行程。',
-        body: '分成朋友聚會、曖昧約會與情侶約會三種情境，分別規劃適合的行程與結束方式。',
-        tables: [
-          { id: 'date-itinerary', t: '約會行程',
-            cols: ['類型', '出發', '行程一', '轉場', '行程二', '結束'],
-            colIds: ['type', 'start', 'stop-01', 'transition', 'stop-02', 'ending'],
-            owners: ['system', 'student', 'student', 'student', 'student', 'student'],
-            rowIds: ['friends', 'dating', 'couple'], rows: [
-            ['朋友聚會', '', '', '', '', ''], ['曖昧約會', '', '', '', '', ''], ['情侶約會', '', '', '', '', '']
-          ] }
-        ] },
-
       { k: 'beliefs', t: '信念系統', en: 'Belief System', status: 'active',
         cover: 'assets/course-covers/tool-04-belief-system-v1.webp',
-        lead: '看見自己在感情裡反覆默念的話，再用一個新行動驗證別的可能。',
-        body: '信念會影響我們怎麼解讀一件事，也會影響接下來的行為與結果。這份作業不是要你用正面口號說服自己，而是先找到那句常自動出現的話，再透過一個小而具體的行動，給自己一次新體驗。',
+        lead: '看見限制自己的信念，才有機會做出不同選擇。',
+        body: '一件重大事件，可能讓我們對自己、女生或感情下了一個結論。結論久了會變成信念，遇到相似情境時，就會自動帶出同一種反應。這份作業不是要用正面口號否定過去，而是看懂這個迴圈，再替自己留下新的選擇。',
         assignment: {
-          id: 'beliefs', version: 1, kind: 'belief-cycle', title: '找到你在感情裡的負面信念', progressUnit: '個階段',
-          note: '下面列的句子是常見的自動想法，不是對任何性別或關係的事實判斷。先誠實看見它曾經出現，才有機會不再被它牽著走。',
-          prompt: '先完成「看見標籤」，再用一件具體的感情事件完成「跳出信念」。不用一次把所有想法處理完，這次只挑一句最有影響的話。',
-          steps: [
-            { no: '01', t: '看見標籤', body: '從常見想法中辨認自己的句子，找到它形成的來源。' },
-            { no: '02', t: '跳出信念', body: '用一件事看懂舊迴圈，選擇新信念與一個可執行的小行動。' }
-          ],
-          belief: {
-            stage1: {
-              no: '01', t: '看見標籤', en: 'Notice the Label',
-              body: '請勾選曾經在腦中出現過的句子。你不需要認同它，只要判斷它有沒有在感情不順時自動跑出來。',
-              categories: [
-                { id: 'relationship', t: '對女生與關係的標籤', items: [
-                  { id: 'belief-label-r01', text: '女生只看外表。' },
-                  { id: 'belief-label-r02', text: '女生只在意收入與條件。' },
-                  { id: 'belief-label-r03', text: '女生只喜歡很會說話或看起來很壞的男生。' },
-                  { id: 'belief-label-r04', text: '對一個人太好，反而不會被珍惜。' },
-                  { id: 'belief-label-r05', text: '女生說想要穩定，其實只想要刺激。' },
-                  { id: 'belief-label-r06', text: '感情裡先主動的人總是比較吃虧。' },
-                  { id: 'belief-label-r07', text: '感情裡比較認真的人，最後一定會受傷。' },
-                  { id: 'belief-label-r08', text: '女生有太多選擇，不會真心看見我。' },
-                  { id: 'belief-label-r09', text: '只要表現出脆弱，就會失去吸引力。' },
-                  { id: 'belief-label-r10', text: '對方沒有馬上回應，就代表她對我沒興趣。' }
-                ] },
-                { id: 'self', t: '對自己的不自信標籤', items: [
-                  { id: 'belief-label-s01', text: '我不夠帥或不夠高，所以不會被喜歡。' },
-                  { id: 'belief-label-s02', text: '我的收入或成就不夠好，沒有競爭力。' },
-                  { id: 'belief-label-s03', text: '我不會聊天，跟我相處會很無聊。' },
-                  { id: 'belief-label-s04', text: '我太內向、太老實，所以不會被選擇。' },
-                  { id: 'belief-label-s05', text: '我沒有戀愛經驗，被知道後會被看不起。' },
-                  { id: 'belief-label-s06', text: '我不會調情或製造氣氛，所以只能當朋友。' },
-                  { id: 'belief-label-s07', text: '只要我先主動，就一定會被拒絕。' },
-                  { id: 'belief-label-s08', text: '真實的我不值得被喜歡。' },
-                  { id: 'belief-label-s09', text: '我要先變得更好，才有資格談感情。' },
-                  { id: 'belief-label-s10', text: '只要關係開始靠近，我最後就會把它搞砸。' }
-                ] }
-              ],
-              fields: [
-                { id: 'stage1-other', t: '還有其他常出現的句子嗎？', rows: 3, required: false,
-                  help: '如果上面沒有寫到，請用你平常在心裡說話的方式寫下來。', ph: '例如：只要我太認真，對方就會想逃。' },
-                { id: 'stage1-core', t: '這次最想處理的一句話', rows: 3,
-                  help: '從勾選的句子中選一句最常出現、或最影響你行動的。', ph: '直接抄下那句話，不用先修飾它。' },
-                { id: 'stage1-origin', t: '你認為它是怎麼形成的？', rows: 6,
-                  help: '可以回想最早或最強烈的一次經驗，也可以是多次被拒絕、家庭、朋友或網路言論的累積。', ph: '那時發生了什麼？你從中學到了什麼？' }
-              ]
-            },
-            stage2: {
-              no: '02', t: '跳出信念', en: 'Create a New Experience',
-              body: '選一件具體的感情事件，寫下當時的負面信念如何影響你。接著不急著否定它，先設計一個小行動，讓新經驗替你提供新證據。',
-              loopTitle: '先看懂舊迴圈',
-              loopLead: '把當時的過程拆開，看見信念如何影響行為，又如何用結果證明自己。',
-              loopFields: [
-                { id: 'stage2-event', t: '具體事件', rows: 5, help: '選一次最近或印象深刻的感情經驗，只寫得到的事實。', ph: '在哪裡、跟誰、發生了什麼？' },
-                { id: 'stage2-belief', t: '當時出現的負面信念', rows: 4, help: '寫下那一刻你對自己、對女生或對關係下的結論。可以直接沿用第一階段的句子。', ph: '例如：她沒有馬上回應，一定是我很無聊。' },
-                { id: 'stage2-feeling', t: '情緒與身體反應', rows: 4, help: '不只寫「不開心」，也回想胸口、肩膀、胃或呼吸發生了什麼。', ph: '例如：焦慮，胸口很緊，一直重看對話。' },
-                { id: 'stage2-behavior', t: '你接著做了什麼？', rows: 4, help: '也可以寫你因此沒做什麼，例如沒邀約、沒說真話或刻意拉開距離。', ph: '你做了什麼，或避開了什麼？' },
-                { id: 'stage2-result', t: '最後得到什麼結果？', rows: 4, help: '這個結果又怎麼讓你更相信原本那句話？', ph: '寫下結果，以及它怎麼把信念變得更真。' }
-              ],
-              pivotTitle: '在這裡停一下',
-              pivotBody: '不再證明舊信念，開始設計一次新體驗。',
-              exitTitle: '再創造一次新經驗',
-              exitLead: '新信念不需要很正面，只要比舊信念多一點空間，並且能帶你做出不同選擇。',
-              exitFields: [
-                { id: 'stage2-protection', t: '這個舊信念想保護你避開什麼？', rows: 4, help: '例如被拒絕、丟臉、失望，或讓別人看見自己的不安。', ph: '如果繼續相信它，你就不用面對什麼？' },
-                { id: 'stage2-exception', t: '有沒有不符合它的例外？', rows: 4, help: '回想自己或身邊的真實經驗。只要有一個例外，這句話就不是全部的事實。', ph: '哪一次經驗曾經與這句話不一樣？' },
-                { id: 'stage2-new-belief', t: '你想試著相信的新說法', rows: 4, help: '不用寫「我很棒」。寫一句真實、有彈性，而且會帶來新行動的話。', ph: '例如：一次回應不代表我的全部，我可以清楚表達好感，也尊重對方的選擇。' },
-                { id: 'stage2-action', t: '一個可執行的簡易動作', rows: 4, help: '設計一個七天內做得到、也能清楚判斷有沒有完成的動作。', ph: '什麼時間、在哪裡、你會做哪一個小動作？' },
-                { id: 'stage2-imagine', t: '先想像自己真的去做', rows: 4, help: '你可能還是緊張。請想像行動當下的畫面、身體感受，以及做完後想怎麼看待自己。', ph: '我可能會感到……當我做完，我希望自己記得……' },
-                { id: 'stage2-review', t: '行動後的新證據', rows: 5, required: false, help: '行動後再回來填。結果不一定要成功，重點是你做了與過去不同的選擇。', ph: '實際發生了什麼？這次經驗讓你多看見了什麼？' }
-              ]
-            }
-          }
+          id: 'beliefs', version: 2, kind: 'focus-editor', scene: 'moon', topicLabel: '限制性信念',
+          title: '找到你的限制性信念', progressUnit: '次練習',
+          note: '請完成三次練習。每次只處理一件具體事件，不用一次解決所有想法。',
+          prompt: '先寫出事件、當時形成的信念與自動化反應，再思考：如果不再照原本的方式反應，可能發生什麼？你願意做出哪一個新選擇？',
+          fields: repeatedFocusFields('belief', 3, '信念練習', {
+            sub: '從一件具體的感情事件，看懂信念如何帶出你的自動反應。',
+            scope: '受限信念先整理重大事件、你從中相信了什麼，以及之後遇到類似情況會自動做什麼。新的發現與選擇，則思考不再照原本方式反應時，可能出現什麼不同結果。',
+            ph: '受限信念：\n\n新的發現與選擇：',
+            formatGuide: [
+              { t: '受限信念', body: '寫下重大事件、你從事件中形成的信念，以及它帶出的自動化反應。信念可能是對自己、女生或感情的結論；它不一定是完整事實，但可能正在限制你的行動。' },
+              { t: '新的發現與選擇', body: '想一想：如果不再照原本的自動反應做，會怎麼樣？你看見了什麼新的可能，又願意先嘗試哪一個簡單、可執行的選擇？' }
+            ],
+            legacyFields: [
+              { id: 'stage2-event', t: '重大事件' }, { id: 'stage1-origin', t: '形成過程' },
+              { id: 'stage1-core', t: '受限信念' }, { id: 'stage2-belief', t: '事件中的信念' },
+              { id: 'stage2-behavior', t: '自動化反應' }, { id: 'stage2-result', t: '原本的結果' },
+              { id: 'stage2-exception', t: '新的發現' }, { id: 'stage2-new-belief', t: '新的說法' },
+              { id: 'stage2-action', t: '新的選擇' }, { id: 'stage2-imagine', t: '想像與感受' },
+              { id: 'stage2-review', t: '行動後的新證據' }
+            ]
+          })
         } },
 
-      { k: 'responsible', t: '負責任版本', en: 'Responsible Version', status: 'preview',
+      { k: 'responsible', t: '負責任心態', en: 'Responsible Mindset', status: 'active',
         cover: 'assets/course-covers/tool-05-responsible-version-v1.webp',
-        lead: '寫下自己的脆弱面故事，再整理成能為自己選擇負責的版本。',
-        body: '負責任不是把錯都攬在身上，而是分清發生了什麼、自己能負責什麼，以及接下來要做什麼。',
-        tables: [
-          { id: 'story-rewrite', t: '故事改寫',
-            cols: ['發生的事', '當時的感受', '受害者版本', '我能負責的部分', '負責任版本', '下一步'],
-            colIds: ['event', 'feeling', 'victim-version', 'responsibility', 'responsible-version', 'next-step'],
-            owners: ['student', 'student', 'student', 'student', 'student', 'student'],
-            rowIds: ['entry-01'], rows: [['', '', '', '', '', '']] }
-        ] },
+        lead: '承認自己受過的傷，也把未來的選擇拿回手上。',
+        body: '負責任不是把所有錯都怪到自己身上，也不是替傷害你的人找理由。它是在承認事情真的發生、自己真的有感受之後，重新看見：我從中學到了什麼，接下來想怎麼選擇。',
+        assignment: {
+          id: 'responsible', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '負責任心態',
+          title: '練習負責任心態', progressUnit: '次練習',
+          note: '請完成三次練習。若事件涉及暴力、性侵害、詐騙或其他非自願傷害，不需要逼自己替傷害負責；請另外與教練討論安全與支持。',
+          prompt: '先誠實寫出自己最受害的故事，再整理：這段經驗讓你學到什麼？未來你想用什麼心態與選擇面對？',
+          fields: repeatedFocusFields('responsible', 3, '心態練習', {
+            sub: '把同一件事的受害者故事與負責任心態寫在一起。',
+            scope: '受害者故事不是不能說，而是先看見自己如何描述這段經驗。接著把焦點放回自己能帶走的學習與未來的選擇。',
+            ph: '我的受害者故事：\n\n我的負責任心態：',
+            formatGuide: [
+              { t: '我的受害者故事', body: '這件事怎麼發生？你最覺得自己受害、委屈或無能為力的地方是什麼？先如實寫下來，不需要急著合理化。' },
+              { t: '我的負責任心態', body: '這不等於承認都是你的錯。請寫下你從中學到什麼，以及未來想採取什麼心態或選擇，讓自己不只停在受害的位置。' }
+            ]
+          })
+        } },
 
-      { k: 'relationshipvalues', t: '感情價值觀', en: 'Relationship Values', status: 'preview',
+      { k: 'relationshipvalues', t: '感情價值觀', en: 'Relationship Values', status: 'active',
         cover: 'assets/course-covers/tool-06-relationship-values-v1.webp',
-        lead: '透過三門，整理喜歡的對象、想經營的關係與長期檢核方式。',
-        body: '這裡同時包含情感目標，讓選擇對象、經營關係與判斷長期適配有一套自己的標準。',
-        tables: [
-          { id: 'relationship-three-doors', t: '感情價值觀三門',
-            cols: ['門', '核心問題', '我的答案', '檢核方式'],
-            colIds: ['door', 'question', 'answer', 'review'],
-            owners: ['system', 'system', 'student', 'student'],
-            rowIds: ['door-01', 'door-02', 'door-03'], rows: [
-            ['第一門', '我喜歡什麼樣的對象？', '', ''],
-            ['第二門', '我想經營怎樣的關係？', '', ''],
-            ['第三門', '我如何檢核長期關係？', '', '']
-          ] }
-        ] },
+        lead: '用三道門，分清楚喜歡、交往與長期承諾需要看見的事情。',
+        body: '感情價值觀不是列一張完美條件表，而是讓自己在關係的不同階段，知道正在了解什麼、重視什麼，以及有哪些界線。這一版先建立三門框架，進入與離開各階段的細節之後再補。',
+        assignment: {
+          id: 'relationshipvalues', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '感情價值觀',
+          title: '整理你的感情三門', progressUnit: '道門',
+          note: '目前先寫下框架，不需要急著訂出所有進出標準。之後會再補上每一門更完整的定義。',
+          prompt: '分別思考這個階段重視什麼、能從相處中觀察什麼，以及有哪些不能忽略的界線。',
+          formatGuide: [
+            { t: '我重視什麼', body: '寫下這個階段對你真正重要的特質、相處感受或共同方向。' },
+            { t: '我會如何從相處中觀察', body: '不要只寫抽象形容詞，想想你會從哪些實際互動看見它。' },
+            { t: '我的界線是什麼', body: '寫下你不願勉強自己接受，或需要再討論清楚的事情。' }
+          ],
+          fields: [
+            { id: 'potential', t: '潛在對象', sub: '還在認識彼此時，你想看見什麼？', scope: '先整理什麼會讓你願意繼續認識一個人，以及初期相處中不能忽略的訊號。', ph: '我重視什麼：\n\n我會如何從相處中觀察：\n\n我的界線是什麼：' },
+            { id: 'relationship', t: '穩定交往', sub: '進入關係後，你希望怎麼一起經營？', scope: '思考穩定交往需要的互動、溝通與投入，而不只是在意是否有名分。', ph: '我重視什麼：\n\n我會如何從相處中觀察：\n\n我的界線是什麼：' },
+            { id: 'lifepartner', t: '終身伴侶', sub: '面對長期共同生活，你最在意什麼？', scope: '思考長期承諾、生活方向與共同面對現實時，需要確認的核心價值。', ph: '我重視什麼：\n\n我會如何從相處中觀察：\n\n我的界線是什麼：' }
+          ]
+        } },
 
-      { k: 'movies', t: '電影清單', en: 'Film List', status: 'preview',
+      { k: 'datemap', t: '約會地圖', en: 'Date Map', status: 'active',
+        cover: 'assets/course-covers/tool-03-date-map-v1.webp',
+        lead: '主動設計一段值得一起經歷的時間，而不是只把地點排在一起。',
+        body: '好的約會行程，不只是在找一間餐廳或一個景點，而是先想清楚：希望兩個人怎麼相處、留下什麼感受，又能從過程中認識彼此的哪一面。',
+        assignment: {
+          id: 'datemap', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '約會地圖',
+          title: '設計三種約會行程', progressUnit: '份行程',
+          note: '每個主題規劃一份就好。重點不是安排得很滿，而是讓彼此有足夠的相處、聊天與互動。',
+          prompt: '先寫主要行程，再補一個自然的轉場活動。最後寫下這次行程想創造的感受，或想認識彼此的哪一個面向。',
+          formatGuide: [
+            { t: '約會行程', body: '寫下主要行程與轉場活動。主要行程可能無法完成所有聊天與互動，轉場可以是散步、找地方坐坐或一起移動，替彼此保留繼續相處的空間。' },
+            { t: '約會目的', body: '寫下這次行程希望創造什麼感受，或希望從相處中認識彼此的哪一個面向。' }
+          ],
+          fields: [
+            { id: 'friends', t: '朋友見面', sub: '為已經認識的朋友設計一段自在、有互動的相處。', scope: '想像你要主動發起一次見面：除了主要活動，還能怎麼自然延續聊天與互動？', ph: '約會行程：\n\n約會目的：' },
+            { id: 'dating', t: '曖昧約會', sub: '讓彼此有機會靠近，也保留舒服自然的節奏。', scope: '思考這次約會想創造的氣氛，以及如何透過行程多認識彼此。', ph: '約會行程：\n\n約會目的：' },
+            { id: 'couple', t: '情侶行程', sub: '替穩定關係創造新的共同體驗。', scope: '不要只複製平常的行程，想一件能讓兩個人重新交流或一起留下記憶的事。', ph: '約會行程：\n\n約會目的：' }
+          ]
+        } },
+
+      { k: 'movies', t: '電影清單', en: 'Film List', status: 'active',
         cover: 'assets/course-covers/tool-07-film-list-v1.webp',
-        lead: '觀看教練推薦的電影，記下自己的感受與心得。',
-        body: '電影清單之後由教練補上；這裡先保留觀看狀態與心得欄位，不把心得寫成電影評論。',
-        tables: [
-          { id: 'recommended-films', t: '推薦電影',
-            cols: ['電影', '觀看狀態', '觀看日期', '心得感想'],
-            colIds: ['film', 'status', 'date', 'reflection'],
-            owners: ['coach', 'student', 'student', 'student'],
-            rowIds: ['film-01'], rows: [['教練片單待補', '', '', '']] }
-        ] },
+        lead: '借用電影裡的關係，整理自己對感情的感受、期待與學習。',
+        body: '即使還沒有很多戀愛經驗，也能透過電影觀察關係、形成自己的想法。這不是影評作業；你可以從一部或多部電影裡，挑出真正讓你有感覺的劇情來談。',
+        assignment: {
+          id: 'movies', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '電影清單',
+          title: '從電影整理感情觀', progressUnit: '個主題',
+          note: '推薦電影清單會由教練補上。三個主題可以來自同一部電影，也可以分別使用不同電影。',
+          prompt: '先簡單說明讓你有感覺的劇情，再寫它讓你想到什麼。重點是你的理解，不需要完整重述電影。',
+          formatGuide: [
+            { t: '劇情是什麼？', body: '簡單交代角色、關係與發生的關鍵事件，只留下理解你心得所需要的劇情。' },
+            { t: '我的心得是什麼？', body: '寫下這段劇情讓你怎麼理解愛、自己的期待，或關係裡值得學習的事。' }
+          ],
+          referenceTitle: '推薦電影', referenceLead: '片單待教練補上，你也可以先用自己看過、確實有感觸的電影完成作業。',
+          fields: [
+            { id: 'feeling', t: '感情的感受', sub: '從電影思考：什麼是愛？', scope: '選一段讓你感受到愛、靠近、失去或被理解的劇情，寫出你對「愛」的認識。', ph: '劇情是什麼？\n\n我的心得是什麼？' },
+            { id: 'expectation', t: '感情的期待', sub: '從電影思考：我期待什麼？', scope: '選一段讓你看見關係樣貌的劇情，整理自己真正期待的相處與感受。', ph: '劇情是什麼？\n\n我的心得是什麼？' },
+            { id: 'learning', t: '感情的學習', sub: '從電影思考：我學到什麼？', scope: '選一段讓你重新理解關係的劇情，寫下你想帶進未來感情裡的學習。', ph: '劇情是什麼？\n\n我的心得是什麼？' }
+          ]
+        } },
 
-      { k: 'interests', t: '興趣清單', en: 'Interest List', status: 'preview',
+      { k: 'interests', t: '興趣清單', en: 'Interest List', status: 'active',
         cover: 'assets/course-covers/tool-08-interest-list-v1.webp',
-        lead: '從教練推薦的活動中，勾出自己願意實際嘗試的項目。',
-        body: '先建立活動清單，再記錄是否有興趣與想嘗試的原因；推薦內容之後由教練補上。',
-        tables: [
-          { id: 'recommended-activities', t: '推薦活動',
-            cols: ['活動', '類型', '有興趣', '為什麼想嘗試'],
-            colIds: ['activity', 'type', 'interested', 'reason'],
-            owners: ['coach', 'coach', 'student', 'student'],
-            rowIds: ['activity-01'], rows: [['教練清單待補', '', '', '']] }
-        ] },
+        lead: '找到真的願意去做的活動，讓生活多一點投入，也多一點可以分享的內容。',
+        body: '興趣不是為了讓履歷看起來豐富，而是讓你從行動中獲得體驗、能力與樂趣。實際做過之後，這些經驗也會自然成為能和別人分享的聊天話題。',
+        assignment: {
+          id: 'interests', version: 1, kind: 'focus-editor', scene: 'moon', topicLabel: '興趣清單',
+          title: '建立你的興趣清單', progressUnit: '項活動',
+          note: '先完成五項。可以先寫想嘗試的活動，實際行動後再回來補上體驗。',
+          prompt: '不要只收藏資料。請寫下為什麼想做，並替自己留下真的去體驗一次的方向。',
+          fields: repeatedFocusFields('interest', 5, '興趣', {
+            sub: '挑一件你有興趣、也有機會實際嘗試的活動。',
+            scope: '先記下活動與相關資料，再寫為什麼想做。行動之後回來補上真實體驗：你感受到什麼、得到什麼，還想不想繼續？',
+            ph: '感興趣的活動：\n\n相關資料：\n\n為什麼想做：\n\n行動後的體驗：',
+            formatGuide: [
+              { t: '感興趣的活動', body: '寫下明確的活動名稱，不只寫「運動」或「旅行」這種大分類。' },
+              { t: '相關資料', body: '記下地點、課程、社群、費用、連結或其他能幫助你真的開始的資訊。' },
+              { t: '為什麼想做', body: '寫下它吸引你的地方，以及你希望從活動中獲得什麼。' },
+              { t: '行動後的體驗', body: '實際做完再回來補：過程有什麼感受、學到什麼，是否想繼續。' }
+            ]
+          })
+        } },
 
-      { k: 'humor', t: '幽默清單', en: 'Humor List', status: 'preview',
+      { k: 'humor', t: '幽默清單', en: 'Humor List', status: 'active',
         cover: 'assets/course-covers/tool-09-humor-list-v1.webp',
-        lead: '把聽過、想到或實際用過的笑話記錄下來。',
-        body: '先累積素材，再慢慢看出哪些幽默適合自己、適合什麼情境。',
-        tables: [
-          { id: 'humor-notes', t: '笑話紀錄',
-            cols: ['笑話／素材', '來源', '適合情境', '使用心得'],
-            colIds: ['material', 'source', 'context', 'reflection'],
-            owners: ['student', 'student', 'student', 'student'],
-            rowIds: ['entry-01'], rows: [['', '', '', '']] }
-        ] },
+        lead: '先建立自己的有趣素材庫，聊天時才有東西可以自然分享。',
+        body: '幽默不只是一句完整笑話，也可以是一個有趣觀察、一段影片、一張圖片或生活裡發生的小事。先收集真正讓你覺得有趣的內容，再慢慢找到適合自己的表達方式。',
+        assignment: {
+          id: 'humor', version: 1, kind: 'focus-editor', mode: 'list', scene: 'moon', topicLabel: '幽默清單',
+          title: '收集十個有趣的東西', progressUnit: '則素材',
+          note: '可以貼連結，也可以寫下影片、圖片、簡短笑話、有趣觀察或生活事件。十格會整合成同一份作業回報。',
+          prompt: '選擇你自己真的覺得有趣、也願意在聊天中分享的內容。幽默六梗之後再補，現在先專心累積素材。',
+          listPlaceholder: '貼上連結，或寫下有趣的內容',
+          fields: listEntryFields('humor', 10, '幽默素材')
+        } },
 
-      { k: 'curiosity', t: '好奇心話題庫', en: 'Curiosity Library', status: 'preview',
+      { k: 'curiosity', t: '好奇心話題庫', en: 'Curiosity Library', status: 'active',
         cover: 'assets/course-covers/tool-10-curiosity-library-v1.webp',
-        lead: '準備能讓彼此分享更多的有趣問題，也整理不同情緒裡的故事。',
-        body: '第一版先放入「36 題愛上你」的三組漸進題庫，再保留傷心、驕傲、緊張、甜蜜與無厘頭五種情緒話題。',
+        lead: '準備能讓彼此分享想法、故事與感受的問題。',
+        body: '好的好奇心不是連續盤問，而是真的想知道對方怎麼看世界。問題要能打開一段分享，你也願意回答同一題，讓聊天成為雙向交流。',
         source: '題庫依 Aron 等人（1997）的親密感研究整理；中文為本網站的改寫草稿。',
-        tables: [
-          { id: 'questions-36', t: '36 題愛上你', cols: ['題號', '組別', '問題'],
-            colIds: ['number', 'group', 'question'],
-            owners: ['system', 'system', 'system'],
-            rowIds: Q36.map(function (_, i) { return 'question-' + ('0' + (i + 1)).slice(-2); }), rows: qRows() },
-          { id: 'emotion-topics', t: '情緒話題',
-            cols: ['情緒', '引導問題', '我的故事', '對方的故事'],
-            colIds: ['emotion', 'prompt', 'my-story', 'partner-story'],
-            owners: ['system', 'coach', 'student', 'student'],
-            rowIds: ['sad', 'proud', 'nervous', 'sweet', 'playful'], rows: [
-            ['傷心', '', '', ''], ['驕傲', '', '', ''], ['緊張', '', '', ''], ['甜蜜', '', '', ''], ['無厘頭', '', '', '']
-          ] }
-        ] }
+        assignment: {
+          id: 'curiosity', version: 1, kind: 'focus-editor', mode: 'list', scene: 'moon', topicLabel: '好奇心話題庫',
+          title: '想出十個有趣的話題', progressUnit: '個話題',
+          note: '下方的 36 題可以作為參考，不需要照抄。最後請留下十個你真的想問、也願意自己回答的問題。',
+          prompt: '優先寫能邀請對方分享想法、故事或感受的問題。避免像身家調查，也不要只追求問題看起來很深。',
+          referenceTitle: '參考題庫｜36 題愛上你',
+          referenceLead: '觀察這些問題如何從日常偏好，慢慢走向人生經驗與內在感受。',
+          referenceTopics: Q36,
+          listPlaceholder: '寫下一個你真的想聊的問題',
+          fields: listEntryFields('curiosity', 10, '好奇話題')
+        } }
     ]
   };
 })();

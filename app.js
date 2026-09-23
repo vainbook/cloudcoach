@@ -954,6 +954,17 @@
       return how;
     });
   }
+  function reportProgressText(text, copied) {
+    var action = window.UC_SHARE && window.UC_SHARE.group
+      ? window.UC_SHARE.group(text)
+      : window.UC_SHARE && window.UC_SHARE.copy ? window.UC_SHARE.copy(text) : Promise.resolve('fail');
+    return action.then(function (how) {
+      if (how === 'send') toast('已回傳到目前的 LINE 群組');
+      else if (how === 'copy') toast(copied || '回報文字已複製，可以貼到群組');
+      else toast('無法自動回報，請手動複製文字');
+      return how;
+    });
+  }
   function head(no, en, title) {
     return '<p class="ey">' + no + ' ・ ' + en + '</p><h2>' + esc(title) + '</h2>'
       + '<div class="divider"><i></i><s></s></div>';
@@ -3426,6 +3437,21 @@
     }).filter(Boolean).join('\n\n');
   }
 
+  function assignmentChoiceValue(saved, field) {
+    if (!field || !field.choiceRequired) return '';
+    return String(saved.answers[field.id + '-choice'] || '').trim();
+  }
+
+  function assignmentFieldComplete(saved, field) {
+    return !!assignmentAnswerValue(saved, field).trim()
+      && (!field.choiceRequired || !!assignmentChoiceValue(saved, field));
+  }
+
+  function assignmentFieldLabel(saved, field) {
+    var choice = assignmentChoiceValue(saved, field);
+    return choice || field.t;
+  }
+
   function assignmentProgress(a, saved) {
     if (a.kind === 'belief-cycle' && a.belief) {
       var selected = beliefChoiceIds(a).filter(function (id) { return saved.answers[id] === '1'; }).length;
@@ -3446,7 +3472,7 @@
     }
     var fields = assignmentFields(a);
     var required = fields.filter(function (f) { return f.required !== false; });
-    var complete = required.every(function (f) { return assignmentAnswerValue(saved, f).trim(); });
+    var complete = required.every(function (f) { return assignmentFieldComplete(saved, f); });
     if (Array.isArray(a.groups) && a.kind !== 'focus-editor') {
       var done = a.groups.filter(function (g) {
         return (g.fields || []).every(function (f) { return String(saved.answers[f.id] || '').trim(); });
@@ -3454,7 +3480,7 @@
       return { answered: done, total: a.groups.length, complete: complete };
     }
     return {
-      answered: fields.filter(function (f) { return assignmentAnswerValue(saved, f).trim(); }).length,
+      answered: fields.filter(function (f) { return assignmentFieldComplete(saved, f); }).length,
       total: fields.length,
       complete: complete
     };
@@ -3464,7 +3490,9 @@
     var a = t.assignment, saved = assignmentState(t);
     var field = assignmentFields(a).filter(function (f) { return f.id === fieldId; })[0];
     if (!field) return '';
-    var lines = ['【' + (a.title || t.t) + '】', (field.parent ? field.parent + '｜' : '') + field.t];
+    var choice = assignmentChoiceValue(saved, field);
+    var label = (field.parent ? field.parent + '｜' : '') + field.t + (choice ? '｜' + choice : '');
+    var lines = ['【' + (a.title || t.t) + '】', label];
     var value = assignmentAnswerValue(saved, field).trim();
     lines.push(value || '尚未填寫');
     return lines.join('\n');
@@ -3490,7 +3518,8 @@
     assignmentFields(a).forEach(function (field) {
       var value = assignmentAnswerValue(saved, field).trim();
       if (!value) return;
-      lines.push((field.parent ? field.parent + '｜' : '') + field.t);
+      var choice = assignmentChoiceValue(saved, field);
+      lines.push((field.parent ? field.parent + '｜' : '') + field.t + (choice ? '｜' + choice : ''));
       lines.push(value, '');
     });
     if (lines.length === 4) lines.push('目前尚未填寫內容。');
@@ -3504,7 +3533,11 @@
       lines.push('', t.assignment.title || t.t, '進度：' + progress.answered + ' / ' + progress.total);
       assignmentFields(t.assignment).forEach(function (field) {
         var value = assignmentAnswerValue(saved, field).trim();
-        if (value) lines.push('・' + (field.parent ? field.parent + '／' : '') + field.t + '：' + value);
+        if (value) {
+          var choice = assignmentChoiceValue(saved, field);
+          lines.push('・' + (field.parent ? field.parent + '／' : '') + field.t
+            + (choice ? '／' + choice : '') + '：' + value);
+        }
       });
     });
     return lines.join('\n').trim();
@@ -3667,12 +3700,17 @@
      白底視窗，幾乎無法套用 UC 深色視覺；按鈕清單才能保證各端一致。 */
   function assignmentThemePickerHTML(selectedKey, currentLabel) {
     var tools = focusAssignmentTools();
+    var homeOn = !selectedKey;
     return '<div class="assignment-pickers"><div class="assignment-theme-control" data-theme-picker>'
       + '<button type="button" class="assignment-theme-toggle" data-theme-toggle aria-expanded="false">'
       + '<span class="assignment-theme-index">01</span><span class="assignment-theme-label">作業主題</span>'
       + '<strong>' + esc(currentLabel || '選擇一個主題') + '</strong><i aria-hidden="true"></i></button>'
       + '<div class="assignment-theme-menu" data-theme-menu hidden><div class="assignment-theme-menu-head">'
       + '<span>Choose a mission</span><b>選擇作業主題</b></div>'
+      + '<button type="button" data-theme-choice="__adventure__"'
+      + (homeOn ? ' class="is-current" aria-current="true"' : '') + '><span class="num">00</span>'
+      + '<span><b>冒險首頁</b><small>Adventure Home</small></span><em>'
+      + (homeOn ? '目前' : '返回') + '</em></button>'
       + tools.map(function (tool, i) {
         var label = tool.assignment.topicLabel || tool.t;
         var on = tool.k === selectedKey;
@@ -3728,7 +3766,7 @@
       + '<p class="ey">Adventure</p><h3>冒險</h3>'
       + '<p>選擇一個主題，從這裡開始這次探索。</p>'
       + '</div><i class="assignment-home-beacon" aria-hidden="true"></i></div></div>'
-      + '<div class="assignment-focus-footer">' + assignmentThemePickerHTML('', '選擇一個主題')
+      + '<div class="assignment-focus-footer">' + assignmentThemePickerHTML('', '冒險首頁')
       + '<div class="assignment-screen-reports"><button type="button" data-adventure-report>進度回報</button></div></div>'
       + '<i class="gscanline" aria-hidden="true"></i></div></div></section>';
   }
@@ -3738,9 +3776,11 @@
     if (!host) return;
     if (!ADVENTURE_TOOL) {
       host.innerHTML = adventureHomeHTML();
-      bindAssignmentThemePicker(host, function (key) { openAdventureTool(key, false); });
+      bindAssignmentThemePicker(host, function (key) {
+        if (key !== '__adventure__') openAdventureTool(key, false);
+      });
       var all = host.querySelector('[data-adventure-report]');
-      if (all) all.addEventListener('click', function () { copyProgressText(adventureReportText()); });
+      if (all) all.addEventListener('click', function () { reportProgressText(adventureReportText()); });
       return;
     }
     var t = focusAssignmentTools().filter(function (tool) { return tool.k === ADVENTURE_TOOL; })[0];
@@ -3771,10 +3811,12 @@
 
   function assignmentFocusHTML(t, saved) {
     var a = t.assignment;
-    var chosen = assignmentSelectedField(a);
+    var listMode = a.mode === 'list';
+    var listWriting = listMode && !!ASSIGNMENT_CHOOSING[a.id];
+    var chosen = listMode ? null : assignmentSelectedField(a);
     var selected = chosen;
-    var isChoosing = !chosen && !!ASSIGNMENT_CHOOSING[a.id];
-    var isHome = !chosen && !isChoosing;
+    var isChoosing = !listMode && !chosen && !!ASSIGNMENT_CHOOSING[a.id];
+    var isHome = listMode ? !listWriting : !chosen && !isChoosing;
     var fields = a.fields || [];
     var sections = Array.isArray(a.sections) ? a.sections : [];
     var grouped = fields.length > 8 && sections.length;
@@ -3804,9 +3846,12 @@
       return list.map(function (field) {
         var i = fields.indexOf(field);
         var written = assignmentAnswerValue(saved, field).trim();
+        var choice = assignmentChoiceValue(saved, field);
+        var complete = assignmentFieldComplete(saved, field);
+        var state = complete ? '已完成' : choice ? '待補故事' : written ? '已開始' : '尚未填寫';
         return '<button type="button" data-assignment-detail="' + esc(field.id) + '"><span class="num">'
-          + ('0' + (i + 1)).slice(-2) + '</span><b>' + esc(field.t) + '</b><small>'
-          + esc((field.parent ? field.parent + ' · ' : '') + (written ? '已開始' : '尚未填寫'))
+          + ('0' + (i + 1)).slice(-2) + '</span><b>' + esc(choice || field.t) + '</b><small>'
+          + esc((field.parent ? field.parent + ' · ' : '') + state)
           + '</small></button>';
       }).join('');
     }
@@ -3823,7 +3868,7 @@
     } else {
       var choices = grouped ? sections.map(function (section) {
         var groupFields = fields.filter(function (field) { return field.parent === section.t; });
-        var done = groupFields.filter(function (field) { return assignmentAnswerValue(saved, field).trim(); }).length;
+        var done = groupFields.filter(function (field) { return assignmentFieldComplete(saved, field); }).length;
         return '<button type="button" data-assignment-group="' + esc(section.id) + '"><span class="num">'
           + esc(section.no) + '</span><b>' + esc(section.t) + '</b><small>'
           + esc(done ? done + ' / ' + groupFields.length + ' 已開始' : section.en || '選擇主軸')
@@ -3853,11 +3898,31 @@
         + '<small>看看完成後會長什麼樣子</small></span><i></i></summary>'
         + '<div class="assignment-write-fold-body"><div class="assignment-write-example">'
         + esc(selected.example).replace(/\n/g, '<br>') + '</div></div></details>' : '';
+    var selectedChoice = selected ? assignmentChoiceValue(saved, selected) : '';
+    var usedChoices = fields.reduce(function (out, field) {
+      var choice = field.id === (selected && selected.id) ? '' : assignmentChoiceValue(saved, field);
+      if (choice) out[choice] = true;
+      return out;
+    }, {});
+    var choicePicker = selected && selected.choiceRequired && Array.isArray(selected.options)
+      ? '<section class="assignment-trait-picker"><div><p class="ey">選擇人格特質</p>'
+        + '<h4>' + esc(selectedChoice || '哪一個詞最像你？') + '</h4>'
+        + '<p>三題請選不同的特質。先選一個，再用故事說明它為什麼是你。</p></div>'
+        + '<div class="assignment-trait-options" role="listbox" aria-label="人格特質清單">'
+        + selected.options.map(function (option) {
+          var on = option === selectedChoice;
+          var disabled = !on && !!usedChoices[option];
+          return '<button type="button" data-assignment-choice-field="' + esc(selected.id)
+            + '" data-assignment-choice="' + esc(option) + '" class="' + (on ? 'is-selected' : '')
+            + '" aria-selected="' + (on ? 'true' : 'false') + '"' + (disabled ? ' disabled' : '')
+            + '>' + esc(option) + '</button>';
+        }).join('') + '</div></section>' : '';
     var detailBody = selected ? '<div class="assignment-compose" data-field-id="assignment.' + esc(a.id) + '.' + esc(selected.id)
       + '" data-field-owner="student" data-field-label="' + esc(selected.t) + '">'
       + '<button type="button" class="assignment-detail-back" data-assignment-return>← 選擇其他主題</button>'
       + '<header class="assignment-compose-head"><div><p class="ey">' + esc(selected.parent || topicLabel)
-      + '</p><h3>' + esc(selected.t) + '</h3></div></header>'
+      + '</p><h3>' + esc(selectedChoice || selected.t) + '</h3></div></header>'
+      + choicePicker
       + '<details class="assignment-write-fold"><summary><span><b>引導怎麼寫</b>'
       + '<small>先看清楚這題在找什麼</small></span><i></i></summary>'
       + '<div class="assignment-write-fold-body">'
@@ -3872,7 +3937,31 @@
       + esc(topicLabel + '：' + selected.t) + '" placeholder="在此填寫">'
       + esc(assignmentAnswerValue(saved, selected)) + '</textarea><div class="assignment-report-actions">'
       + '<p class="assignment-autosave">內容會自動儲存，可以隨時回來修改。</p></div></div>' : '';
-    var screenBody = isHome ? homeBody : isChoosing ? chooserBody : detailBody;
+    var referenceBlock = listMode && Array.isArray(a.referenceTopics) && a.referenceTopics.length
+      ? '<details class="assignment-write-fold assignment-list-reference"><summary><span><b>'
+        + esc(a.referenceTitle || '參考內容') + '</b><small>'
+        + esc(a.referenceLead || '需要靈感時再打開來看') + '</small></span><i></i></summary>'
+        + '<div class="assignment-write-fold-body"><ol>' + a.referenceTopics.map(function (topic) {
+          return '<li>' + esc(topic) + '</li>';
+        }).join('') + '</ol></div></details>'
+      : '';
+    var listBody = listWriting ? '<div class="assignment-compose assignment-list-compose">'
+      + '<button type="button" class="assignment-detail-back" data-assignment-home>← 作業首頁</button>'
+      + '<header class="assignment-compose-head"><div><p class="ey">' + esc(topicLabel)
+      + '</p><h3>' + esc(a.title || t.t) + '</h3></div></header>'
+      + '<details class="assignment-write-fold"><summary><span><b>先看整理方式</b>'
+      + '<small>需要方向時，再打開來看</small></span><i></i></summary>'
+      + '<div class="assignment-write-fold-body"><strong>' + esc(t.lead || '') + '</strong><p>'
+      + esc(a.prompt || '') + '</p>' + (a.note ? '<p>' + esc(a.note) + '</p>' : '') + '</div></details>'
+      + referenceBlock + '<div class="assignment-list-grid">' + fields.map(function (field, i) {
+        return '<label class="assignment-list-entry" data-field-id="assignment.' + esc(a.id) + '.' + esc(field.id)
+          + '" data-field-owner="student" data-field-label="' + esc(field.t) + '"><span><b class="num">'
+          + ('0' + (i + 1)).slice(-2) + '</b><em>' + esc(field.t) + '</em></span><textarea rows="3"'
+          + ' data-assignment-answer="' + esc(field.id) + '" data-assignment-fixed="1" placeholder="'
+          + esc(a.listPlaceholder || '在此填寫') + '">' + esc(assignmentAnswerValue(saved, field))
+          + '</textarea></label>';
+      }).join('') + '</div><p class="assignment-autosave">內容會自動儲存，可以隨時回來修改。</p></div>' : '';
+    var screenBody = isHome ? homeBody : listMode ? listBody : isChoosing ? chooserBody : detailBody;
     var pickers = assignmentThemePickerHTML(t.k, topicLabel);
     /* 三層流程的底部都必須是真的選單。舊版在作業首頁換成純文字外觀，
        看起來跟可點 HUD 一樣，實際上卻完全不能按。 */
@@ -3881,9 +3970,10 @@
       : '<button type="button" data-assignment-report>進度回報</button>';
     var footer = '<div class="assignment-focus-footer">' + pickers + '<div class="assignment-screen-reports">'
       + reportButton + '</div></div>';
-    var screen = '<div class="assignment-focus-screen' + (selected ? ' is-writing' : ' is-idle')
+    var writing = !!selected || listWriting;
+    var screen = '<div class="assignment-focus-screen' + (writing ? ' is-writing' : ' is-idle')
       + '" data-assignment-focus><div class="assignment-screenbar"><span class="gled"></span><b>UC-WRITE</b>'
-      + '<s>' + (selected ? 'WRITING' : isHome ? 'READY' : 'SELECT') + '</s><em id="assignmentProgress">' + progress.answered + ' / '
+      + '<s>' + (writing ? 'WRITING' : isHome ? 'READY' : 'SELECT') + '</s><em id="assignmentProgress">' + progress.answered + ' / '
       + progress.total + '</em></div><div class="assignment-screenin">' + corners + assignmentMoonSVG()
       + screenBody + '</div>'
       + footer + '<i class="gscanline" aria-hidden="true"></i></div>';
@@ -4094,16 +4184,16 @@
         var text = report.dataset.assignmentGroupReport
           ? assignmentGroupText(t, report.dataset.assignmentGroupReport)
           : assignmentFieldText(t, report.dataset.assignmentFieldReport);
-        copyProgressText(text, '這一題已複製，可以貼到群組回報');
+        reportProgressText(text, '這一題已複製，可以貼到群組回報');
       });
     });
     [].forEach.call(pane.querySelectorAll('[data-assignment-report]'), function (report) {
       report.addEventListener('click', function () {
-        copyProgressText(assignmentReportText(t), '這份作業已複製，可以貼到群組回報');
+        reportProgressText(assignmentReportText(t), '這份作業已複製，可以貼到群組回報');
       });
     });
     [].forEach.call(pane.querySelectorAll('[data-adventure-report]'), function (report) {
-      report.addEventListener('click', function () { copyProgressText(adventureReportText()); });
+      report.addEventListener('click', function () { reportProgressText(adventureReportText()); });
     });
     function sync() {
       var progressInfo = assignmentProgress(a, saved);
@@ -4181,6 +4271,11 @@
     });
     bindAssignmentThemePicker(pane, function (key) {
       if (!key || key === t.k) return;
+      if (key === '__adventure__') {
+        ADVENTURE_TOOL = null;
+        renderAdventureScreen();
+        return;
+      }
       if (pane.id === 'adventureScreen' || (pane.closest && pane.closest('#adventureScreen'))) {
         openAdventureTool(key, false);
       } else {
@@ -4229,6 +4324,18 @@
     if (back) back.addEventListener('click', function () {
       delete ASSIGNMENT_OPEN[a.id];
       refreshAssignment(t, pane, '.assignment-story-overview');
+    });
+    [].forEach.call(pane.querySelectorAll('[data-assignment-choice]'), function (choice) {
+      choice.addEventListener('click', function () {
+        if (choice.disabled) return;
+        var fieldId = choice.dataset.assignmentChoiceField;
+        if (!fieldId) return;
+        saved.answers[fieldId + '-choice'] = choice.dataset.assignmentChoice;
+        saved.status = 'draft';
+        saved.updatedAt = new Date().toISOString();
+        save();
+        refreshAssignment(t, pane, '[data-assignment-focus]');
+      });
     });
     [].forEach.call(pane.querySelectorAll('[data-assignment-answer]'), function (textarea) {
       if (!textarea.dataset.assignmentFixed) grow(textarea);

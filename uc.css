@@ -1428,6 +1428,29 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 }
 .assignment-compose-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
 .assignment-compose-close { margin-top: 1px; }
+.assignment-trait-picker {
+  display: grid; grid-template-columns: minmax(170px, .8fr) minmax(280px, 1.55fr); gap: 18px;
+  padding: 14px 15px; border: 1px solid var(--beige-12);
+  background: linear-gradient(135deg, rgba(232, 168, 152, .065), rgba(232, 228, 220, .025));
+  box-shadow: inset 2px 0 0 var(--salmon-30);
+}
+.assignment-trait-picker .ey { margin: 0 0 6px; color: var(--salmon); font: 500 9px/1 var(--mono); letter-spacing: .15em; }
+.assignment-trait-picker h4 { margin: 0; color: var(--beige); font: 500 17px/1.4 var(--sans); letter-spacing: .04em; }
+.assignment-trait-picker p:not(.ey) { margin: 7px 0 0; color: var(--beige-70); font-size: 12px; line-height: 1.65; }
+.assignment-trait-options { display: flex; align-content: flex-start; flex-wrap: wrap; gap: 6px; }
+.assignment-trait-options button {
+  min-width: 52px; min-height: 31px; padding: 5px 10px; color: var(--beige-70);
+  border: 1px solid var(--beige-12); background: rgba(19, 27, 46, .48);
+  font: 500 12px/1 var(--sans); letter-spacing: .05em; cursor: pointer;
+  transition: color .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease);
+}
+.assignment-trait-options button:hover, .assignment-trait-options button:focus-visible {
+  color: var(--salmon); border-color: var(--salmon-30); outline: none;
+}
+.assignment-trait-options button.is-selected {
+  color: var(--navy); border-color: var(--salmon); background: var(--salmon);
+}
+.assignment-trait-options button:disabled { opacity: .25; cursor: not-allowed; }
 .assignment-writing-lead {
   margin: 0 !important; color: var(--beige-70) !important;
   font: 400 11px/1.65 var(--sans) !important;
@@ -1475,6 +1498,25 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .assignment-compose textarea::placeholder { color: var(--beige-70); opacity: .72; }
 .assignment-compose .assignment-autosave {
   margin: 0; color: var(--beige-70); font: 500 10px/1.5 var(--mono); letter-spacing: .06em;
+}
+.assignment-list-compose { width: min(100%, 760px); }
+.assignment-list-reference ol {
+  display: grid; gap: 8px; max-height: 190px; margin: 0; padding: 3px 8px 5px 30px;
+  overflow-y: auto; color: var(--beige-70); font-size: 12px; line-height: 1.72;
+}
+.assignment-list-reference li::marker { color: var(--salmon); font: 500 9px/1 var(--mono); }
+.assignment-list-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px;
+}
+.assignment-list-entry {
+  display: grid; gap: 7px; min-width: 0; padding: 11px 12px 12px;
+  border: 1px solid var(--beige-12); background: rgba(19, 27, 46, .42);
+}
+.assignment-list-entry > span { display: flex; align-items: center; gap: 9px; }
+.assignment-list-entry > span .num { color: var(--salmon); font-size: 8px; letter-spacing: .08em; }
+.assignment-list-entry > span em { color: var(--beige-70); font: 500 11px/1.35 var(--sans); font-style: normal; }
+.assignment-list-compose .assignment-list-entry textarea {
+  min-height: 84px; padding: 9px 0; font-size: 13.5px; line-height: 1.7;
 }
 .assignment-report-actions { display: flex; align-items: center; justify-content: flex-start; gap: 12px; }
 .assignment-report-actions .btn { flex: none; padding: 7px 10px; font-size: 10px; }
@@ -1716,6 +1758,11 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   .assignment-idle-guide { font-size: 11.5px; }
   .assignment-screen-details > div { max-height: 90px; }
   .assignment-compose { inset: auto; gap: 10px; padding: 15px 14px 18px; }
+  .assignment-trait-picker { grid-template-columns: 1fr; gap: 12px; padding: 13px 12px; }
+  .assignment-trait-picker h4 { font-size: 18px; }
+  .assignment-trait-picker p:not(.ey) { font-size: 13px; }
+  .assignment-trait-options { gap: 7px; }
+  .assignment-trait-options button { min-width: 58px; min-height: 36px; font-size: 13px; }
   .assignment-write-fold summary { min-height: 62px; }
   .assignment-write-fold summary b { font-size: 14px; }
   .assignment-write-fold summary small { font-size: 12.5px; }
@@ -1730,6 +1777,11 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   .assignment-write-format li { font-size: 13px; }
   /* ⚠️ 手機的輸入框**不能小於 16px** —— 小於 16 iOS 會自動放大整頁（踩過）。 */
   .assignment-compose textarea { min-height: 210px; padding: 11px 0; font-size: 16px; line-height: 1.8; }
+  .assignment-list-grid { grid-template-columns: 1fr; }
+  .assignment-list-entry { padding: 11px 12px 12px; }
+  .assignment-list-compose .assignment-list-entry textarea {
+    min-height: 92px; padding: 9px 0; font-size: 16px; line-height: 1.72;
+  }
   .assignment-focus-guide { margin-top: 14px; padding: 17px 15px; }
   .assignment-focus-guide-list { grid-template-columns: 1fr; }
   .assignment-focus-guide-list section { padding: 14px 13px; }

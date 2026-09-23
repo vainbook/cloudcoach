@@ -28,7 +28,7 @@
        1. shareTargetPicker  跳出選擇對象的畫面，使用者自己挑要傳給誰。
                              最通用，但要在 LIFF 設定裡把這個功能打開。
        2. sendMessages       直接送進「開啟這個 LIFF 的那個聊天室」。
-                             只有從官方帳號的聊天室點進來才有 context，
+                             必須從有對話脈絡的 LIFF 入口開啟，
                              而且要有 chat_message.write 權限。
        3. 複製到剪貼簿        什麼都不能用時（桌機瀏覽器、demo）至少讓他貼得出去。
 
@@ -49,13 +49,8 @@
     } catch (e) { return false; }
   }
 
-  /* ⚠️ **預設關掉。** sendMessages 只送得進「官方帳號的聊天室」，
-     而這個專案的 LIFF 是從一般群組／對話開的（使用者 2026-09-13 確認），
-     所以它必定回 INVALID_RECEIVER。留著只會每次先失敗一輪再退回去，
-     使用者看到的是「按鈕說傳到 LINE，結果跳複製」——「不確定」比「做不到」更糟。
-
-     什麼時候可以打開：等這個 LINE Login channel 連動了官方帳號（Linked OA），
-     而且學員是從那個官方帳號的聊天室點進來的。把這裡改成 true 就會生效。 */
+  /* 一般「分享」預設不自動送到目前對話，避免分享其他內容時誤發。
+     作業進度回報另走 sendGroupOrCopy()：只有明確處在 group／room 才直接傳送。 */
   var USE_SEND_MESSAGES = false;
 
   function hasSend() {
@@ -133,13 +128,36 @@
     }
   }
 
+  /* 作業／冒險進度固定回到「開啟 LIFF 的群組」。只有 group 與 room 算群組；
+     一對一 utou、外部瀏覽器與 file:// 預覽都直接複製。不要先開分享選人視窗，
+     因為使用者按的是回報目前群組，不是另選收件者。 */
+  function sendGroupOrCopy(text) {
+    text = String(text == null ? '' : text).trim();
+    if (!text) return Promise.resolve('fail');
+    var available = false;
+    try {
+      var context = window.liff && liff.getContext && liff.getContext();
+      available = !!(window.liff && liff.sendMessages && liff.isInClient && liff.isInClient()
+        && context && ['group', 'room'].indexOf(context.type) >= 0);
+    } catch (e) { available = false; }
+    if (!available) return copyText(text);
+    try {
+      return liff.sendMessages([{ type: 'text', text: text.slice(0, 4900) }])
+        .then(function () { lastError = ''; return 'send'; })
+        .catch(function (e) { lastError = friendly(e); return copyText(text); });
+    } catch (e) {
+      lastError = friendly(e);
+      return copyText(text);
+    }
+  }
+
   /* LINE 的錯誤碼翻成看得懂的話。
-     ⚠️ INVALID_RECEIVER 很容易被誤讀成「權限沒開」，其實是收件者不對 ——
-     sendMessages 只能送進**官方帳號的聊天室**，從別的對話開就一定是這個錯。 */
+     ⚠️ INVALID_RECEIVER 很容易被誤讀成「權限沒開」，實際上是目前 LIFF
+     沒有可接收 sendMessages 的對話脈絡。 */
   function friendly(e) {
     var code = (e && (e.code || e.message)) || '';
     if (/INVALID_RECEIVER/.test(code)) {
-      return '這個對話不是官方帳號的聊天室，LINE 不讓程式往這裡送';
+      return '目前不是可直接回傳的 LINE 對話，已改用複製';
     }
     if (/chat_message\.write|FORBIDDEN|permission/i.test(code)) {
       return '還沒同意「傳送訊息」的權限，登出再登入一次';
@@ -259,6 +277,7 @@
     text: shareText,
     copy: copyText,
     current: sendCurrentOrCopy,
+    group: sendGroupOrCopy,
     diag: diag,
     /* 這一台裝置到底能不能真的送進 LINE。前端用它決定按鈕要寫「傳到 LINE」還是「複製」。 */
     canSend: function () { return hasPicker() || hasSend() || !!navigator.share; },

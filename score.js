@@ -393,8 +393,13 @@ window.UC_SELFTEST = function () {
         t('作業「' + x.t + '」題目 ' + f.id + ' 的 id 符合後端規格', /^[a-z0-9-]{1,40}$/.test(f.id || ''));
         if (Array.isArray(x.assignment.groups) || x.assignment.kind === 'belief-cycle') {
           t('作業「' + x.t + '」題目 ' + f.id + ' 有填寫引導', !!f.help && !!f.ph);
+        } else if (x.assignment.mode === 'list') {
+          t('作業「' + x.t + '」題目 ' + f.id + ' 有清單填寫提示',
+            typeof x.assignment.listPlaceholder === 'string' && x.assignment.listPlaceholder.length > 0);
         } else {
-          t('作業「' + x.t + '」題目 ' + f.id + ' 有範例', typeof f.example === 'string' && f.example.length > 0);
+          var guide = f.formatGuide || x.assignment.formatGuide || [];
+          t('作業「' + x.t + '」題目 ' + f.id + ' 有引導與書寫格式',
+            !!f.sub && !!f.scope && !!(f.ph || x.assignment.placeholder) && guide.length > 0);
         }
       });
       (x.assignment.groups || []).forEach(function (g) {
@@ -410,15 +415,14 @@ window.UC_SELFTEST = function () {
   t('聊天話題庫有十二個故事題目', !!chatAssignment && !!chatAssignment.assignment
     && chatAssignment.assignment.groups.length === 12);
   var beliefAssignment = T.items.filter(function (x) { return x.k === 'beliefs'; })[0];
-  var belief = beliefAssignment && beliefAssignment.assignment && beliefAssignment.assignment.belief;
-  var beliefExamples = belief && belief.stage1 && (belief.stage1.categories || []).reduce(function (n, category) {
-    return n + (category.items || []).length;
-  }, 0);
   t('信念系統已開放填寫', !!beliefAssignment && beliefAssignment.status === 'active'
-    && beliefAssignment.assignment && beliefAssignment.assignment.kind === 'belief-cycle');
-  t('信念系統第一階段有 20 個常見句子', beliefExamples === 20);
-  t('信念系統第二階段含舊迴圈與新經驗', !!belief && belief.stage2
-    && (belief.stage2.loopFields || []).length === 5 && (belief.stage2.exitFields || []).length >= 5);
+    && beliefAssignment.assignment && beliefAssignment.assignment.kind === 'focus-editor');
+  var beliefFields = beliefAssignment && beliefAssignment.assignment && beliefAssignment.assignment.fields || [];
+  t('信念系統有三次練習', beliefFields.length === 3);
+  t('信念系統同時處理受限信念與新選擇', beliefFields.every(function (field) {
+    return String(field.ph || '').indexOf('受限信念') >= 0
+      && String(field.ph || '').indexOf('新的發現與選擇') >= 0;
+  }));
   var toolKeys = {};
   T.items.forEach(function (x) { toolKeys[x.k] = 1; });
   Object.keys(O.taskToolMap || {}).forEach(function (sheet) {
