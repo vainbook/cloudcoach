@@ -3193,6 +3193,10 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   font-family: var(--mono); font-size: 9px; letter-spacing: .05em; }
 .edtcheck input { position: absolute; opacity: 0; pointer-events: none; }
 .nowcheck { border-radius: 30px; }
+/* 當前任務的順序號：膠囊裡的小圓。 */
+.nowcheck .edtno { display: inline-grid; place-items: center; min-width: 15px; height: 15px; margin-left: 5px;
+  padding: 0 4px; border-radius: 8px; font: 700 9px/1 var(--mono); font-style: normal;
+  color: var(--salmon); background: var(--navy); }
 .donecheck { border-radius: 2px; border-style: dashed; }
 .nowcheck:has(input:checked) { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
 .donecheck:has(input:checked) { color: var(--beige); background: var(--beige-08); border-color: var(--beige-40);

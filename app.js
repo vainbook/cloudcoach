@@ -2053,6 +2053,7 @@
         save(); edtCount(pane);
       });
     });
+    edtOrder(pane);
     [].forEach.call(pane.querySelectorAll('[data-edtmode]'), function (b) {
       b.addEventListener('click', function () {
         var root = b.closest('.edt');
@@ -2071,11 +2072,23 @@
 
   /* 頂端的計數。只改兩個數字，不重建列表。 */
   function edtCount(body) {
+    edtOrder(body);
     var b = body.querySelectorAll('.edth b');
     if (b.length < 3) return;
     b[0].textContent = Object.keys(S.hidden || {}).length;
     b[1].textContent = currentTaskItems().length;
     b[2].textContent = completedCount();
+  }
+
+  /* 「當前」膠囊上的數字＝學員任務卡上的順序（越晚勾越前面，使用者 2026-09-24）。
+     跟 currentTaskItems() 同一個排序，教練勾的當下就看得到會排第幾。 */
+  function edtOrder(body) {
+    var pos = {};
+    currentTaskItems().forEach(function (it, i) { pos[it.id] = i + 1; });
+    [].forEach.call(body.querySelectorAll('[data-current]'), function (c) {
+      var span = c.parentNode.querySelector('span');
+      if (span) span.innerHTML = '當前' + (pos[c.dataset.current] ? '<i class="edtno">' + pos[c.dataset.current] + '</i>' : '');
+    });
   }
 
   /* 書的事件。⚠️ **全部都不呼叫 renderOkr()** ——
