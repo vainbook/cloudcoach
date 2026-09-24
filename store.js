@@ -80,6 +80,7 @@
       push('adjust.' + d.k, d.label + '／教練加減', num(cr.adjust && cr.adjust[d.k]));
       push('score.' + d.k, d.label + '／分數', num(cr.scores && cr.scores[d.k]));
       push('note.' + d.k, d.label + '／說明', str(cr.notes && cr.notes[d.k]));
+      push('progress.' + d.k, d.label + '／課程中進步', num(cr.progress && cr.progress[d.k]));
     });
     push('letter', '寫給學員的一封信', str(cr.letter));
     push('coachName', '教練中文署名', str(cr.coachName));
@@ -129,7 +130,7 @@
         { scope: scope, itemId: itemId, field: field, label: label, value: detach(value) };
     }
 
-    /* 成長紀錄：一筆事件送一整個物件，不是拆成欄位 ——
+    /* 成長日誌：一筆事件送一整個物件，不是拆成欄位 ——
        ⚠️ remote 模式不寫 localStorage，這裡不同步的話
        在 LINE 裡記的東西重新整理就沒了。 */
     (S.log || []).forEach(function (ev) {
@@ -145,11 +146,11 @@
   }
 
   /* ⚠️ **快照要是快照，不能是活的參考。**
-     舊版把物件本身放進 out（成長紀錄的 ev、作業的 submission），
+     舊版把物件本身放進 out（成長日誌的 ev、作業的 submission），
      而 push() 最後會 `snap = now` —— 於是 snap 裡那一份跟畫面上的是同一個物件。
      使用者「就地改」一筆紀錄（old.t = ...）時，snap 也跟著變，
      比對起來完全相同，差異偵測認為沒改，一個字都不會送出去
-     （2026-09-18：編輯成長紀錄存不到）。
+     （2026-09-18：編輯成長日誌存不到）。
      新增之所以正常，是因為那是一個全新的 key，不需要比對。
      ⚠️ 只有物件要複製；字串與數字本來就是傳值。 */
   function detach(v) {
@@ -377,7 +378,7 @@
     return first.then(function (data) {
       /* 畫面已經出來了，剩下的在背景補。使用者等不到它。
          ⚠️ 只有拿到 'boot' 那一包才需要補。
-         ⚠️ **教練不補。** 補的是「教練自己的」作業與成長紀錄，而教練下一步
+         ⚠️ **教練不補。** 補的是「教練自己的」作業與成長日誌，而教練下一步
          是挑學員，挑完會重新載入那個人的整包 —— 那一趟純粹是浪費
          （2026-09-18 實測：讀作業 972ms ＋ 一整趟 1.5 秒的往返）。 */
       if (data && data.part === 'boot' && opts.accessScope !== 'manage') prefetchRest();
@@ -387,7 +388,7 @@
 
   /* ── 背景補齊 ─────────────────────────────────────
      登入只讀第一眼要用的四包（答案／報告／任務／藍圖），
-     成長紀錄與作業等畫完之後才抓 —— 它們只有 #/growth 與作業頁會用到，
+     成長日誌與作業等畫完之後才抓 —— 它們只有 #/growth 與作業頁會用到，
      而使用者走到那裡至少要幾秒，補得完。
      ⚠️ 失敗不吵使用者：那兩頁進去時本來就會是空的，
      跟「還沒填」長得一樣，不是錯誤狀態。下次登入會再補一次。 */
@@ -428,7 +429,7 @@
     var touched = false;
 
     /* 逐筆合併，不是「空的才填」。
-       ⚠️ 「空的才填」會反過來吃掉伺服器的資料：使用者在這兩秒內加了一筆成長紀錄，
+       ⚠️ 「空的才填」會反過來吃掉伺服器的資料：使用者在這兩秒內加了一筆成長日誌，
        S.log 就不是空的，於是伺服器上原有的五筆全部被跳過，畫面上看起來像消失了。
        以 id 為準做聯集，本機那一份優先（那是還沒送出去的最新版）。 */
     if (data.log && data.log.length) {
@@ -504,7 +505,7 @@
   }
 
   function unpackReport(flat) {
-    var cr = { adjust: {}, scores: {}, notes: {}, letter: '', coachName: '',
+    var cr = { adjust: {}, scores: {}, notes: {}, progress: {}, letter: '', coachName: '',
                coachEnglishName: '', growthStart: '', complete: false };
     Object.keys(flat).forEach(function (f) {
       var v = flat[f];
@@ -518,6 +519,7 @@
         if (parts[0] === 'adjust') cr.adjust[parts[1]] = Number(v) || 0;
         else if (parts[0] === 'score') cr.scores[parts[1]] = Number(v) || 0;
         else if (parts[0] === 'note') cr.notes[parts[1]] = typeof v === 'string' ? v : '';
+        else if (parts[0] === 'progress') { cr.progress = cr.progress || {}; cr.progress[parts[1]] = Number(v) || 0; }
       }
     });
     return cr;
@@ -646,7 +648,7 @@
     switchStudent: switchStudent,
     restState: function () { return restState; },
     /* ⚠️ 只重試**失敗過的**那一次。無條件呼叫 prefetchRest 的話，
-       教練切完學員（restDone 被重設）走進成長日曆就會多打一趟 ——
+       教練切完學員（restDone 被重設）走進成長日誌就會多打一趟 ——
        而他那一包 load_() 早就整包拿回來了。 */
     retryRest: function () { if (restState === 'failed') prefetchRest(); },
     isRemote: isRemote,
@@ -657,7 +659,7 @@
     perf: function () { return perf.slice(); },
     studentId: function () { return studentId; },
     demoStudentId: function () { return demoId; },
-    /* 刪掉一筆成長紀錄。⚠️ **一定要讓伺服器也刪掉** ——
+    /* 刪掉一筆成長日誌。⚠️ **一定要讓伺服器也刪掉** ——
        mergeRest 是以 id 做聯集，只刪本機的話下一次同步就會把它撈回來。
        本機／demo 模式沒有伺服器，直接回成功讓前端自己處理狀態。 */
     deleteGrowth: function (eventId) {

@@ -106,7 +106,12 @@
     var scores = v.scores && typeof v.scores === 'object' && !Array.isArray(v.scores) ? v.scores : {};
     var notes = v.notes && typeof v.notes === 'object' && !Array.isArray(v.notes) ? v.notes : {};
     var adjust = v.adjust && typeof v.adjust === 'object' && !Array.isArray(v.adjust) ? v.adjust : {};
+    var progress = v.progress && typeof v.progress === 'object' && !Array.isArray(v.progress) ? v.progress : {};
     return {
+      /* progress ＝ 課程中教練記下的**進步**（+0～+4 級），跟 adjust 分開存。
+         ⚠️ 兩者目的不同：adjust 是評測時的校準（讓起點更真實），progress 是後來的成長。
+         混在同一格，學員看到的「進步」裡會混著當初的校準，進步感就不準了。 */
+      progress: progress,
       /* adjust ＝ 教練在題目算出來的基準上加減幾級（-2～+2，預設 0）。
          scores ＝ 加減之後的最終星等，由 syncCoachScores() 自動算出來寫回，
          **不是教練直接填的** —— 它只是給後端／試算表用的快照。 */
@@ -329,7 +334,7 @@
   }
 
   /* ── 背景補資料的狀態 ──────────────────────────────
-     成長紀錄與作業不在登入那一包裡，是畫面出來之後才補的（省 1.5～2.5 秒）。
+     成長日誌與作業不在登入那一包裡，是畫面出來之後才補的（省 1.5～2.5 秒）。
      ⚠️ **還沒補到的時候不能裝成空的。** 空白畫面跟「還沒填」長得一模一樣，
      學員會以為自己寫的東西不見了 —— 而作業那頁更糟：空表單被填一個字就整包
      蓋回伺服器。等不到就要說等不到。 */
@@ -1291,6 +1296,12 @@
     return Math.max(1, Math.min(5, base + reportAdjust(k, cr)));
   }
 
+  /** 起點星等加上教練記下的進步，封頂 5。 */
+  function progressStar(k, r, cr) {
+    var p = Math.max(0, Math.round(Number((cr.progress || {})[k]) || 0));
+    return Math.min(5, reportStar(k, r, cr) + p);
+  }
+
   /* 最終星等寫回 cr.scores —— 後端的 report.score.<k> 欄位讀的是這個。
      每次 adjust 變動或作答變動都要跑一次，否則試算表會存到過期的分數。 */
   function syncCoachScores(cr, r) {
@@ -2222,12 +2233,50 @@
     });
   }
 
+  /* 教練記錄進步的小控制列，只有教練看得到。每維 ＋／－，封頂到 5 星。 */
+  function paintProgressEditor(root, r, cr) {
+    var host = root.querySelector('#bpcProgress');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'bpcProgress'; host.className = 'bpcprogress';
+      var radar = root.querySelector('#bpcRadar');
+      if (!radar) return;
+      radar.parentNode.insertBefore(host, radar.nextSibling);
+    }
+    host.innerHTML = '<p class="ey">教練記錄進步</p>' + window.UC_DIMENSIONS.dims.map(function (d) {
+      var base = reportStar(d.k, r, cr), now = progressStar(d.k, r, cr);
+      return '<div class="bpcpg"><b>' + esc(d.label) + '</b>'
+        + '<button type="button" data-pg="' + d.k + '" data-d="-1"' + (now <= base ? ' disabled' : '') + ' aria-label="' + esc(d.label) + '減一級">－</button>'
+        + '<span>' + (now > base ? '+' + (now - base) : '0') + '</span>'
+        + '<button type="button" data-pg="' + d.k + '" data-d="1"' + (now >= 5 ? ' disabled' : '') + ' aria-label="' + esc(d.label) + '加一級">＋</button></div>';
+    }).join('');
+    host.onclick = function (e) {
+      var b = e.target.closest && e.target.closest('[data-pg]');
+      if (!b || b.disabled) return;
+      var k = b.dataset.pg, cur = Math.max(0, Math.round(Number(cr.progress[k]) || 0));
+      var next = Math.max(0, cur + Number(b.dataset.d));
+      if (reportStar(k, r, cr) + next > 5) return;
+      if (next) cr.progress[k] = next; else delete cr.progress[k];
+      save();
+      paintBlueprintRadar(root);
+    };
+  }
+
   function paintBlueprintRadar(root) {
     var host = root && root.querySelector('#bpcRadar');
     if (!host) return;
     var r = reportBase(), cr = S.coachReport || normalizeCoachReport();
-    drawRadar(host, coachReportValues(r, cr), { comment: true, blueprint: true,
+    /* 有記錄進步的話：起點降成淡虛線（ghost），現在的形狀用實線疊在上面。
+       多出來的那一塊就是學員的進步 —— 成就感要看得見（使用者 2026-09-24）。 */
+    var start = coachReportValues(r, cr), now = {}, grew = false;
+    window.UC_DIMENSIONS.dims.forEach(function (d) {
+      var n = progressStar(d.k, r, cr);
+      if (n > reportStar(d.k, r, cr)) { grew = true; now[d.k] = window.UC_SCORE.starMid[n - 1]; }
+      else now[d.k] = start[d.k];
+    });
+    drawRadar(host, now, { comment: true, blueprint: true, ghost: grew ? start : null,
       comments: cr.notes, lead: coachReportLow(r, cr), animate: false });
+    if (ACTOR_ROLE === 'coach') paintProgressEditor(root, r, cr);
     [].forEach.call(host.querySelectorAll('.lbtn'), function (b) {
       function toggle() {
         var fig = document.getElementById('bpcFig');
@@ -2608,7 +2657,7 @@
   }
 
 
-  /* ── 成長紀錄：90 天回顧日曆 ─────────────────────── */
+  /* ── 成長日誌：90 天回顧日曆 ─────────────────────── */
   /* GFORM = 正在填哪一類（call／social／date）；GEDIT = 正在改哪一筆（null＝新增）。 */
   var GCALMODE = 'number', GSELECT = null, GFORM = null, GEDIT = null;
   var GTYPES = [
@@ -3291,7 +3340,9 @@
 
     /* 共用作業螢幕是冒險的第一個主體；舊卡片與分類全數保留在下方。 */
     h += wrap('<div id="adventureScreen"></div>', 'rv adventure-stage');
-    h += wrap('<div class="adventure-library"><div class="tabs" id="libTabs">' + L.tabs.map(function (t) {
+    /* 「課程工具」分頁拿掉了（使用者 2026-09-24）—— 十一份作業全部改在上方螢幕裡寫，
+       下面再放一份入口就是重複。封面圖與 UC_TOOLS 資料都留著。 */
+    h += wrap('<div class="adventure-library"><div class="tabs" id="libTabs">' + libTabs().map(function (t) {
         var n = t.k === 'tool' ? window.UC_TOOLS.items.length
               : L.items.filter(function (i) { return i.tab === t.k; }).length;
         return '<button class="tab" data-tab="' + t.k + '">'
@@ -3315,8 +3366,14 @@
   }
 
   /* 換分頁。只換窗格內容，不動捲動位置、不重建整頁。 */
+  function libTabs() {
+    return window.UC_LIBRARY.tabs.filter(function (t) { return t.k !== 'tool'; });
+  }
+
   function libTo(k, initial) {
     var L = window.UC_LIBRARY;
+    /* 舊連結（#/tools、任務卡）還會要 'tool' —— 落回第一個分頁，作業本身由上方螢幕打開。 */
+    if (!libTabs().some(function (t) { return t.k === k; })) k = libTabs()[0].k;
     LIBTAB = k;
     var tab = L.tabs.filter(function (t) { return t.k === k; })[0] || L.tabs[0];
 
@@ -3604,7 +3661,7 @@
       +   '<stop offset="42%" stop-color="#E8E4DC" stop-opacity=".025"/>'
       +   '<stop offset="76%" stop-color="#E8E4DC" stop-opacity="0"/>'
       + '</linearGradient>'
-      /* 星點：中心實、四成處收、邊緣歸零（跟成長頁同一顆）。 */
+      /* 星點：中心實、四成處收、邊緣歸零（跟成長日誌同一顆）。 */
       + '<radialGradient id="amStar">'
       +   '<stop offset="0%" stop-color="#E8E4DC" stop-opacity=".95"/>'
       +   '<stop offset="12%" stop-color="#E8E4DC" stop-opacity=".62"/>'
@@ -3756,6 +3813,25 @@
 
   /* 冒險的第一層：只給月面、一個清楚的名稱與主題選擇。
      選好後才進各作業原本的三層流程，避免一進頁面就要處理大量資訊。 */
+  /* 冒險的進度：一份作業一顆點，寫完變實心（使用者 2026-09-24：要有成就感，
+     容易看到又不搶戲）。放在螢幕首頁的主內容裡，進入寫作時跟月面一起退後。
+     ⚠️ 讀 S.assignments 就好，**不要呼叫 assignmentState()** —— 那會塞空殼草稿。
+     ⚠️ 背景資料還沒補到時不畫：畫出 0 / 11 會讓人以為寫過的東西不見了（規則 65）。 */
+  function adventureProgressHTML() {
+    if (restPending()) return '';
+    var tools = focusAssignmentTools();
+    if (!tools.length) return '';
+    var done = 0, dots = tools.map(function (t) {
+      var saved = (S.assignments || {})[t.assignment.id];
+      var ok = !!(saved && saved.answers && assignmentProgress(t.assignment, saved).complete);
+      if (ok) done++;
+      return '<i class="' + (ok ? 'on' : '') + '" title="' + esc(t.t) + (ok ? '（完成）' : '') + '"></i>';
+    }).join('');
+    return '<div class="adventure-progress" aria-label="已完成 ' + done + ' / ' + tools.length + ' 份作業">'
+      + '<b>' + done + '<s> / ' + tools.length + '</s></b><span>份作業完成</span>'
+      + '<p aria-hidden="true">' + dots + '</p></div>';
+  }
+
   function adventureHomeHTML() {
     return '<section class="assignment assignment-focus adventure-workspace">'
       + '<div class="assignment-focus-shell"><div class="assignment-focus-screen is-idle adventure-screen">'
@@ -3764,7 +3840,7 @@
       + '<div class="assignment-screenin">' + assignmentCornersHTML() + assignmentMoonSVG()
       + '<div class="assignment-home adventure-home"><div class="assignment-home-copy">'
       + '<p class="ey">Adventure</p><h3>冒險</h3>'
-      + '<p>選擇一個主題，從這裡開始這次探索。</p>'
+      + '<p>選擇一個主題，從這裡開始這次探索。</p>' + adventureProgressHTML()
       + '</div><i class="assignment-home-beacon" aria-hidden="true"></i></div></div>'
       + '<div class="assignment-focus-footer">' + assignmentThemePickerHTML('', '冒險首頁')
       + '<div class="assignment-screen-reports"><button type="button" data-adventure-report>進度回報</button></div></div>'

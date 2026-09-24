@@ -623,7 +623,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
 #v-growth > .pagepad > section { padding: 22px 0 8px; }
 /* ⚠️ **第一個區塊不要再加一次上方留白。** 它下面就是 `.rhead`，而 `.rhead`
    自己已經有 padding-top —— 兩層疊起來是 90px 的空白，主視覺（藍圖人物、
-   成長日曆的螢幕）因此被推出第一屏（使用者 2026-09-19）。
+   成長日誌的螢幕）因此被推出第一屏（使用者 2026-09-19）。
    只動第一個，區塊之間的節奏不變。 */
 /* `:first-of-type` 的意思是第一個 section；前面即使之後新增操作鈕也不影響。 */
 #v-okr > .pagepad > section:first-of-type,
@@ -999,8 +999,8 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .assignment.assignment-focus { margin-top: 0; }
 .assignment-focus-shell { margin-top: 0; }
 .assignment-tool-context { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--beige-08); }
-/* ⚠️ 這塊面板**沿用成長日曆那套玻璃處方**（規則 60）——
-   使用者 2026-09-20：「至少跟成長紀錄的面板一樣」。
+/* ⚠️ 這塊面板**沿用成長日誌那套玻璃處方**（規則 60）——
+   使用者 2026-09-20：「至少跟成長日誌的面板一樣」。
    原本是 `--navy-lift` 實心底 ＋ 整圈 `inset 0 0 80px` 內陰影，那兩樣都在說
    「這是一個盒子」；而成長面板早就改掉了。兩處各做一套，看起來就不是同一個產品。 */
 .assignment-focus-screen {
@@ -2018,7 +2018,7 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
 .sheet .sk { font-family: var(--mono); font-size: 12.5px; font-weight: 500; margin: 0 0 4px; }
 .sheet .sk em { font-style: normal; font-size: 10px; letter-spacing: .1em; opacity: .4; margin-left: 9px; }
 .sheet .sc { font-size: 11.5px; line-height: 1.85; opacity: .6; margin: 0; }
-/* ═══ 成長紀錄 ═════════════════════════════════════════
+/* ═══ 成長日誌 ═════════════════════════════════════════
    三條錄音軌（電話／社交／約會，由上到下），x 軸＝十二週。
    **一筆紀錄＝一組電平段，段數＝那一筆的狀況**（lv 1 差／2 好／3 優），
    軌與軌之間不能互相比較。
@@ -2457,7 +2457,7 @@ html.task-open, html.task-open body { overflow: hidden; }
   padding: 9px 0; border-top: 1px solid var(--beige-08);
 }
 .nlist dt:first-of-type, .nlist dd:first-of-type { border-top: 0; }
-/* ═══ 成長紀錄：90 天回顧日曆 ═════════════════════════ */
+/* ═══ 成長日誌：90 天回顧日曆 ═════════════════════════ */
 .growthcal { padding-bottom: 52px; }
 .gcalbar { margin-bottom: 22px; }
 .gcalbar .gkinds { margin-top: 0; }
@@ -3620,7 +3620,7 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   .stnum { grid-column: 3; }
 }
 
-/* ═══ 成長紀錄：三顆大按鈕 ═══════════════════════════
+/* ═══ 成長日誌：三顆大按鈕 ═══════════════════════════
    使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
    點下去開始寫紀錄。」入口就是分類，不要先問「要不要新增」再問「哪一種」。 */
 /* ⚠️ 這三顆**不要融入背景**（使用者 2026-09-18：「做成像是遊戲機台的按鈕」）。
@@ -3741,7 +3741,7 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   .qrow.free { transition-duration: .08s; }
 }
 
-/* 成長紀錄的「狀況」：三顆按鈕，不用下拉。
+/* 成長日誌的「狀況」：三顆按鈕，不用下拉。
    手機上點一下就選好，比「開下拉→捲→選→關」快得多 ——
    而這張表使用者每週都要填。 */
 .gflv { display: flex; gap: 6px; flex: 1; }
@@ -3848,7 +3848,7 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 }
 
 /* ── 背景補資料還沒到 ────────────────────────────────
-   成長紀錄與作業是畫面出來之後才補的。等不到就說等不到 ——
+   成長日誌與作業是畫面出來之後才補的。等不到就說等不到 ——
    空白畫面跟「還沒填」長得一樣，那是在騙人。 */
 .restnote {
   margin: 12px 0 0; padding: 9px 12px;
@@ -3862,3 +3862,25 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   font: inherit; color: var(--salmon); text-decoration: underline; cursor: pointer;
 }
 .assignment .restnote { margin-top: 0; }
+
+/* 教練記錄進步（只有教練看得到）。在雷達下方，一排五個小計數器。 */
+.bpcprogress { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 8px 0 0; }
+.bpcprogress .ey { width: 100%; margin: 0; color: var(--salmon); opacity: .7;
+  font: 500 8.5px/1 var(--mono); letter-spacing: .2em; }
+.bpcpg { display: inline-flex; align-items: center; gap: 5px; color: var(--beige-70); font-size: 11px; }
+.bpcpg b { font-weight: 500; }
+.bpcpg span { min-width: 18px; text-align: center; color: var(--salmon); font: 500 11px/1 var(--mono); }
+.bpcpg button { width: 20px; height: 20px; padding: 0; border-radius: 50%; cursor: pointer;
+  color: var(--beige-70); background: none; border: 1px solid var(--beige-18); font-size: 11px; line-height: 1; }
+.bpcpg button:hover:not([disabled]) { border-color: var(--salmon); color: var(--beige); }
+.bpcpg button[disabled] { opacity: .3; cursor: default; }
+
+/* 冒險首頁的進度：數字＋一排點。點一份作業一顆，寫完變實心。 */
+.adventure-progress { display: grid; justify-items: center; gap: 6px; margin-top: 14px; }
+.adventure-progress b { font: 500 18px/1 var(--mono); color: var(--beige); letter-spacing: .04em; }
+.adventure-progress b s { text-decoration: none; color: var(--beige-40); font-size: 12px; }
+.adventure-progress span { color: var(--beige-40); font-size: 10.5px; letter-spacing: .08em; }
+.adventure-progress p { display: flex; gap: 5px; margin: 2px 0 0; }
+.adventure-progress i { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--beige-40); }
+.adventure-progress i.on { background: var(--salmon); border-color: var(--salmon);
+  box-shadow: 0 0 6px rgba(232, 168, 152, .55); }
