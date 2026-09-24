@@ -635,9 +635,12 @@
     if (!L || !L.items) return;
     L.items.forEach(function (i) {
       /* ⚠️ 用 **id**，不是 tab + no。no 會跟著排序變，
-         用 no 當鍵的話重排一次，連結就接到別堂課上（無聲的錯誤）。 */
-      var url = map[i.id || (i.tab + '-' + i.no)];
-      if (typeof url === 'string' && /^https?:\/\//i.test(url)) i.src = url;
+         用 no 當鍵的話重排一次，連結就接到別堂課上（無聲的錯誤）。
+         清單型的卡（推薦書單）裡每一項也各自有 id。 */
+      [i].concat(i.listLinks ? i.list || [] : []).forEach(function (x) {
+        var url = map[x.id || (x.tab + '-' + x.no)];
+        if (typeof url === 'string' && /^https?:\/\//i.test(url)) x.src = url;
+      });
     });
   }
 

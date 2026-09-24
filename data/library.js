@@ -61,21 +61,51 @@ window.UC_LIBRARY = {
 
     /* 電子書與書單 */
     { tab: 'book', id: 'book-E', no: 'E', t: 'UC 原創電子書', sub: '11 本・待補上檔案', len: '11 本', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-A1', no: 'A1', t: '《被討厭的勇氣》', sub: '岸見一郎・阿德勒｜冒險', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-A2', no: 'A2', t: '《薩提爾的對話練習》', sub: '李崇建｜冒險', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-A3', no: 'A3', t: '《愛無能》', sub: '吳姵瑩｜冒險', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-B1', no: 'B1', t: '《脆弱的力量》', sub: 'Brené Brown｜擁有', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-B2', no: 'B2', t: '《關係黑洞》', sub: '吳姵瑩｜擁有', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-B3', no: 'B3', t: '《非暴力溝通》', sub: 'Marshall Rosenberg｜擁有', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-B4', no: 'B4', t: '《蛤蟆先生去看心理師》', sub: 'Robert de Board｜擁有', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-C1', no: 'C1', t: '《社會性動物》', sub: 'David Aronson｜理想', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-C2', no: 'C2', t: '《魅力學》', sub: 'Olivia Fox Cabane｜理想', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-C3', no: 'C3', t: '《關鍵對話》', sub: 'Kerry Patterson｜理想', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D1', no: 'D1', t: '《幸福的婚姻》', sub: 'John Gottman｜自由', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D2', no: 'D2', t: '《調情學》', sub: 'Jean Smith｜自由', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D3', no: 'D3', t: '《愛之語》', sub: 'Gary Chapman｜自由', len: '必修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D4', no: 'D4', t: '《親密關係：通往靈魂的橋樑》', sub: '克里斯多福・孟｜自由', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D5', no: 'D5', t: '《讓愛情長久的八堂約會》', sub: 'John Gottman｜自由', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' },
-    { tab: 'book', id: 'book-D6', no: 'D6', t: '《哈佛 ✕ Google 行為科學家的脫單指南》', sub: 'Logan Ury｜自由', len: '選修', src: '', cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp' }
+    /* ⚠️ 推薦書單原本是 16 張一樣封面的卡（使用者 2026-09-24：「一大堆圖片」），
+       併成一張卡，點開是文字清單。每本書的 id 留著 —— 課程連結分頁用它當鍵。 */
+    { tab: 'book', id: 'book-list', no: 'B', t: '推薦書單', sub: '四階段推薦書・16 本', src: '',
+      cover: 'assets/course-covers/15-reading-books-fullbleed-v3.webp',
+      listLead: '依 UC 四個階段整理的推薦書。',
+      listLinks: true,     /* 清單裡每本書各自可以貼連結（課程連結分頁沿用 book-A1…） */
+      list: [
+        { id: 'book-A1', no: 'A1', t: '《被討厭的勇氣》', sub: '岸見一郎・阿德勒｜冒險', len: '必修' },
+        { id: 'book-A2', no: 'A2', t: '《薩提爾的對話練習》', sub: '李崇建｜冒險', len: '必修' },
+        { id: 'book-A3', no: 'A3', t: '《愛無能》', sub: '吳姵瑩｜冒險', len: '必修' },
+        { id: 'book-B1', no: 'B1', t: '《脆弱的力量》', sub: 'Brené Brown｜擁有', len: '必修' },
+        { id: 'book-B2', no: 'B2', t: '《關係黑洞》', sub: '吳姵瑩｜擁有', len: '必修' },
+        { id: 'book-B3', no: 'B3', t: '《非暴力溝通》', sub: 'Marshall Rosenberg｜擁有', len: '選修' },
+        { id: 'book-B4', no: 'B4', t: '《蛤蟆先生去看心理師》', sub: 'Robert de Board｜擁有', len: '選修' },
+        { id: 'book-C1', no: 'C1', t: '《社會性動物》', sub: 'David Aronson｜理想', len: '必修' },
+        { id: 'book-C2', no: 'C2', t: '《魅力學》', sub: 'Olivia Fox Cabane｜理想', len: '選修' },
+        { id: 'book-C3', no: 'C3', t: '《關鍵對話》', sub: 'Kerry Patterson｜理想', len: '選修' },
+        { id: 'book-D1', no: 'D1', t: '《幸福的婚姻》', sub: 'John Gottman｜自由', len: '必修' },
+        { id: 'book-D2', no: 'D2', t: '《調情學》', sub: 'Jean Smith｜自由', len: '選修' },
+        { id: 'book-D3', no: 'D3', t: '《愛之語》', sub: 'Gary Chapman｜自由', len: '必修' },
+        { id: 'book-D4', no: 'D4', t: '《親密關係：通往靈魂的橋樑》', sub: '克里斯多福・孟｜自由', len: '選修' },
+        { id: 'book-D5', no: 'D5', t: '《讓愛情長久的八堂約會》', sub: 'John Gottman｜自由', len: '選修' },
+        { id: 'book-D6', no: 'D6', t: '《哈佛 ✕ Google 行為科學家的脫單指南》', sub: 'Logan Ury｜自由', len: '選修' }
+      ] },
+    /* 教材「推薦電影」：只推薦、說明它和愛情的關係，不教學員去哪裡找片（使用者 2026-09-24）。
+       封面沿用電影清單作業的圖。 */
+    { tab: 'book', id: 'book-films', no: 'F', t: '推薦電影', sub: '8 部和愛情有關的電影', src: '',
+      cover: 'assets/course-covers/tool-07-film-list-v1.webp',
+      listLead: '這些電影各自呈現了愛情的一個面向。',
+      list: [
+        { id: 'film-01', t: '愛在黎明破曉時', sub: 'Before Sunrise・1995',
+          body: '兩個陌生人在火車上相遇，在維也納走了一整夜、聊了一整夜。心動不一定來自浪漫的安排，往往來自一段真誠、願意交換想法的對話。' },
+        { id: 'film-02', t: '珍愛每一天', sub: 'About Time・2013',
+          body: '能回到過去的男主角，最後發現值得反覆重來的不是完美的告白，而是和所愛的人一起度過的平凡日子。' },
+        { id: 'film-03', t: '我的失憶女友', sub: '50 First Dates・2004',
+          body: '她每天醒來都會忘記他，他只好每天重新追她一次。愛不是一次贏得對方，而是每天重新選擇、重新投入。' },
+        { id: 'film-04', t: '我們的愛情一言難盡', sub: '', body: '' },
+        { id: 'film-05', t: '愛情藥不藥', sub: 'Love & Other Drugs・2010',
+          body: '一個習慣不認真的業務員，遇上一個不想拖累別人的女孩。真正的親密，是在知道對方的脆弱與限制之後，仍然決定留下來。' },
+        { id: 'film-06', t: '全民情聖', sub: 'Hitch・2005',
+          body: '專門教人追求的約會顧問，輪到自己時卻處處出錯。技巧可以打開一扇門，但讓關係走下去的，是願意被看見真實的自己。' },
+        { id: 'film-07', t: '手札情緣', sub: 'The Notebook・2004',
+          body: '跨越階級與歲月的一段感情。愛情除了一開始的激情，也是幾十年來一次又一次的承諾與守候。' },
+        { id: 'film-08', t: '熟男型不型', sub: 'Crazy, Stupid, Love・2011',
+          body: '婚姻觸礁的中年男人向情場老手學打扮與搭訕，卻發現外在可以改造，真正讓人心動的仍是真心與在乎。' }
+      ] }
   ]
 };

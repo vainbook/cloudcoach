@@ -3893,3 +3893,18 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .apdots i.on { background: var(--salmon); border-color: var(--salmon);
   box-shadow: 0 0 5px rgba(232, 168, 152, .5); }
 .apnum { color: var(--beige-40); font: 500 9.5px/1 var(--mono); letter-spacing: .16em; }
+
+/* ═══ 清單型教材（推薦書單、推薦電影）═══════════════════
+   借任務視窗的外框，內容是一頁可捲動的文字清單。 */
+.taskpanel.liblist { max-height: min(86vh, 760px); overflow-y: auto; }
+.liblist-items { list-style: none; margin: 14px 0 0; padding: 0; counter-reset: ll; }
+.liblist-items li { padding: 12px 0; border-top: 1px solid var(--beige-08); counter-increment: ll; }
+.liblist-items li:first-child { border-top: 0; }
+.liblist-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.liblist-head::before { content: counter(ll, decimal-leading-zero); color: var(--salmon);
+  font: 500 10px/1 var(--mono); letter-spacing: .08em; }
+.liblist-head b { font: 400 16px/1.4 var(--serif); color: var(--beige); }
+.liblist-head s { text-decoration: none; color: var(--beige-40); font: 500 10px/1.4 var(--mono); letter-spacing: .05em; }
+.liblist-head em { font-style: normal; color: var(--beige-40); font-size: 10px; }
+.liblist-head .taskgo { margin-left: auto; }
+.liblist-items p { margin: 6px 0 0 28px; color: var(--beige-70); font-size: 13px; line-height: 1.75; }

@@ -1733,6 +1733,46 @@
     return hit && /^https?:\/\//i.test(hit.src || '') ? hit.src : '';
   }
 
+  /* 教材對到的是清單型的卡（推薦電影、推薦書單）—— 傳送就是打開那份清單。 */
+  function taskCourseList(it) {
+    var L = window.UC_LIBRARY;
+    if (!it || !it.tool || !L || !L.items) return '';
+    var hit = L.items.filter(function (i) { return i.t === it.tool && i.list; })[0];
+    return hit ? hit.id : '';
+  }
+
+  /* 清單型教材：借任務視窗的外框顯示一頁文字清單。
+     ⚠️ 不另做一套浮層 —— 焦點、Esc、點背景關閉都跟任務視窗同一條路。 */
+  function openLibList(id, trigger) {
+    var i = window.UC_LIBRARY.items.filter(function (x) { return x.id === id; })[0];
+    if (!i) return;
+    var m = ensureTaskModal();
+    TASKRETURN = trigger || document.activeElement;
+    var rows = (i.list || []).map(function (x) {
+      var url = /^https?:\/\//i.test(x.src || '') ? x.src : '';
+      return '<li><div class="liblist-head"><b>' + esc(x.t) + '</b>'
+        + (x.sub ? '<s>' + esc(x.sub) + '</s>' : '')
+        + (x.len ? '<em class="num">' + esc(x.len) + '</em>' : '')
+        + (url ? '<button type="button" class="taskgo" data-task-url="' + esc(url) + '">開啟</button>' : '')
+        + '</div>' + (x.body ? '<p>' + esc(x.body) + '</p>' : '') + '</li>';
+    }).join('');
+    m.innerHTML = '<section class="taskpanel liblist" role="dialog" aria-modal="true" aria-labelledby="libListTitle" tabindex="-1">'
+      + '<i class="taskbrk taskbrk-tl" aria-hidden="true"></i><i class="taskbrk taskbrk-tr" aria-hidden="true"></i>'
+      + '<i class="taskbrk taskbrk-bl" aria-hidden="true"></i><i class="taskbrk taskbrk-br" aria-hidden="true"></i>'
+      + '<button type="button" class="taskx" data-task-close="1" aria-label="關閉">×</button>'
+      + '<p class="taskey">Reading ・ ' + esc(i.no) + '</p>'
+      + '<h2 id="libListTitle">' + esc(i.t) + '</h2>'
+      + '<div class="taskrule"><i></i><s></s></div>'
+      + (i.listLead ? '<p class="taskbody">' + esc(i.listLead) + '</p>' : '')
+      + '<ol class="liblist-items">' + rows + '</ol>'
+      + '<div class="taskactions"><button type="button" class="btn pri" data-task-close="1">關閉</button></div></section>';
+    m.hidden = false;
+    m.classList.add('on');
+    document.documentElement.classList.add('task-open');
+    var panel = m.querySelector('.taskpanel');
+    if (panel) panel.focus();
+  }
+
   function clearCurrentId(id) {
     if (S.taskNow) delete S.taskNow[id];
   }
@@ -1755,6 +1795,8 @@
       }
       var toUrl = e.target.closest('[data-task-url]');
       if (toUrl) { openExternal(toUrl.dataset.taskUrl); return; }
+      var toList = e.target.closest('[data-task-list]');
+      if (toList) { openLibList(toList.dataset.taskList, TASKRETURN); return; }
 
       var toTool = e.target.closest('[data-task-tool]');
       if (!toTool) return;
@@ -1782,14 +1824,14 @@
       /* ⚠️ 「執行任務」那顆大鈕拿掉了（使用者 2026-09-18）。
          轉跳改成貼在該欄旁邊的小「傳送」—— 要去哪裡由那一格的內容決定，
          而不是一顆不知道會帶你去哪的按鈕。對不上就沒有按鈕，不會有死路。 */
-      var courseUrl = taskCourseUrl(it), toolKey = taskToolKey(it);
+      var courseUrl = taskCourseUrl(it), courseList = taskCourseList(it), toolKey = taskToolKey(it);
       var go = function (attr, val) {
         return ' <button type="button" class="taskgo" ' + attr + '="' + esc(val) + '">傳送</button>';
       };
       meta = '<dl class="taskmeta">'
         + (it.sub ? '<dt>主題</dt><dd>' + esc(it.sub) + '</dd>' : '')
         + (it.tool ? '<dt>教材</dt><dd>' + esc(it.tool)
-            + (courseUrl ? go('data-task-url', courseUrl) : '') + '</dd>' : '')
+            + (courseUrl ? go('data-task-url', courseUrl) : courseList ? go('data-task-list', courseList) : '') + '</dd>' : '')
         + (it.sheet ? '<dt>作業</dt><dd>' + esc(it.sheet)
             + (toolKey ? go('data-task-tool', toolKey) : '') + '</dd>' : '')
         + '</dl>';
@@ -3426,6 +3468,7 @@
     });
     [].forEach.call(root.querySelectorAll('.tile[data-t]'), function (b) {
       b.addEventListener('click', function () {
+        if (b.dataset.list) { openLibList(b.dataset.list, b); return; }
         var url = b.dataset.src || '';
         if (!url) { toast('「' + b.dataset.t + '」的內容待補'); return; }
         openExternal(url);
@@ -3450,7 +3493,8 @@
   }
 
   function tile(i) {
-    return '<button type="button" class="tile" data-src="' + esc(i.src) + '" data-t="' + esc(i.t) + '">'
+    return '<button type="button" class="tile"' + (i.list ? ' data-list="' + esc(i.id) + '"' : '')
+      + ' data-src="' + esc(i.src) + '" data-t="' + esc(i.t) + '">'
       + '<span class="thumb' + (i.cover ? ' has-cover' : '') + '">'
       + (i.cover ? '<img src="' + esc(i.cover) + '" alt="" loading="lazy" decoding="async">' : '')
       + '<i class="num">' + esc(i.no) + '</i></span>'
@@ -3966,7 +4010,7 @@
         + ' data-assignment-groups>← 回到作業說明</button><div class="assignment-choice-panel">'
         + '<div class="assignment-brief assignment-group-brief"><p class="ey">'
         + esc(activeGroup.en || topicLabel) + '</p><h3>' + esc(activeGroup.t)
-        + '</h3><p class="assignment-chooser-lead">選一個題目，開始整理這段人生故事。</p></div>'
+        + '</h3><p class="assignment-chooser-lead">' + esc(a.sectionLead || '選一個題目，開始整理這段人生故事。') + '</p></div>'
         + '<div class="assignment-overview-topics" aria-label="選擇作業子主題">'
         + topicButtons(groupFields) + '</div></div></div>';
     } else {
@@ -3984,8 +4028,8 @@
         + (t.lead ? '<p class="assignment-brief-lead">' + esc(t.lead) + '</p>' : '')
         + '<div class="assignment-brief-body">' + mainBody + (a.note ? '<p>' + esc(a.note) + '</p>' : '')
         + '</div>' + steps + '</div><div class="assignment-chooser-heading"><p class="ey">'
-        + (grouped ? '三大主軸' : '作業題目') + '</p><h4>'
-        + (grouped ? '先選擇一個主軸' : '選擇現在要寫的主題')
+        + (grouped ? esc(a.sectionLabel || '三大主軸') : '作業題目') + '</p><h4>'
+        + (grouped ? (a.sectionLabel ? '先選擇一個子主題' : '先選擇一個主軸') : '選擇現在要寫的主題')
         + '</h4><p>不用照順序，從現在最想整理的部分開始。</p></div>'
         + '<div class="assignment-overview-topics" aria-label="選擇作業主題">' + choices + '</div></div></div>';
     }
