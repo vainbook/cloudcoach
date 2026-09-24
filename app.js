@@ -1516,6 +1516,9 @@
         + '<small>' + esc(CO.title) + '</small></div>'
         + (CO.signedOn ? '<p class="ldate">' + esc(CO.signedOn) + '</p>' : '')
         + '</div>', 'rv') + '</div>'
+      /* ⚠️ 這顆原本「看不到但按得到」：評測頁是米白底，而 .btn.gh 是米白字、米白框 ——
+         同色疊在一起就隱形了（使用者 2026-09-24：「對著空氣按有開啟」）。
+         樣式在 .assessreport-actions 裡改成深藍。 */
       + (ACTOR_ROLE !== 'student' ? '<div class="assessreport-actions"><button type="button" class="btn gh"'
         + ' id="editReport">編輯教練評測</button></div>' : '') + '</section>';
     var edit = el('editReport');
@@ -2770,12 +2773,12 @@
     var state, doneWeeks;
     if (!growthStartSet()) {
       /* ⚠️ 起始日還沒設定 —— 說出來，不要用一個看起來很正常的數字混過去。 */
-      state = '<b>' + n + '</b><span>／ 90 天　·　起始日未設定</span>';
-      doneWeeks = Math.ceil(Math.max(n, 1) / 7);
+      state = '<span>冒險第</span><b>' + n + '</b><span>天　·　起始日未設定</span>';
+      doneWeeks = Math.min(13, Math.ceil(Math.max(n, 1) / 7));
     }
     else if (n < 1) { state = '<b>還沒開始</b><span>' + esc(start) + ' 起算</span>'; doneWeeks = 0; }
-    else if (n > 90) { state = '<b>90 / 90</b><span>已完成</span>'; doneWeeks = 13; }
-    else { state = '<b>' + n + '</b><span>／ 90 天</span>'; doneWeeks = Math.ceil(n / 7); }
+    /* 超過 90 天照樣報實際天數 —— 冒險沒有結束，只是 13 格都亮了。 */
+    else { state = '<span>冒險第</span><b>' + n + '</b><span>天</span>'; doneWeeks = Math.min(13, Math.ceil(n / 7)); }
 
     var seg = '';
     for (var w = 0; w < 13; w++) {
@@ -3827,9 +3830,12 @@
       if (ok) done++;
       return '<i class="' + (ok ? 'on' : '') + '" title="' + esc(t.t) + (ok ? '（完成）' : '') + '"></i>';
     }).join('');
-    return '<div class="adventure-progress" aria-label="已完成 ' + done + ' / ' + tools.length + ' 份作業">'
-      + '<b>' + done + '<s> / ' + tools.length + '</s></b><span>份作業完成</span>'
-      + '<p aria-hidden="true">' + dots + '</p></div>';
+    /* 一行就好：點在前、數字在後，跟標題同一條左緣。
+       ⚠️ 第一版拆成「大數字／說明／一排點」三行並置中 —— 標題區是靠左的，
+       置中的那塊就歪在一邊，還壓到月面的地平線（使用者 2026-09-24）。 */
+    return '<p class="adventure-progress" aria-label="已完成 ' + done + ' / ' + tools.length + ' 份作業">'
+      + '<span class="apdots" aria-hidden="true">' + dots + '</span>'
+      + '<span class="apnum">' + done + ' / ' + tools.length + ' 完成</span></p>';
   }
 
   function adventureHomeHTML() {
@@ -3924,7 +3930,7 @@
         var written = assignmentAnswerValue(saved, field).trim();
         var choice = assignmentChoiceValue(saved, field);
         var complete = assignmentFieldComplete(saved, field);
-        var state = complete ? '已完成' : choice ? '待補故事' : written ? '已開始' : '尚未填寫';
+        var state = complete ? '編輯' : choice ? '待補故事' : written ? '已開始' : '尚未填寫';
         return '<button type="button" data-assignment-detail="' + esc(field.id) + '"><span class="num">'
           + ('0' + (i + 1)).slice(-2) + '</span><b>' + esc(choice || field.t) + '</b><small>'
           + esc((field.parent ? field.parent + ' · ' : '') + state)
@@ -3999,7 +4005,7 @@
       + '<header class="assignment-compose-head"><div><p class="ey">' + esc(selected.parent || topicLabel)
       + '</p><h3>' + esc(selectedChoice || selected.t) + '</h3></div></header>'
       + choicePicker
-      + '<details class="assignment-write-fold"><summary><span><b>引導怎麼寫</b>'
+      + '<details class="assignment-write-fold"><summary><span><b>作業說明</b>'
       + '<small>先看清楚這題在找什麼</small></span><i></i></summary>'
       + '<div class="assignment-write-fold-body">'
       + (selected.sub ? '<strong>' + esc(selected.sub) + '</strong>' : '')
@@ -4082,7 +4088,7 @@
           var index = a.groups.indexOf(g) + 1;
           var filled = assignmentStoryFilled(g, saved);
           var complete = filled === g.fields.length;
-          var state = complete ? '完成' : filled ? '整理中' : '';
+          var state = complete ? '編輯' : filled ? '整理中' : '';
           return '<button type="button" class="assignment-story-cell' + (complete ? ' is-complete' : filled ? ' is-started' : '')
             + (g.id === openId ? ' is-open' : '')
             + '" data-assignment-open="' + esc(g.id) + '" data-story-id="' + esc(g.id)
@@ -4153,12 +4159,12 @@
       + '<button type="button" role="tab" data-belief-tab="stage1" aria-selected="'
       + (active === 'stage1' ? 'true' : 'false') + '" class="' + (active === 'stage1' ? 'is-on' : '') + '">'
       + '<span class="num">' + esc(stage1.no) + '</span><b>' + esc(stage1.t) + '</b><small>'
-      + '<span data-belief-tab-state="stage1">' + (progress.stage1Complete ? '已完成' : '先從這裡開始') + '</span></small></button>'
+      + '<span data-belief-tab-state="stage1">' + (progress.stage1Complete ? '編輯' : '先從這裡開始') + '</span></small></button>'
       + '<i aria-hidden="true"></i>'
       + '<button type="button" role="tab" data-belief-tab="stage2" aria-selected="'
       + (active === 'stage2' ? 'true' : 'false') + '" class="' + (active === 'stage2' ? 'is-on' : '') + '">'
       + '<span class="num">' + esc(stage2.no) + '</span><b>' + esc(stage2.t) + '</b><small>'
-      + '<span data-belief-tab-state="stage2">' + (progress.stage2Complete ? '已完成' : '用一件事練習') + '</span></small></button></div>'
+      + '<span data-belief-tab-state="stage2">' + (progress.stage2Complete ? '編輯' : '用一件事練習') + '</span></small></button></div>'
       + '<section class="belief-stage" role="tabpanel" data-belief-panel="stage1"'
       + (active === 'stage1' ? '' : ' hidden') + '><header class="belief-stage-head"><p class="ey">'
       + esc(stage1.en) + '</p><h3>' + esc(stage1.t) + '</h3><p>' + esc(stage1.body) + '</p></header>'
@@ -4288,7 +4294,7 @@
         var filled = assignmentStoryFilled(g, saved);
         var node = pane.querySelector('[data-story-progress="' + g.id + '"]');
         if (node) node.textContent = node.dataset.progressQuiet
-          ? (filled === g.fields.length ? '完成' : filled ? '整理中' : '')
+          ? (filled === g.fields.length ? '編輯' : filled ? '整理中' : '')
           : filled + ' / ' + g.fields.length;
         var card = pane.querySelector('[data-story-id="' + g.id + '"]');
         if (card) {
@@ -4306,8 +4312,8 @@
         });
         var stage1State = pane.querySelector('[data-belief-tab-state="stage1"]');
         var stage2State = pane.querySelector('[data-belief-tab-state="stage2"]');
-        if (stage1State) stage1State.textContent = progressInfo.stage1Complete ? '已完成' : '先從這裡開始';
-        if (stage2State) stage2State.textContent = progressInfo.stage2Complete ? '已完成' : '用一件事練習';
+        if (stage1State) stage1State.textContent = progressInfo.stage1Complete ? '編輯' : '先從這裡開始';
+        if (stage2State) stage2State.textContent = progressInfo.stage2Complete ? '編輯' : '用一件事練習';
       }
       if (a.kind === 'focus-editor') {
         [].forEach.call(pane.querySelectorAll('[data-assignment-topic]'), function (topic) {

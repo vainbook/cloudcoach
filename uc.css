@@ -3875,12 +3875,10 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .bpcpg button:hover:not([disabled]) { border-color: var(--salmon); color: var(--beige); }
 .bpcpg button[disabled] { opacity: .3; cursor: default; }
 
-/* 冒險首頁的進度：數字＋一排點。點一份作業一顆，寫完變實心。 */
-.adventure-progress { display: grid; justify-items: center; gap: 6px; margin-top: 14px; }
-.adventure-progress b { font: 500 18px/1 var(--mono); color: var(--beige); letter-spacing: .04em; }
-.adventure-progress b s { text-decoration: none; color: var(--beige-40); font-size: 12px; }
-.adventure-progress span { color: var(--beige-40); font-size: 10.5px; letter-spacing: .08em; }
-.adventure-progress p { display: flex; gap: 5px; margin: 2px 0 0; }
-.adventure-progress i { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--beige-40); }
-.adventure-progress i.on { background: var(--salmon); border-color: var(--salmon);
-  box-shadow: 0 0 6px rgba(232, 168, 152, .55); }
+/* 冒險首頁的進度：一行，跟標題同一條左緣。點一份作業一顆，寫完變實心。 */
+.adventure-progress { display: flex; align-items: center; gap: 12px; margin: 16px 0 0; }
+.apdots { display: flex; gap: 4px; }
+.apdots i { width: 5px; height: 5px; border-radius: 50%; border: 1px solid var(--beige-40); }
+.apdots i.on { background: var(--salmon); border-color: var(--salmon);
+  box-shadow: 0 0 5px rgba(232, 168, 152, .5); }
+.apnum { color: var(--beige-40); font: 500 9.5px/1 var(--mono); letter-spacing: .16em; }
