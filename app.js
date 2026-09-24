@@ -2501,7 +2501,7 @@
         + '<div class="bkmeta">'
           + '<b>目標 O</b><span>' + esc(it.sub || '（原表未分組）') + '</span>'
           + (it.tool ? '<b>工具</b><span>' + esc(it.tool) + '</span>' : '')
-          + (it.sheet ? '<b>工作表</b><span>' + esc(it.sheet) + '</span>' : '')
+          + (it.sheet ? '<b>作業</b><span>' + esc(it.sheet) + '</span>' : '')
         + '</div>'
         + '<div class="bkact"><button class="bkpick' + (pick ? ' on' : '') + '"'
         + ' data-bpick="' + esc(it.id) + '">' + (pick ? '在書裡　✓' : '加入書本') + '</button>'

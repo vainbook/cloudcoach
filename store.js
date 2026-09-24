@@ -560,7 +560,7 @@
       it.sub = r.sub || '';
       it.kr = r.kr;
       it.tool = r.tool || '';
-      it.sheet = r.sheet || '';
+      it.sheet = O.taskName ? O.taskName(r.sheet) : (r.sheet || '');   /* 舊名與 ＃ 在這裡換掉 */
       it.note = r.note || '';
       next.push(it);
     });
