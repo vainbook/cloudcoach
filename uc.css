@@ -3920,3 +3920,12 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .liblist-head em { font-style: normal; color: var(--beige-40); font-size: 10px; }
 .liblist-head .taskgo { margin-left: auto; }
 .liblist-items p { margin: 6px 0 0 28px; color: var(--beige-70); font-size: 13px; line-height: 1.75; }
+
+/* 日誌閒置畫面的片頭文字：沿用 .assignment-home，只補兩件事 ——
+   左側一層淡淡的暗，讓字壓在銀河上也讀得清；狀態列改成小的等寬字。 */
+/* ⚠️ 位置與寬度要跟冒險的 .adventure-home 一模一樣 —— 第一版另外設了靠左與漸層底，
+   兩頁並排看就是兩套排版（使用者 2026-09-24）。 */
+.gidle-home { max-width: 590px; }   /* .adventure-home 的 520 實際被後面的 .assignment-home 590 蓋掉，量出來是 590 */
+.gidle-home .assignment-home-copy { max-width: 410px; }
+.gidle-home .assignment-home-copy > p.gidle-state { margin-top: 16px; color: var(--beige-40);
+  font: 500 9.5px/1.6 var(--mono); letter-spacing: .14em; }

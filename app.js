@@ -3071,10 +3071,15 @@
     else if (logCount) { inner = view + veil + logHTML; mode = 'log'; badge = 'DAY ' + dayNo + ' LOG'; }
     else {
       mode = 'idle'; badge = stat;
+      /* ⚠️ 跟冒險首頁同一套片頭排版（使用者 2026-09-24：「中間都有文字說明，有電影的感覺」）：
+         英文小標 → 大標 → 一句說明 → 狀態列。直接借 .assignment-home 的樣式，不另寫一套。 */
       inner = view
-        + '<div class="gidle"><p class="gidlel">UC Training</p>'
-        + '<p class="gidles">' + (n < 1 || n > 90 ? '選一天看紀錄，或按下面留一筆'
-            : 'Day ' + dayNo + ' 還沒有紀錄　·　按下面留下第一筆') + '</p></div>';
+        + '<div class="assignment-home gidle-home"><div class="assignment-home-copy">'
+        + '<p class="ey">Growth Log</p><h3>成長日誌</h3>'
+        + '<p>每一次通話、社交與約會，都是你往前走的一步。把它們記下來，回頭就看得見自己的軌跡。</p>'
+        + '<p class="gidle-state">' + (n < 1 || n > 90 ? '選一天看紀錄，或按下面留一筆'
+            : 'Day ' + dayNo + ' 還沒有紀錄　·　按下面留下第一筆') + '</p>'
+        + '</div></div>';
     }
     /* 四角的 L 型括號（品牌元素）。⚠️ 用四個節點不是四個 ::before ——
        一個元素只有兩個偽元素，而暗角與邊光已經佔掉了。 */
