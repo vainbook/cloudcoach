@@ -1532,6 +1532,8 @@
      前端把 nav 的 hidden 拿掉也讀不到別人的資料。 */
 
   var STUDENTS = null;
+  var ST_SORTS = { start: '開始日', name: '名字', progress: '進度' };
+  var ST_SORT = (function () { try { return localStorage.getItem('uc_stsort') || 'start'; } catch (e) { return 'start'; } })();
 
   /* 換學員時的讀取狀態。
      ⚠️ **不要做假的百分比。** 條子只表示「相對於實測的常態值跑到哪」，
@@ -1594,6 +1596,18 @@
     /* 範例學員只用下面那顆按鈕開，不在清單裡再出現一次（使用者 2026-09-17）。 */
     var demo = window.UC_STORE.demoStudentId();
     var list = STUDENTS.filter(function (x) { return x.id !== demo; });
+    /* 排序只是看法，不存後端；沒設開始日的一律排最後。 */
+    var by = ST_SORTS[ST_SORT] ? ST_SORT : 'start';
+    list.sort(function (p, q) {
+      if (by === 'name') return String(p.name || p.lineName || p.id).localeCompare(String(q.name || q.lineName || q.id), 'zh-Hant');
+      if (by === 'progress') return (q.answered - p.answered) || (q.reportComplete - p.reportComplete);
+      if (!p.growthStart !== !q.growthStart) return p.growthStart ? -1 : 1;
+      return p.growthStart < q.growthStart ? 1 : p.growthStart > q.growthStart ? -1 : 0;
+    });
+    var sortBar = '<div class="stsort" role="group" aria-label="排序">' + Object.keys(ST_SORTS).map(function (k) {
+      return '<button type="button" data-stsort="' + k + '"' + (k === by ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"')
+        + '>' + ST_SORTS[k] + '</button>';
+    }).join('') + '</div>';
     var rows = list.map(function (x) {
       /* ⚠️ 上限 100 —— 後端如果又算進不是題目的列，至少不要讓進度條爆出格子外。
          真正的修法在 studentList_ 的 NOT_A_QUESTION，這裡只是防線。 */
@@ -1608,6 +1622,7 @@
         + '<b class="stname">' + esc(x.name || x.lineName || x.id) + '</b>'
         + (x.lineName && x.name && x.lineName !== x.name
             ? '<s class="stid">' + esc(x.lineName) + '</s>' : '')
+        + '<span class="ststart">' + (x.growthStart ? esc(x.growthStart.replace(/-/g, '.')) + ' 開始' : '未設開始日') + '</span>'
         + '<em class="ststage">' + esc(stage) + '</em>'
         + '<span class="stnum">' + x.answered + '/' + total + '</span>'
         + '<i class="stbar"><u style="width:' + pct + '%"></u></i>'
@@ -1626,9 +1641,16 @@
       + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
       + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
       /* 範例學員放最上面（使用者 2026-09-18）。 */
-      + wrap(demoBtn + '<div class="stlist">'
+      + wrap(demoBtn + (list.length > 1 ? sortBar : '') + '<div class="stlist">'
              + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
 
+    [].forEach.call(body.querySelectorAll('[data-stsort]'), function (b) {
+      b.addEventListener('click', function () {
+        ST_SORT = b.dataset.stsort;
+        try { localStorage.setItem('uc_stsort', ST_SORT); } catch (e) {}
+        renderStudents();
+      });
+    });
     [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
       b.addEventListener('click', function () {
         var id = b.dataset.student;
