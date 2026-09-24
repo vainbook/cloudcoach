@@ -74,7 +74,9 @@
     if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
     Object.keys(v).forEach(function (k) {
       /* 新格式：{ "V-01": true }。舊格式：{ values: "V-01" }。 */
-      if (v[k] === true || v[k] === 1) out[k] = 1;
+      /* 值是勾選時間（毫秒）；舊資料只有 true／1，排在所有有時間的後面。 */
+      if (typeof v[k] === 'number' && v[k] > 0) out[k] = v[k];
+      else if (v[k] === true) out[k] = 1;
       else if (typeof v[k] === 'string' && v[k]) out[v[k]] = 1;
     });
     return out;
@@ -1681,7 +1683,9 @@
   }
 
   function currentTaskItems() {
-    return window.UC_OKR.items.filter(function (it) { return isCurrentTask(it.id); });
+    /* 越晚勾的排越上面；同一時間（或舊資料沒時間）照藍圖順序。Array#sort 是穩定的。 */
+    return window.UC_OKR.items.filter(function (it) { return isCurrentTask(it.id); })
+      .sort(function (a, b) { return (S.taskNow[b.id] || 0) - (S.taskNow[a.id] || 0); });
   }
 
   function blueprintProgressText() {
@@ -2018,7 +2022,7 @@
         var id = c.dataset.current;
         if (isHidden(id) || (S.done && S.done[id])) { c.checked = false; return; }
         if (c.checked) {
-          S.taskNow[id] = 1;
+          S.taskNow[id] = Date.now();
           c.closest('.edtr').classList.add('is-current');
           c.closest('.edtr').classList.remove('is-hidden');
         } else {

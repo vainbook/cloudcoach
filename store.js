@@ -528,7 +528,7 @@
   function unpackTasks(tasks, S) {
     Object.keys(tasks).forEach(function (item) {
       var f = tasks[item];
-      if (f.current === true) S.taskNow[item] = 1;
+      if (f.current === true) S.taskNow[item] = f.since > 0 ? f.since : 1;   /* 值＝勾選時間，拿來排序 */
       if (f.done === true) S.done[item] = 1;
       if (f.hidden === true) S.hidden[item] = 1;
       if (f.picked === true) S.picked.push(item);

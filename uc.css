@@ -3284,7 +3284,15 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .bpcradar .radar { width: 100%; max-width: none; }
 .bpcradar .radar .lb { font-size: 9.8px; letter-spacing: .01em; }
 .bpcradar .radar .lv { font-size: 6.2px; letter-spacing: .07em; }
-.bpcradar .rcmt { display: none; }
+/* 點能力名稱 → 顯示教練在評測裡寫的那一維說明（使用者 2026-09-24 要求補回）。
+   ⚠️ 之前這裡是 display:none，點了只會亮人物、看不到評語。 */
+.bpcradar .rcmt { inset: 14% 12%; padding: 18px 20px; z-index: 3; overflow-y: auto; }
+.bpcradar .rcmt b { font-size: 17px; }
+.bpcradar .rcmt p { margin-top: 9px; font-size: 12.5px; line-height: 1.9; }
+/* 人物跟雷達同一格、疊在雷達上面 —— 評語打開時整塊雷達要浮到人物之上，不然線條會壓在字上。 */
+.bpcradar:has(.rcmt.on) { z-index: 6; }
+.bpcradar .rcmt { background: rgba(19, 27, 46, .9); }
+.bpcradar .rcmt p:empty::before { content: '教練還沒寫這一項的說明。'; opacity: .6; }
 .bpcover-task .bpcfigure {
   /* ⚠️ 不要 `width: 100%` —— 它跟下面的 margin-left 一起會讓框**溢出格線**
      （524 寬的框從 353 開始，右緣 877，蓋到卡片底下）。讓它自己吃滿剩下的寬度。 */
