@@ -1543,14 +1543,14 @@
   var GUIDES = {
     okr: [
       { sel: '#bpcRadar', area: 1, t: '能力圖',
-        b: '這是教練看完你的評測後，對你五項能力的判斷。先看哪一項最低，那通常就是現在最該花力氣的地方。之後你有進步，教練會直接在這張圖上調整。' },
+        b: '出發前，先看清楚自己帶了什麼。這張圖把你的魅力拆成五項能力：人格、形象、生活圈、情緒價值與調情升溫，分數來自教練的評測。凸出去的是你已經帶在身上的強項，凹進來的就是這趟旅程要補的裝備。點能力名稱可以看教練的評語；之後每一次進步，教練都會畫上去，你會看到這個形狀一點一點往外長。' },
       { sel: '.bpctaskdeck', area: 1, t: '任務卡',
-        b: '教練從整份藍圖裡，挑出你現在該做的幾件事。先專心把這幾件做完，教練會再換下一批。點卡片可以看任務內容和原因；有對應的課程或作業，按「傳送」就會打開。' },
+        b: '整份藍圖是一段很長的路，任務卡是你現在這一段要抵達的地方。教練會依照你的能力圖和進度，挑出眼前最該做的幾件事，做完了再帶你往下一段走。點一張卡，可以看這個任務為什麼重要、該怎麼做；有對應的課程或作業，按「傳送」就能直接出發。' },
       { sel: '.edt', area: 1, t: '總覽',
         b: function () {
           return ACTOR_ROLE === 'student'
-            ? '整份藍圖的所有任務都在這裡。任務卡只放你現在要做的，想知道後面還有哪些，就來這裡看。'
-            : '整份藍圖的所有任務。勾「當前」會出現在學員的任務卡上，後面的數字是排序，越晚勾排越前面；勾「完成」就會收起來。';
+            ? '這是整趟旅程的路線圖。從認識自己、打理形象、經營生活圈，到約會與升溫，所有任務都排在這裡。任務卡只會放你現在要做的那幾件，想知道前面還有哪些路、自己走到哪裡了，就回來這裡看看全貌。'
+            : '這是學員整趟旅程的路線圖。勾「當前」的任務會出現在學員的任務卡上，後面的數字是排序，越晚勾的排越前面；勾「完成」代表這一段已經走過，就會收起來。';
         } },
       { sel: '#bpcRadar .lbtn[data-k="emo"]', t: '能力名稱', b: '點一下，看教練寫的評語' },
       { sel: '.bpc-report', t: '回報目前任務', b: '把目前任務複製成文字，貼給學員' },
@@ -1558,19 +1558,21 @@
     ],
     lib: [
       { sel: '#adventureScreen', area: 1, t: '作業面板',
-        b: '作業是讓你先把自己整理清楚，例如你的個性、你想過的生活、你能拿出來聊的故事。這些想清楚了，認識人時比較不緊張，也比較有話聊。寫到一半可以先離開，內容會自動存。' },
+        b: '每一份作業，都是出發前在整理行囊：你是什麼樣的人、想過什麼樣的生活、有哪些故事可以分享、想找什麼樣的另一半。行囊整理得越清楚，上路之後越能專心體驗，不會一直擔心自己不夠好。從下方選一個主題開始，不用照順序，寫到一半可以先離開，內容會自動儲存。' },
       { sel: '.adventure-library', area: 1, t: '課程',
-        b: '課程講做法，作業讓你實際練一次，兩個搭配著用比較快上手。必修、選修、推薦書單和電影都在這裡，點卡片就能打開。' },
+        b: '課程是這趟旅程的訓練手冊。每一堂都在教一種能力，像是怎麼說故事、怎麼聊天、怎麼安排約會；上完課再回去寫作業、實際做一次，才會真正變成你的本事。必修是每個人都要走的主線，選修是依你的需要加開的支線，推薦書單和電影也在這裡，點卡片就能打開。' },
       { sel: '.assignment-theme-toggle', t: '作業主題', b: '選要寫哪一份，不用照順序' },
       { sel: '[data-adventure-report]', t: '進度回報', b: '把作業進度複製起來，傳給教練' },
       { sel: '#libTabs', t: '課程分類', b: '切換必修、選修和書單' }
     ],
     growth: [
       { sel: '.gconsole', area: 1, t: '紀錄面板',
-        b: '每次打電話、出去社交或約會完，花兩分鐘記下來：發生什麼事、你當下怎麼想、下次想怎麼做。之後回頭看，你會知道自己哪裡進步了，教練也能照這些紀錄給你建議。' },
+        b: '這是你的旅程日誌。每一通電話、每一次社交、每一場約會，都是一次真正的出發。回來之後按下面對應的鍵，記下發生了什麼、你當下怎麼想、下次想怎麼調整。寫下來之後，你和教練都能從這裡看出你在哪裡進步、又在哪裡卡住。' },
       { sel: '.gcalendar', area: 1, t: '日曆',
-        b: '90 天，一格一天。有紀錄的日子會出現圖示，一眼就看得出這段時間你行動了幾次。點任何一天，可以看那天寫的紀錄。' },
-      { sel: '.gkinds', t: '三顆鍵', b: '做完一件事，按對應的鍵記一筆' },
+        b: '90 天的旅程，一格就是一天。有紀錄的日子會亮起圖示，一眼就看得出這段時間你出發了幾次、是通話多還是約會多。點任何一天，可以回顧那天的紀錄；上方的進度條每亮一格代表走過一週，右上角寫著你的冒險第幾天。' },
+      { sel: '[data-gopen="call"]', t: '通話', b: '打完電話記一筆：聊了什麼、對方的反應' },
+      { sel: '[data-gopen="social"]', t: '社交', b: '參加活動或聚會後，記下認識了誰、發生什麼事' },
+      { sel: '[data-gopen="date"]', t: '約會', b: '約會結束後，記下過程和你的感受' },
       { sel: '.gedit', t: '編輯', b: '改內容，記錯類別也能在這裡換' },
       { sel: '.gstart', t: '起始日', b: '設定這位學員 90 天的第一天' },
       { sel: '.gmode', t: '第幾天／日期', b: '日曆顯示第幾天或日期' },
@@ -1652,25 +1654,62 @@
         top += dy; cb.t += dy; cb.b += dy;
       }
       a.el.style.top = top + 'px';
-      placed.push(cb);
+      /* 字卡底部的內距沒有字，讓標籤可以壓到那一段 —— 窄螢幕上常常只差幾 px，
+         不讓的話標籤會被推到整張字卡的另一邊，離按鈕很遠。 */
+      placed.push({ l: cb.l, t: cb.t, r: cb.r, b: cb.b - 10 });
     });
-    marks.forEach(function (m) {
+    /* 把標籤往上（或往下）推到不撞任何東西為止，回傳最後的 top 與離按鈕多遠。 */
+    function settle(bx, left, w, h, up) {
+      var top = up ? bx.t - 8 - h : bx.b + 8;
+      for (var k = 0; k < 30; k++) {
+        var o2 = hit({ l: left, t: top, r: left + w, b: top + h }, placed);
+        if (!o2) break;
+        top = up ? o2.t - 6 - h : o2.b + 6;
+      }
+      return { top: top, gap: up ? bx.t - (top + h) : top - bx.b };
+    }
+    /* 上下都試，挑離按鈕最近的那個；一樣近就照原本的偏好（畫面下半部往上貼）。 */
+    function pick(bx, left, w, h, up) {
+      var pref = settle(bx, left, w, h, up), alt = settle(bx, left, w, h, !up);
+      return (alt.gap < pref.gap - 1 && alt.top >= 0) || pref.top < 0 ? alt.top : pref.top;
+    }
+
+    /* ⚠️ **同一排的按鈕，標籤要並排。** 手機上日誌那三顆鍵各只有 110px 寬，
+       標籤照一般方式擺會互相讓位、疊成階梯（使用者 2026-09-28）。
+       同一排、而且標籤原本的寬度加起來放不下時，改成「一顆按鈕一欄」：
+       標籤跟按鈕一樣寬、頂端對齊，整排一起移動。放得下（例如桌機）就照一般方式。 */
+    var done = [];
+    marks.forEach(function (m, i) {
+      if (done[i]) return;
+      var row = [];
+      marks.forEach(function (x, j) {
+        if (!done[j] && Math.abs(x.box.t - m.box.t) < 6 && Math.abs(x.box.b - m.box.b) < 6) row.push(x);
+      });
+      row.sort(function (a, b) { return a.box.l - b.box.l; });
+      var natural = row.reduce(function (sum, x) { return sum + x.tag.offsetWidth + 8; }, -8);
+      var span = row[row.length - 1].box.r - row[0].box.l;
+      if (row.length > 1 && natural > span) {
+        row.forEach(function (x) {
+          done[marks.indexOf(x)] = 1;
+          x.tag.classList.add('is-col');
+          x.tag.style.width = (x.box.r - x.box.l) + 'px';
+        });
+        var H = Math.max.apply(null, row.map(function (x) { return x.tag.offsetHeight; }));
+        var union = { l: row[0].box.l, t: m.box.t, r: row[row.length - 1].box.r, b: m.box.b };
+        var T = pick(union, union.l, union.r - union.l, H, m.up);
+        row.forEach(function (x) {
+          x.tag.style.height = H + 'px';
+          x.tag.style.left = x.box.l + 'px'; x.tag.style.top = T + 'px';
+          placed.push({ l: x.box.l, t: T, r: x.box.r, b: T + H });
+        });
+        return;
+      }
+      done[i] = 1;
       var el2 = m.tag, w = el2.offsetWidth, h = el2.offsetHeight, bx = m.box;
       /* 靠近哪一邊就從哪一邊對齊，才不會超出螢幕。 */
       var left = (bx.l + bx.r) / 2 > W / 2 ? bx.r - w : bx.l;
       left = Math.max(8, Math.min(W - 8 - w, left));
-      /* 上下都試，挑離按鈕最近的那個；一樣近就照原本的偏好（畫面下半部往上貼）。 */
-      function settle(up) {
-        var top = up ? bx.t - 8 - h : bx.b + 8;
-        for (var k = 0; k < 30; k++) {
-          var o2 = hit({ l: left, t: top, r: left + w, b: top + h }, placed);
-          if (!o2) break;
-          top = up ? o2.t - 6 - h : o2.b + 6;
-        }
-        return { top: top, gap: up ? bx.t - (top + h) : top - bx.b };
-      }
-      var pref = settle(m.up), alt = settle(!m.up);
-      var top = (alt.gap < pref.gap - 1 && alt.top >= 0) || pref.top < 0 ? alt.top : pref.top;
+      var top = pick(bx, left, w, h, m.up);
       el2.style.left = left + 'px'; el2.style.top = top + 'px';
       placed.push({ l: left, t: top, r: left + w, b: top + h });
     });
@@ -3220,7 +3259,7 @@
      而使用者的手指剛按完的地方就跑掉了。那個跳動比任何裝飾都傷。 */
   function gscreenHTML(formHTML, logHTML, logCount, dayNo, start, today, total, kinds) {
     var n = isoDiff(today, start) + 1;
-    var stat = n < 1 ? '待啟程' : (n > 90 ? '航程完成' : 'DAY ' + n + ' / 90');
+    var stat = n < 1 ? '待啟程' : (n > 90 ? '旅程完成' : 'DAY ' + n + ' / 90');
     var inner, mode, badge;
     /* ⚠️ **窗外那片天三種狀態都要在。** 原本只有閒置狀態畫 skySVG()，所以一按
        「留一筆」，玻璃裡的銀河就整個不見，只剩一個空的暗盒子 —— 表單當然搭不起來
