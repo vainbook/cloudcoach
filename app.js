@@ -1928,6 +1928,12 @@
     return window.UC_OKR.taskToolMap[it.sheet] || '';
   }
 
+  /* 作業欄指到的是網站某一頁（例如「記錄在日誌中」→ 成長日誌）。 */
+  function taskRoute(it) {
+    var R = window.UC_OKR.taskRoutes || {};
+    return it && it.sheet ? R[it.sheet] || '' : '';
+  }
+
   /* 教材欄對得到哪一堂課的連結。對得到才會出現「傳送」。
      ⚠️ 用**課名**比對，不是 id —— 教練在試算表上看到與選到的就是課名。
      課名改了、連結還沒貼、或教練自己打了一段字 —— 都只是沒有按鈕，不會壞。 */
@@ -2000,6 +2006,8 @@
       }
       var toUrl = e.target.closest('[data-task-url]');
       if (toUrl) { openExternal(toUrl.dataset.taskUrl); return; }
+      var toRoute = e.target.closest('[data-task-route]');
+      if (toRoute) { closeTaskModal(false); nav(toRoute.dataset.taskRoute); return; }
       var toList = e.target.closest('[data-task-list]');
       if (toList) { openLibList(toList.dataset.taskList, TASKRETURN); return; }
 
@@ -2029,7 +2037,7 @@
       /* ⚠️ 「執行任務」那顆大鈕拿掉了（使用者 2026-09-18）。
          轉跳改成貼在該欄旁邊的小「傳送」—— 要去哪裡由那一格的內容決定，
          而不是一顆不知道會帶你去哪的按鈕。對不上就沒有按鈕，不會有死路。 */
-      var courseUrl = taskCourseUrl(it), courseList = taskCourseList(it), toolKey = taskToolKey(it);
+      var courseUrl = taskCourseUrl(it), courseList = taskCourseList(it), toolKey = taskToolKey(it), route = taskRoute(it);
       var go = function (attr, val) {
         return ' <button type="button" class="taskgo" ' + attr + '="' + esc(val) + '">傳送</button>';
       };
@@ -2038,7 +2046,7 @@
         + (it.tool ? '<dt>教材</dt><dd>' + esc(it.tool)
             + (courseUrl ? go('data-task-url', courseUrl) : courseList ? go('data-task-list', courseList) : '') + '</dd>' : '')
         + (it.sheet ? '<dt>作業</dt><dd>' + esc(it.sheet)
-            + (toolKey ? go('data-task-tool', toolKey) : '') + '</dd>' : '')
+            + (toolKey ? go('data-task-tool', toolKey) : route ? go('data-task-route', route) : '') + '</dd>' : '')
         + '</dl>';
     }
     m.innerHTML = '<section class="taskpanel" role="dialog" aria-modal="true" aria-labelledby="taskTitle" tabindex="-1">'
