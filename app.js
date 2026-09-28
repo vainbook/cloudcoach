@@ -546,6 +546,10 @@
        教練報告那邊有 `var cr = S.coachReport` 的閉包別名，
        換掉整個物件的話別名還指著舊的，畫面會寫到一份沒人看的資料。 */
     replaceState(window.UC_SAMPLE ? window.UC_SAMPLE() : blank());
+    /* ⚠️ demo 就是**學員看到的畫面**（使用者 2026-09-24）。沒設身分的話 ACTOR_ROLE 是空的，
+       所有「ACTOR_ROLE !== 'student'」的教練功能都會露出來 —— 90 天起始日、編輯教練評測、
+       回報目前任務（2026-09-28 回報）。本機直接開（沒走 logo）仍是不鎖的開發模式。 */
+    setRole('student');
     save();
     nav('#/okr');
   }
@@ -1528,6 +1532,164 @@
     reveal(body);
   }
 
+  /* ── 頁面說明（導覽模式）─────────────────────────────
+     使用者 2026-09-28：頁首右邊一顆小「?」，按下去整頁蓋一層薄膜，
+     在主要區塊與按鈕上直接寫字說明；點任何地方就結束。
+     ⚠️ 位置是**當下量**的（getBoundingClientRect），不是寫死的座標 ——
+     版面每改一次、手機桌機各不同，寫死的一定會歪。找不到的元素（例如學員看不到的
+     教練按鈕）就自動略過，所以同一份清單可以給兩種身分用。
+     area：大區塊，字卡放在區塊裡；其餘是按鈕，旁邊貼一張小標籤。 */
+  var GUIDE_BODY = { okr: 'okrBody', lib: 'libBody', growth: 'growthBody' };
+  var GUIDES = {
+    okr: [
+      { sel: '#bpcRadar', area: 1, t: '能力圖',
+        b: '這是教練看完你的評測後，對你五項能力的判斷。先看哪一項最低，那通常就是現在最該花力氣的地方。之後你有進步，教練會直接在這張圖上調整。' },
+      { sel: '.bpctaskdeck', area: 1, t: '任務卡',
+        b: '教練從整份藍圖裡，挑出你現在該做的幾件事。先專心把這幾件做完，教練會再換下一批。點卡片可以看任務內容和原因；有對應的課程或作業，按「傳送」就會打開。' },
+      { sel: '.edt', area: 1, t: '總覽',
+        b: function () {
+          return ACTOR_ROLE === 'student'
+            ? '整份藍圖的所有任務都在這裡。任務卡只放你現在要做的，想知道後面還有哪些，就來這裡看。'
+            : '整份藍圖的所有任務。勾「當前」會出現在學員的任務卡上，後面的數字是排序，越晚勾排越前面；勾「完成」就會收起來。';
+        } },
+      { sel: '#bpcRadar .lbtn[data-k="emo"]', t: '能力名稱', b: '點一下，看教練寫的評語' },
+      { sel: '.bpc-report', t: '回報目前任務', b: '把目前任務複製成文字，貼給學員' },
+      { sel: '.bpcswitch', t: '總覽／任務', b: '切換整份藍圖和目前任務' }
+    ],
+    lib: [
+      { sel: '#adventureScreen', area: 1, t: '作業面板',
+        b: '作業是讓你先把自己整理清楚，例如你的個性、你想過的生活、你能拿出來聊的故事。這些想清楚了，認識人時比較不緊張，也比較有話聊。寫到一半可以先離開，內容會自動存。' },
+      { sel: '.adventure-library', area: 1, t: '課程',
+        b: '課程講做法，作業讓你實際練一次，兩個搭配著用比較快上手。必修、選修、推薦書單和電影都在這裡，點卡片就能打開。' },
+      { sel: '.assignment-theme-toggle', t: '作業主題', b: '選要寫哪一份，不用照順序' },
+      { sel: '[data-adventure-report]', t: '進度回報', b: '把作業進度複製起來，傳給教練' },
+      { sel: '#libTabs', t: '課程分類', b: '切換必修、選修和書單' }
+    ],
+    growth: [
+      { sel: '.gconsole', area: 1, t: '紀錄面板',
+        b: '每次打電話、出去社交或約會完，花兩分鐘記下來：發生什麼事、你當下怎麼想、下次想怎麼做。之後回頭看，你會知道自己哪裡進步了，教練也能照這些紀錄給你建議。' },
+      { sel: '.gcalendar', area: 1, t: '日曆',
+        b: '90 天，一格一天。有紀錄的日子會出現圖示，一眼就看得出這段時間你行動了幾次。點任何一天，可以看那天寫的紀錄。' },
+      { sel: '.gkinds', t: '三顆鍵', b: '做完一件事，按對應的鍵記一筆' },
+      { sel: '.gedit', t: '編輯', b: '改內容，記錯類別也能在這裡換' },
+      { sel: '.gstart', t: '起始日', b: '設定這位學員 90 天的第一天' },
+      { sel: '.gmode', t: '第幾天／日期', b: '日曆顯示第幾天或日期' },
+      { sel: '[data-gexport]', t: '進度回報', b: '把這段時間的紀錄複製給教練' }
+    ]
+  };
+
+  function guideBtnHTML(key) {
+    return '<button type="button" class="guidebtn" data-guide="' + key + '" aria-label="這一頁怎麼用">'
+      + '<i aria-hidden="true">?</i><span>說明</span></button>';
+  }
+
+  var GUIDE = null;
+  function closeGuide() {
+    if (!GUIDE) return;
+    GUIDE.remove(); GUIDE = null;
+    document.removeEventListener('keydown', guideKey);
+  }
+  function guideKey(e) { if (e.key === 'Escape') closeGuide(); }
+
+  function openGuide(key) {
+    closeGuide();
+    var root = el(GUIDE_BODY[key]);
+    if (!root) return;
+    GUIDE = document.createElement('div');
+    GUIDE.className = 'guide';
+    GUIDE.setAttribute('role', 'dialog');
+    GUIDE.setAttribute('aria-label', '這一頁的說明，點任何地方結束');
+    GUIDE.style.height = Math.max(document.documentElement.scrollHeight, innerHeight) + 'px';
+    document.body.appendChild(GUIDE);
+    /* 座標一律換算成「相對於這層膜」，不假設 body 沒有位移。 */
+    var o = GUIDE.getBoundingClientRect(), W = o.width, VH = innerHeight;
+    function rel(r) { return { l: r.left - o.left, t: r.top - o.top, r: r.right - o.left, b: r.bottom - o.top }; }
+    function hit(a, list) {
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        if (a.l < p.r && a.r > p.l && a.t < p.b && a.b > p.t) return p;
+      }
+      return null;
+    }
+
+    var areas = [], marks = [], n = 0, letter = 0;
+    (GUIDES[key] || []).forEach(function (g) {
+      var t = root.querySelector(g.sel);
+      var r = t && t.getBoundingClientRect();
+      if (!r || !r.width || !r.height) return;          /* 沒畫出來的（別的身分、別的模式）略過 */
+      var box = rel(r), body = typeof g.b === 'function' ? g.b() : g.b;
+      var style = 'left:' + box.l + 'px;top:' + box.t + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+      if (g.area) {
+        var a = document.createElement('div');
+        a.className = 'guidearea'; a.style.cssText = style;
+        a.innerHTML = '<div class="guidecard"><span class="num">' + ('0' + (++n)).slice(-2) + '</span>'
+          + '<b>' + esc(g.t) + '</b><p>' + esc(body) + '</p></div>';
+        GUIDE.appendChild(a);
+        areas.push({ el: a.firstChild, box: box });
+      } else {
+        var id = String.fromCharCode(65 + letter++);       /* A、B、C… 標籤跟按鈕用同一個字母對起來 */
+        var m = document.createElement('div');
+        m.className = 'guidemark'; m.style.cssText = style;
+        m.innerHTML = '<span class="guideno">' + id + '</span>';
+        var tg = document.createElement('div');
+        tg.className = 'guidetag';
+        tg.innerHTML = '<span class="guideno">' + id + '</span><div><b>' + esc(g.t) + '</b><span>' + esc(body) + '</span></div>';
+        GUIDE.appendChild(m); GUIDE.appendChild(tg);
+        marks.push({ box: box, tag: tg, up: r.top > VH * 0.55 });
+      }
+    });
+
+    /* ⚠️ **量完再擺，撞到就讓開。** 第一版用固定的「上方／下方」直接擺，
+       同一排有三顆按鈕時標籤互相疊在一起（使用者 2026-09-28 截圖）。
+       障礙物：所有被標記的按鈕 → 區塊字卡 → 已經擺好的標籤，依序加進去。 */
+    var placed = marks.map(function (m) { return { l: m.box.l - 3, t: m.box.t - 3, r: m.box.r + 3, b: m.box.b + 3 }; });
+    areas.forEach(function (a) {
+      var cb = rel(a.el.getBoundingClientRect()), top = cb.t - a.box.t;
+      for (var k = 0; k < 12; k++) {
+        var h = hit(cb, placed);
+        if (!h) break;
+        var dy = h.b + 10 - cb.t;                 /* 字卡往下讓開蓋到的按鈕 */
+        top += dy; cb.t += dy; cb.b += dy;
+      }
+      a.el.style.top = top + 'px';
+      placed.push(cb);
+    });
+    marks.forEach(function (m) {
+      var el2 = m.tag, w = el2.offsetWidth, h = el2.offsetHeight, bx = m.box;
+      /* 靠近哪一邊就從哪一邊對齊，才不會超出螢幕。 */
+      var left = (bx.l + bx.r) / 2 > W / 2 ? bx.r - w : bx.l;
+      left = Math.max(8, Math.min(W - 8 - w, left));
+      /* 上下都試，挑離按鈕最近的那個；一樣近就照原本的偏好（畫面下半部往上貼）。 */
+      function settle(up) {
+        var top = up ? bx.t - 8 - h : bx.b + 8;
+        for (var k = 0; k < 30; k++) {
+          var o2 = hit({ l: left, t: top, r: left + w, b: top + h }, placed);
+          if (!o2) break;
+          top = up ? o2.t - 6 - h : o2.b + 6;
+        }
+        return { top: top, gap: up ? bx.t - (top + h) : top - bx.b };
+      }
+      var pref = settle(m.up), alt = settle(!m.up);
+      var top = (alt.gap < pref.gap - 1 && alt.top >= 0) || pref.top < 0 ? alt.top : pref.top;
+      el2.style.left = left + 'px'; el2.style.top = top + 'px';
+      placed.push({ l: left, t: top, r: left + w, b: top + h });
+    });
+
+    var hint = document.createElement('p');
+    hint.className = 'guidehint'; hint.textContent = '點任何地方結束說明';
+    GUIDE.appendChild(hint);
+    GUIDE.addEventListener('click', closeGuide);
+    document.addEventListener('keydown', guideKey);
+  }
+
+  /* 按鈕跟著頁首一起重畫，所以用委派，不必每次 render 重新綁。 */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-guide]');
+    if (b) { e.preventDefault(); openGuide(b.dataset.guide); }
+  });
+  window.addEventListener('hashchange', closeGuide);
+  window.addEventListener('resize', closeGuide);
+
   /* ── 學員清單（只有教練看得到）─────────────────────
      ⚠️ 這一頁只是**入口**，不是權限。真正的權限在 GAS：
      student.list 與 student.load 都會對綁定表的 access_scope。
@@ -1913,7 +2075,7 @@
       return;
     }
 
-    var h = wrap('<header class="rhead"><p class="ey">Course Blueprint ・ ' + esc(O.source) + '</p>'
+    var h = wrap('<header class="rhead">' + guideBtnHTML('okr') + '<p class="ey">Course Blueprint ・ ' + esc(O.source) + '</p>'
       + '<h1>課程藍圖</h1><div class="divider"><i></i><s></s></div>'
       /* 頁首只有標題；操作說明貼在人物或書本旁邊。 */
       /* ⚠️ 「任務／總覽」切換器**從頁首拿掉了**（使用者 2026-09-19）——
@@ -2170,13 +2332,12 @@
       + '</div>', 'bpcover-sec');
   }
 
-  /* 人物：**一張手繪線稿**（`assets/figure/line-front.webp`，242×698、48KB）。
+  /* 人物：**一張手繪線稿**（`assets/figure/line-front.webp`，242×698、透明背景）。
      滑到某一項能力，人物就只亮那一塊 —— 人物本身就是目錄。
 
-     ⚠️ 這裡曾經是 13 張 Blender 算的 3D 影格（滑鼠可以轉 ±45°）。
-     換回線稿是使用者的決定：「線圖看起來比較帥」。
-     **代價是不能轉了** —— 手繪稿只有正面一個角度，那正是當初做 3D 的原因。
-     3D 的影格 `turn-*.webp` 先留著沒刪。
+     曾用過的 3D 轉動方案已經否決，相關影格與 Blender 產生腳本也已移除。
+     現在固定使用正面手繪線稿；若只加五官或臉部內線，不改頭型外輪廓，
+     只需更新 `line-front.webp`，不用重做實心剪影。
 
      亮起來**不另外出圖**：同一張圖疊兩層，底層壓暗、上層加光暈再用漸層遮罩框出區域。
      ⚠️ 遮罩要用漸層衰減，不要用 clip-path —— 矩形裁切會在腰部留一條直邊，
@@ -3191,6 +3352,13 @@
         : (isoDiff(today, start) >= 0 && isoDiff(today, start) <= 89 ? today : GSELECT);
       return '<form class="gcalform" id="growthForm">'
         + '<h2>' + esc(gt.label) + (rec ? '　·　編輯' : '') + '</h2>'
+        /* 已儲存的紀錄可以改類別（使用者 2026-09-28：記成通話、其實是社交）。
+           新增時類別就是按下去的那顆鍵，不需要再選一次。 */
+        + (rec ? '<div class="gkindrow"><span>類別</span><div class="gkindpick" role="radiogroup" aria-label="紀錄類別">'
+            + GTYPES.map(function (t) {
+                return '<label><input type="radio" name="kind" value="' + t.k + '"' + (t.k === rec.kind ? ' checked' : '') + '>'
+                  + '<i>' + growthIcon(t.k) + '</i>' + esc(t.short) + '</label>';
+              }).join('') + '</div></div>' : '')
         + '<label><span>日期</span><input type="date" name="date" min="' + start + '" max="' + end
           + '" value="' + esc(d0) + '" required></label>'
         + '<label><span>標題</span><input type="text" name="title" maxlength="120"'
@@ -3224,7 +3392,7 @@
     /* ⚠️ **整頁只有兩塊**（使用者 2026-09-18）：
        上面是主機（螢幕 ＋ 三顆鍵），下面是日曆（讀數 ＋ 控制 ＋ 格子 ＋ 圖例）。
        填寫與翻閱都發生在螢幕裡，不要再有第三塊散在頁尾。 */
-    body.innerHTML = wrap('<header class="rhead"><p class="ey">90-Day Journal</p><h1>成長日誌</h1>'
+    body.innerHTML = wrap('<header class="rhead">' + guideBtnHTML('growth') + '<p class="ey">90-Day Journal</p><h1>成長日誌</h1>'
       /* 導言拿掉了（使用者 2026-09-19）—— 它把螢幕往下推，而螢幕自己就說得清楚。 */
       + '<div class="divider"><i></i><s></s></div>'
       + restNoticeHTML('成長日誌') + '</header>')
@@ -3366,6 +3534,12 @@
       });
     });
 
+    [].forEach.call(body.querySelectorAll('.gkindpick input'), function (r) {
+      r.addEventListener('change', function () {
+        var h = r.closest('form').querySelector('h2');
+        if (h) h.textContent = growthType(r.value).label + '　·　編輯';
+      });
+    });
     var cancel = body.querySelector('[data-gcancel]');
     if (cancel) cancel.addEventListener('click', function () { GFORM = null; GEDIT = null; paintScreen(); });
     var formEl = el('growthForm');
@@ -3384,6 +3558,8 @@
            而舊的那列還躺在試算表上（多一筆鬼紀錄）。
            by 也不改：那是「這筆是誰寫的」，不是「誰最後動過」。 */
         old.d = d; old.t = title; old.outcome = outcome;
+        var nk = String(fd.get('kind') || '');
+        if (GTYPES.some(function (t) { return t.k === nk; })) old.kind = nk;
         old.w = Math.floor(isoDiff(d, start) / 7) + 1;
         ev = old;
       } else {
@@ -3424,7 +3600,7 @@
 
     /* ⚠️ **頁首只有標題。** 原本那句「30+ 小時錄播、12+ 堂…」是**銷售話術**，
        而且數量在下面的分頁鈕上本來就有（每個分頁都帶筆數）—— 重複又多餘。 */
-    var h = wrap('<header class="rhead"><p class="ey">Adventure</p><h1>冒險</h1>'
+    var h = wrap('<header class="rhead">' + guideBtnHTML('lib') + '<p class="ey">Adventure</p><h1>冒險</h1>'
       + '<div class="divider"><i></i><s></s></div></header>');
 
     /* 共用作業螢幕是冒險的第一個主體；舊卡片與分類全數保留在下方。 */

@@ -2723,6 +2723,21 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 }
 .gscreen .gcalform > label > input,
 .gscreen .gcalform > label > textarea { grid-column: 2; }
+/* 編輯時的類別切換：三顆小膠囊，跟下面的欄位同一條格線。 */
+.gscreen .gcalform > .gkindrow { display: contents; }
+.gscreen .gcalform > .gkindrow > span { grid-column: 1; padding-top: 9px; color: var(--beige-40);
+  font: 500 9.5px/1 var(--mono); letter-spacing: .08em; }
+.gscreen .gcalform > .gkindrow > span::before { content: '▸ '; color: var(--salmon); opacity: .55; }
+.gkindpick { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.gkindpick label { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; cursor: pointer;
+  border: 1px solid var(--beige-18); border-radius: 30px; color: var(--beige-70); font-size: 12px;
+  transition: border-color .2s var(--ease), color .2s var(--ease), background .2s var(--ease); }
+.gkindpick label:hover { border-color: var(--beige-40); color: var(--beige); }
+.gscreen .gcalform .gkindpick input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; pointer-events: none; }
+.gkindpick i { display: inline-grid; width: 14px; height: 14px; }
+.gkindpick i svg { width: 100%; height: 100%; }
+.gkindpick label:has(input:checked) { color: var(--navy); background: var(--salmon); border-color: var(--salmon); }
+.gkindpick label:has(input:focus-visible) { outline: 1px solid var(--salmon); outline-offset: 2px; }
 /* 前面那個小三角是提示符，讓每一行看起來像在等你輸入。 */
 .gscreen .gcalform > label > span::before { content: '▸ '; color: var(--salmon); opacity: .55; }
 .gscreen .gcalform input, .gscreen .gcalform textarea {
@@ -2754,6 +2769,7 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   .gscreen .gcalform h2, .gscreen .gcalform > label > span,
   .gscreen .gcalform > label > input, .gscreen .gcalform > label > textarea,
   .gscreen .gcalform > div { grid-column: 1; }
+  .gscreen .gcalform > .gkindrow > span, .gkindpick { grid-column: 1; }
   .gscreen .gcalform > label > span { padding-top: 9px; }
   .gscreen .gcalform h2 { margin: 0 0 6px; font-size: 16px; }
   .gscreen .gcalform textarea[name="outcome"] { height: 92px; }
@@ -3929,3 +3945,52 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .gidle-home .assignment-home-copy { max-width: 410px; }
 .gidle-home .assignment-home-copy > p.gidle-state { margin-top: 16px; color: var(--beige-40);
   font: 500 9.5px/1.6 var(--mono); letter-spacing: .14em; }
+
+/* ═══ 頁面說明（導覽模式）══════════════════════════════
+   頁首右上一顆小鈕；按下去整頁蓋一層薄膜，在區塊與按鈕上寫字。 */
+.rhead { position: relative; }
+.guidebtn { position: absolute; right: 0; top: 30px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 4px; cursor: pointer;
+  color: var(--beige-70); background: transparent; border: 1px solid var(--beige-18); border-radius: 30px;
+  font: 500 11px/1 var(--sans); letter-spacing: .08em;
+  transition: color .2s var(--ease), border-color .2s var(--ease); }
+.guidebtn i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  font: 700 11px/1 var(--mono); font-style: normal; color: var(--navy); background: var(--beige-70); }
+.guidebtn:hover { color: var(--salmon); border-color: var(--salmon); }
+.guidebtn:hover i { background: var(--salmon); }
+.guidebtn:focus-visible { outline: 1px solid var(--salmon); outline-offset: 2px; }
+
+.guide { position: absolute; left: 0; top: 0; width: 100%; z-index: 200; cursor: pointer;
+  background: rgba(19, 27, 46, .62); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px);
+  animation: guidein .25s var(--ease) both; }
+@keyframes guidein { from { opacity: 0 } to { opacity: 1 } }
+.guidearea { position: absolute; border: 1px solid rgba(232, 168, 152, .55); pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(19, 27, 46, .4), inset 0 0 40px rgba(232, 168, 152, .06); }
+.guidecard { position: absolute; left: 14px; top: 14px; max-width: min(360px, calc(100% - 28px));
+  padding: 15px 18px 16px 19px; background: rgba(19, 27, 46, .95);
+  border-left: 2px solid var(--salmon); box-shadow: 0 12px 30px rgba(0, 0, 0, .35); }
+.guidecard .num { display: block; color: var(--salmon); font: 500 9px/1 var(--mono); letter-spacing: .16em; }
+.guidecard b { display: block; margin-top: 6px; color: var(--white); font: 700 19px/1.3 var(--serif); letter-spacing: .04em; }
+.guidecard p { margin: 8px 0 0; color: var(--beige); font-size: 13px; line-height: 1.8; }
+.guidemark { position: absolute; border: 1px dashed var(--salmon); border-radius: 6px; pointer-events: none; }
+/* 按鈕與標籤用同一個字母對起來：按鈕左上角一顆，標籤開頭一顆。 */
+.guideno { display: inline-grid; place-items: center; flex: none; width: 17px; height: 17px; border-radius: 50%;
+  font: 700 9.5px/1 var(--mono); color: var(--salmon); background: var(--navy); }
+.guidemark > .guideno { position: absolute; left: -8px; top: -8px; border: 1px solid var(--salmon); }
+.guidetag { position: absolute; display: flex; align-items: flex-start; gap: 8px; max-width: 250px;
+  padding: 8px 12px 9px 8px; pointer-events: none; color: var(--navy); background: var(--salmon); border-radius: 4px;
+  font-size: 12px; line-height: 1.55; box-shadow: 0 8px 20px rgba(0, 0, 0, .3); }
+.guidetag b { display: block; font-weight: 700; }
+.guidetag span:not(.guideno) { display: block; }
+.guidehint { position: fixed; left: 50%; top: 68px; transform: translateX(-50%); margin: 0; z-index: 1;
+  padding: 7px 14px; border: 1px solid var(--beige-18); border-radius: 30px; background: var(--navy);
+  color: var(--beige-70); font: 500 10px/1 var(--mono); letter-spacing: .14em; white-space: nowrap; pointer-events: none; }
+@media (max-width: 560px) {
+  .guidebtn { top: 24px; padding-right: 4px; }
+  .guidebtn span { display: none; }
+  /* 手機的區塊很窄，字卡滿版會壓到右側被標記的按鈕，所以只佔左邊約四分之三。 */
+  .guidecard { max-width: 76%; padding: 11px 13px 12px 15px; }
+  .guidecard b { font-size: 16px; }
+  .guidecard p { font-size: 12.5px; line-height: 1.7; }
+  .guidetag { max-width: 210px; font-size: 11.5px; }
+}
