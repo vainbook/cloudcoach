@@ -3346,9 +3346,12 @@
        ② 教練誰的都能刪；學員只能刪自己寫的
        ⚠️ 前端這層只是把按鈕藏起來，真正的把關在後端（送什麼都不採信）。 */
     function canDelete(e) {
-      if (!e || !e.id) return false;
-      if (!(S.log || []).some(function (x) { return x && x.id === e.id; })) return false;
-      return ACTOR_ROLE === 'coach' || e.by !== 'coach';
+      return canEdit(e) && (ACTOR_ROLE === 'coach' || e.by !== 'coach');
+    }
+    /* 編輯不分作者：學員也能改教練替他記的那一筆（使用者 2026-09-28）。
+       刪除仍然只有教練能刪教練寫的。作者（by）改了也不變，後端 growthSave_ 會保留原本的 author_role。 */
+    function canEdit(e) {
+      return !!(e && e.id) && (S.log || []).some(function (x) { return x && x.id === e.id; });
     }
 
     function logHTML(list, no) {
@@ -3366,7 +3369,7 @@
                  刪除維持淡淡的圖示，不可逆的動作不該一直在招手。 */
               + '<button type="button" class="gcopy" data-gcopy="' + esc(e.id) + '">回報</button>'
               /* 能不能改跟能不能刪是同一組條件：要在 S.log 裡，而且學員不能動教練寫的。 */
-              + (canDelete(e) ? '<button type="button" class="gedit" data-gedit="' + esc(e.id) + '">編輯</button>' : '')
+              + (canEdit(e) ? '<button type="button" class="gedit" data-gedit="' + esc(e.id) + '">編輯</button>' : '')
               + (canDelete(e) ? '<button type="button" class="gdel" data-gdel="' + esc(e.id) + '"'
                   + ' title="刪除這一筆" aria-label="刪除這一筆">' + trashIcon() + '</button>' : '')
               + '</span></article>';
