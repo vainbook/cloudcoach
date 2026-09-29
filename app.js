@@ -1928,6 +1928,15 @@
     return window.UC_OKR.taskToolMap[it.sheet] || '';
   }
 
+  /* 欄位裡自己貼了網址（例如「預約顧問https://…」）→ 拆成「顯示文字」與「連結」。
+     教練在試算表上怎麼寫都行，網站只負責讓它點得開（使用者 2026-09-29）。 */
+  function splitLink(v) {
+    var m = String(v || '').match(/https?:\/\/[^\s，。、）)」]+/);
+    if (!m) return { text: String(v || ''), url: '' };
+    var text = String(v).replace(m[0], ' ').replace(/\s+/g, ' ').trim();
+    return { text: text || '開啟連結', url: m[0] };
+  }
+
   /* 作業欄指到的是網站某一頁（例如「記錄在日誌中」→ 成長日誌）。 */
   function taskRoute(it) {
     var R = window.UC_OKR.taskRoutes || {};
@@ -2038,15 +2047,18 @@
          轉跳改成貼在該欄旁邊的小「傳送」—— 要去哪裡由那一格的內容決定，
          而不是一顆不知道會帶你去哪的按鈕。對不上就沒有按鈕，不會有死路。 */
       var courseUrl = taskCourseUrl(it), courseList = taskCourseList(it), toolKey = taskToolKey(it), route = taskRoute(it);
+      var toolLink = splitLink(it.tool), sheetLink = splitLink(it.sheet);
       var go = function (attr, val) {
         return ' <button type="button" class="taskgo" ' + attr + '="' + esc(val) + '">傳送</button>';
       };
       meta = '<dl class="taskmeta">'
         + (it.sub ? '<dt>主題</dt><dd>' + esc(it.sub) + '</dd>' : '')
-        + (it.tool ? '<dt>教材</dt><dd>' + esc(it.tool)
-            + (courseUrl ? go('data-task-url', courseUrl) : courseList ? go('data-task-list', courseList) : '') + '</dd>' : '')
-        + (it.sheet ? '<dt>作業</dt><dd>' + esc(it.sheet)
-            + (toolKey ? go('data-task-tool', toolKey) : route ? go('data-task-route', route) : '') + '</dd>' : '')
+        + (it.tool ? '<dt>教材</dt><dd>' + esc(toolLink.text)
+            + (courseUrl ? go('data-task-url', courseUrl) : courseList ? go('data-task-list', courseList)
+              : toolLink.url ? go('data-task-url', toolLink.url) : '') + '</dd>' : '')
+        + (it.sheet ? '<dt>作業</dt><dd>' + esc(sheetLink.text)
+            + (toolKey ? go('data-task-tool', toolKey) : route ? go('data-task-route', route)
+              : sheetLink.url ? go('data-task-url', sheetLink.url) : '') + '</dd>' : '')
         + '</dl>';
     }
     m.innerHTML = '<section class="taskpanel" role="dialog" aria-modal="true" aria-labelledby="taskTitle" tabindex="-1">'
