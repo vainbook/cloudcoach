@@ -2971,6 +2971,10 @@
   ];
 
   function isoToday() {
+    /* demo 的時間軸是固定的（data/growth.js 的 today），不然過了 90 天就永遠是「旅程完成」。
+       正式站一律用真實日期。 */
+    var G = window.UC_GROWTH;
+    if (G && G.today && !(window.UC_STORE && window.UC_STORE.isRemote())) return G.today;
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)
       + '-' + ('0' + d.getDate()).slice(-2);

@@ -136,9 +136,10 @@ window.UC_SCORE = (function () {
    目標刻意做成「形象與調情高、生活圈與價值觀低」——那是雲端教練最典型的來客側面
    （高功能但情感能力失衡），而且會命中兩條交叉規則，示範時那一段才不是空的。 */
 window.UC_SAMPLE = function () {
-  var E = window.UC_SCORE, seed = 424242;
+  /* 人設、作業、任務、教練報告都在 data/demo.js（2026-10-01 換成阿哲）。這裡只負責把它組成一份 S。 */
+  var E = window.UC_SCORE, P = window.UC_DEMO || {}, seed = 424242;
   function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
-  var target = { emo: .46, circle: .06, image: .84, values: .10, flirt: .84 };
+  var target = P.target || { emo: .5, circle: .5, image: .5, values: .5, flirt: .5 };
   var answers = {};
 
   /* ⚠️ 舊的挑法是「找 delta 最接近目標的選項」，在新題庫會壞掉：
@@ -151,31 +152,22 @@ window.UC_SAMPLE = function () {
     answers[q.id] = Math.max(0, Math.min(n - 1, idx));
   });
 
+  /* 訪談題：人設檔有寫就用人設檔的，沒寫才退回題庫裡的 sample。 */
+  var info = P.info || {};
   window.UC_QUESTIONS.items.filter(function (q) { return q.type === 'info'; })
-    .forEach(function (q) { if (q.sample != null) answers[q.id] = q.sample; });
+    .forEach(function (q) {
+      if (info[q.id] != null) answers[q.id] = info[q.id];
+      else if (q.sample != null) answers[q.id] = q.sample;
+    });
 
+  var copy = function (v) { return JSON.parse(JSON.stringify(v || {})); };   /* demo 可以隨便改，不動原始資料 */
   return {
-    name: '示範學員 ・ 阿睿', answers: answers, picked: [], key: {},
-    taskNow: {}, hidden: {}, done: {},
-    /* Logo 的共用 Demo 要能直接瀏覽全站，不讓每位檢查者都先填六格。
-       這些只是範例資料，正式學員的報告仍必須由教練完成。 */
-    coachReport: {
-      adjust: {}, scores: {},
-      notes: {
-        values: '你目前最需要先補的是內在方向：把想成為的人、想過的生活和關係判準說清楚，後面的練習才有骨架。',
-        emo: '你已經能接住一部分情緒，但還需要練習把自己的感受放進對話，讓別人不只覺得你會聽，也真正認識你。',
-        image: '你的外在整理與場合感已經很成熟，接下來重點不是繼續加配件，而是讓形象和真實生活一致。',
-        circle: '目前最大的限制不是聊天技巧，而是缺少穩定認識新朋友的場域，先建立每週可重複參與的生活圈。',
-        flirt: '你掌握互動節奏與升溫訊號，下一步要把技巧放回真誠與尊重裡，確認彼此都自在且願意靠近。'
-      },
-      letter: '阿睿，你已經具備很好的形象與互動能力，接下來三個月我們會先建立內在方向與穩定生活圈，讓你不只會開始一段互動，也能走進真正想要的關係。',
-      coachName: 'UC Coach', complete: true
-    },
+    name: P.name || '示範學員', answers: answers, picked: [], key: {},
+    taskNow: copy(P.taskNow), hidden: {}, done: copy(P.done),
+    assignments: copy(P.assignments),
+    coachReport: copy(P.coachReport),
     /* ⚠️ 成長日誌**要真的放進 log**，不是在畫面上疊一層唯讀的範例
-       （使用者 2026-09-19：「demo 版也要有完整的功能與內容，就是學員的實際畫面」）。
-       原本它們只從 UC_GROWTH.events 疊在畫面上，不在狀態裡 ——
-       於是編輯與刪除的按鈕全部不出現，那兩個功能在 demo 裡等於不存在。
-       深拷貝：demo 可以隨便改，不要動到那份原始資料。 */
+       （使用者 2026-09-19：「demo 版也要有完整的功能與內容，就是學員的實際畫面」）。 */
     log: (window.UC_GROWTH && window.UC_GROWTH.events)
       ? JSON.parse(JSON.stringify(window.UC_GROWTH.events)) : []
   };
@@ -329,8 +321,9 @@ window.UC_SELFTEST = function () {
     t('藍圖 ' + it.id + ' 的維度存在', !!dimSet[it.dim]);
     t('藍圖 ' + it.id + ' 有 KR 文字', typeof it.kr === 'string' && it.kr.length > 0);
     t('藍圖 ' + it.id + ' 的章節在範圍內', it.ch >= 0 && it.ch < O.epigraphs.length);
-    if (it.sheet) t('藍圖 ' + it.id + ' 的工作表 ' + it.sheet + ' 在 sheets 裡找得到',
-      O.sheets.some(function (x) { return x.k === it.sheet; }));
+    /* 作業欄可以是作業名、「記錄在日誌中」這類轉跳，或教練自己寫的說明（例如「拍照傳群組」），
+       試算表本來就允許自由輸入。這裡只擋舊寫法（＃開頭、改名前的作業名）混進來。 */
+    if (it.sheet) t('藍圖 ' + it.id + ' 的作業欄沒有舊寫法（' + it.sheet + '）', O.taskName(it.sheet) === it.sheet);
   });
   t('三句章節格言齊全', O.epigraphs.length === 3 && O.epigraphs.every(function (x) { return x.length > 6; }));
   E.keys.forEach(function (k) {
