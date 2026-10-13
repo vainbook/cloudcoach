@@ -166,6 +166,11 @@ a { color: var(--salmon); }
   transition: background .2s, color .2s;
 }
 .nav a[aria-current="page"] { background: var(--salmon); color: var(--navy); font-weight: 600; }
+/* demo 才有：學員／教練視角切換（使用者 2026-10-13：放在底部藍列裡，不做入口選單）。 */
+.nav #navRole { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; white-space: nowrap;
+  min-height: 44px; padding: 7px 13px; margin-left: 4px; border-radius: 30px; cursor: pointer;
+  color: var(--salmon); background: transparent; border: 1px dashed var(--salmon-30); }
+.nav #navRole:hover { border-color: var(--salmon); }
 .nav a[aria-disabled="true"] {
   color: var(--beige-40); opacity: .34; cursor: not-allowed;
 }
@@ -3610,54 +3615,72 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   color: var(--salmon); }
 
 /* ═══ 學員清單（教練用）═══════════════════════════════
-   一列一位學員：名字、id、評測進度條、現在卡在哪一關。
+   一位學員一張卡（2026-10-13 從條狀改成卡片）：頭像字、名字、階段、開始日、評測進度。
    用按鈕不用連結 —— 點下去是「切換目前看誰」，不是導覽。 */
-.stlist { display: grid; gap: 10px; }
-/* ⚠️ 一列一個人，掃得越快越好（使用者 2026-09-18）。
-   名字｜LINE 名（只在跟姓名不同時出現）｜階段｜n/總｜進度條 —— 一排放完。 */
-.strow {
-  display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: baseline;
-  gap: 0 12px; width: 100%; padding: 11px 16px; text-align: left; cursor: pointer;
+.sttools { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin: 18px 0 12px; }
+.stlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(216px, 1fr)); gap: 12px; }
+.stcard {
+  position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center;
+  gap: 10px 12px; width: 100%; padding: 16px 16px 14px; text-align: left; cursor: pointer;
   color: var(--beige); background: var(--navy-lift);
   border: 1px solid var(--beige-18); border-radius: 0;
-  transition: border-color .2s var(--ease), background .2s var(--ease);
+  transition: border-color .2s var(--ease), background .2s var(--ease), transform .2s var(--ease);
 }
-.strow:hover { border-color: var(--salmon); }
-.strow.is-cur { border-left: 3px solid var(--salmon); background: var(--navy-lift2); }
-/* ⚠️ 讀取中**不要整列變淡** —— 那正是使用者要看的那一列，
-   淡掉等於把狀態藏起來。只是不能再點而已。 */
-.strow.is-busy { pointer-events: none; border-color: var(--salmon-30); }
-.strow.is-busy .ststage { opacity: 1; color: var(--salmon); }
-.stbar u.is-load { transition: width .12s linear;
-  box-shadow: 0 0 6px rgba(232, 168, 152, .5); }
-.stname { grid-column: 1; font-family: var(--serif); font-size: 16px; font-weight: 400;
-  white-space: nowrap; }
-.stid { grid-column: 2; min-width: 0; font-family: var(--mono); font-size: 10px;
-  letter-spacing: .05em; text-decoration: none; opacity: .45;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.ststart { grid-column: 3; font-family: var(--mono); font-size: 10px; letter-spacing: .05em;
-  opacity: .55; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ststage { grid-column: 4; font-family: var(--mono); font-size: 10px; font-style: normal;
-  letter-spacing: .05em; opacity: .65; white-space: nowrap; }
-.stnum { grid-column: 5; font-family: var(--mono); font-size: 10px;
-  font-variant-numeric: tabular-nums; opacity: .45; white-space: nowrap; }
-.stbar { grid-column: 1 / -1; display: block; height: 2px; margin-top: 7px;
-  background: var(--beige-08); }
-.stsort { display: flex; justify-content: flex-end; gap: 4px; margin: 18px 0 10px; }
+.stcard:hover { border-color: var(--salmon); transform: translateY(-2px); }
+.stcard.is-cur { border-color: var(--salmon); background: var(--navy-lift2);
+  box-shadow: inset 3px 0 0 var(--salmon); }
+/* 範例學員：虛線邊框，跟真學員分得開 —— 點錯人是這一頁最貴的錯誤。 */
+.stcard.is-demo { border-style: dashed; }
+.stcard.is-busy { pointer-events: none; border-color: var(--salmon-30); }
+.stcard.is-busy .ststage { color: var(--salmon); }
+.stavatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--beige-18); background: var(--navy);
+  font: 400 18px/1 var(--serif); color: var(--beige); }
+.stcard.is-cur .stavatar { border-color: var(--salmon); color: var(--salmon); }
+.sthead { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; min-width: 0; }
+.stname { font-family: var(--serif); font-size: 17px; font-weight: 400; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sttag { font: 500 9px/1 var(--mono); font-style: normal; letter-spacing: .1em; padding: 3px 6px;
+  color: var(--navy); background: var(--salmon); }
+.stid { flex-basis: 100%; font-family: var(--mono); font-size: 10px; letter-spacing: .05em;
+  text-decoration: none; opacity: .45; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ststage { grid-column: 1 / -1; justify-self: start; padding: 4px 9px; font: 500 10px/1 var(--mono);
+  font-style: normal; letter-spacing: .06em; color: var(--beige-70); border: 1px solid var(--beige-18); }
+.ststage.is-open { color: var(--salmon); border-color: var(--salmon-30); }
+.ststart { grid-column: 1 / -1; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em;
+  color: var(--beige-40); font-variant-numeric: tabular-nums; }
+.stfoot { grid-column: 1 / -1; display: grid; gap: 6px; }
+.stbar { display: block; height: 2px; background: var(--beige-08); }
+.stbar u { display: block; height: 100%; background: var(--salmon); text-decoration: none; }
+.stbar u.is-load { transition: width .12s linear; box-shadow: 0 0 6px rgba(232, 168, 152, .5); }
+.stnum { font-family: var(--mono); font-size: 10px; letter-spacing: .05em;
+  font-variant-numeric: tabular-nums; color: var(--beige-40); }
+.stsort { display: flex; gap: 4px; margin: 0 0 0 auto; }
 .stsort button { padding: 5px 10px; font: 500 10px/1 var(--mono); letter-spacing: .08em; cursor: pointer;
   color: var(--beige-40); background: transparent; border: 1px solid transparent; }
 .stsort button:hover { color: var(--beige); }
 .stsort button.on { color: var(--salmon); border-color: var(--salmon-30); }
-.stbar u { display: block; height: 100%; background: var(--salmon); text-decoration: none; }
+.stdemoreset { padding: 7px 12px; font: 500 11px/1 var(--sans); letter-spacing: .04em; cursor: pointer;
+  color: var(--beige-70); background: transparent; border: 1px dashed var(--beige-18); }
+.stdemoreset:hover { color: var(--salmon); border-color: var(--salmon); }
+.stdemoreset:disabled { opacity: .5; cursor: wait; }
 @media (max-width: 560px) {
-  /* 窄螢幕放不下四欄：名字自己一行，其餘擠一行。 */
-  .strow { grid-template-columns: 1fr auto auto; padding: 10px 13px; }
-  .stname { grid-column: 1 / -1; }
-  .stid { grid-column: 1 / -1; }
-  .ststart { grid-column: 1; }
-  .ststage { grid-column: 2; }
-  .stnum { grid-column: 3; }
+  .stlist { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .stcard { grid-template-columns: 34px minmax(0, 1fr); padding: 13px 12px 12px; gap: 8px 9px; }
+  .stavatar { width: 34px; height: 34px; font-size: 15px; }
+  .stname { font-size: 15px; }
+  .ststart { font-size: 9.5px; }
 }
+
+/* demo 模式選擇（logo 進入）：兩顆大選項，借任務視窗的外框。 */
+.demopick-opts { display: grid; gap: 10px; margin-top: 16px; }
+.demopick-opts button { display: grid; gap: 6px; padding: 16px 18px; text-align: left; cursor: pointer;
+  color: var(--beige); background: rgba(232, 228, 220, .03); border: 1px solid var(--beige-18);
+  transition: border-color .2s var(--ease), background .2s var(--ease); }
+.demopick-opts button:hover { border-color: var(--salmon); background: rgba(232, 168, 152, .06); }
+.demopick-opts b { font: 700 18px/1.3 var(--serif); }
+.demopick-opts span { color: var(--beige-70); font-size: 13px; line-height: 1.7; }
 
 /* ═══ 成長日誌：三顆大按鈕 ═══════════════════════════
    使用者 2026-09-12：「變成通話記錄、外出社交、實際約會，三個大按鈕，
@@ -3708,22 +3731,6 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   .gkico svg { width: 18px; height: 18px; }
   .gkind b { font-size: 9px; white-space: nowrap; }
 }
-
-/* 範例學員：跟真學員視覺上要分得開 —— 虛線邊框＋沒有進度條。
-   點錯人是這一頁最貴的錯誤。 */
-/* 範例學員移到清單上面，所以下邊距改成上邊距要拿掉。 */
-.stdemo {
-  display: grid; gap: 3px; width: 100%; margin: 0 0 10px; padding: 11px 16px;
-  text-align: left; cursor: pointer;
-  color: var(--beige-70); background: none;
-  border: 1px dashed var(--beige-18); border-radius: 0;
-  font-family: var(--serif); font-size: 15px;
-  transition: border-color .2s var(--ease), color .2s var(--ease);
-}
-.stdemo:hover { border-color: var(--salmon); color: var(--beige); }
-.stdemo.is-cur { border-style: solid; border-left: 3px solid var(--salmon); color: var(--beige); }
-.stdemo s { font-family: var(--mono); font-size: 10.5px; letter-spacing: .05em;
-  text-decoration: none; opacity: .5; }
 
 /* ═══ 手機：任務卡置中 ═════════════════════════════════
    人物的部位動畫會在開卡前先播完；卡片出現後，閱讀是唯一主角。

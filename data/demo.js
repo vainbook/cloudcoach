@@ -114,5 +114,22 @@ window.UC_DEMO = {
       'humor-03': '羽球團的阿伯殺球很兇，打完說「我只是在熱身」。',
       'humor-04': '我媽傳的長輩圖，我都存起來，已經可以出一本年曆了。'
     } }
-  }
+  },
+
+  /* demo 教練模式的學員清單（2026-10-13）。只有阿哲有完整內容；其他 11 位只是讓清單看起來熱鬧，
+     卡片上的進度是寫死的，點進去是空白的新學員 —— 不佔任何資料。綽號都是虛構的。 */
+  roster: [
+    { id: 'demo-azhe', name: '阿哲', full: true },
+    { id: 'demo-01', name: '大熊', growthStart: '2026-09-21', answered: 54, reportComplete: true },
+    { id: 'demo-02', name: '小傑', growthStart: '2026-09-07', answered: 54, reportComplete: true },
+    { id: 'demo-03', name: 'Kevin', growthStart: '', answered: 54, reportComplete: false },
+    { id: 'demo-04', name: '胖虎', growthStart: '2026-08-03', answered: 54, reportComplete: true },
+    { id: 'demo-05', name: '小宇', growthStart: '', answered: 31, reportComplete: false },
+    { id: 'demo-06', name: '阿德', growthStart: '2026-07-20', answered: 54, reportComplete: true },
+    { id: 'demo-07', name: '小白', growthStart: '', answered: 12, reportComplete: false },
+    { id: 'demo-08', name: '鬍子', growthStart: '2026-09-28', answered: 54, reportComplete: true },
+    { id: 'demo-09', name: '阿Ben', growthStart: '', answered: 0, reportComplete: false },
+    { id: 'demo-10', name: '小馬', growthStart: '2026-08-31', answered: 54, reportComplete: true },
+    { id: 'demo-11', name: '老K', growthStart: '', answered: 46, reportComplete: false }
+  ]
 };

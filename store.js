@@ -614,6 +614,19 @@
     });
   }
 
+  /* 示範學員重設（2026-10-13）：後台把示範學員的列全部清掉，再重新讀一次 ——
+     讀回來是空的，比對基準（snap）也就是空的；接著 app 把阿哲整份放進狀態、save()，
+     每一格都會被當成新資料送出去。⚠️ 只能在「目前看的就是示範學員」時呼叫。 */
+  function resetDemo() {
+    if (!isRemote() || !demoId || studentId !== demoId) return Promise.reject(new Error('目前看的不是示範學員'));
+    return drain().then(function () {
+      return call({ action: 'demo.reset' });
+    }).then(function () {
+      snap = null; restDone = false; restState = 'ok';
+      return load_();
+    });
+  }
+
   /* 把佇列送完再繼續。逾時就放棄等待（資料還在佇列裡，不會掉）。 */
   function drain() {
     if (!queue.length) return Promise.resolve();
@@ -649,6 +662,7 @@
     token: token,
     listStudents: listStudents,
     switchStudent: switchStudent,
+    resetDemo: resetDemo,
     restState: function () { return restState; },
     /* ⚠️ 只重試**失敗過的**那一次。無條件呼叫 prefetchRest 的話，
        教練切完學員（restDone 被重設）走進成長日誌就會多打一趟 ——

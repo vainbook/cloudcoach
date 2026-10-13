@@ -384,7 +384,7 @@
 
   function routeAllowed(hash, role) {
     if (!ROUTES[hash] || hash === '#/') return false;
-    if (hash === '#/students') return role === 'coach';
+    if (hash === '#/students') return role === 'coach' || DEMO_COACH;   /* demo 兩種視角都能挑學員 */
     if (hash === '#/assess') return true;
     /* 藍圖採半開放：入口永遠可進，資料尚未完成時由頁面自己解釋缺哪一步。 */
     if (hash === '#/okr') return true;
@@ -489,7 +489,13 @@
     updateNavAccess();
     renderSession();
     var ns = el('navStudents');
-    if (ns) ns.hidden = !(ACTOR_ROLE === 'coach' && window.UC_STORE && window.UC_STORE.isRemote());
+    if (ns) ns.hidden = !(DEMO_COACH || (ACTOR_ROLE === 'coach' && window.UC_STORE && window.UC_STORE.isRemote()));
+    var nr = el('navRole');
+    if (nr) {
+      nr.hidden = !DEMO_COACH;
+      nr.textContent = ACTOR_ROLE === 'coach' ? '教練視角 ⇄' : '學員視角 ⇄';
+      nr.setAttribute('aria-label', '切換成' + (ACTOR_ROLE === 'coach' ? '學員' : '教練') + '視角');
+    }
 
     /* 走進要用到那包資料的頁面就再試一次。補過了的話這是空操作。 */
     if ((hash === '#/growth' || hash === '#/tools')
@@ -533,26 +539,56 @@
       : '教練完成並送出報告後才會開放');
   });
 
+  /* demo 的兩種模式（使用者 2026-10-13）：
+     學員模式＝一位全空的新學員，從評測開始走；
+     教練模式＝學員清單裡有阿哲（完整範例）＋ 11 位只有卡片的學員，可以切換著看。
+     DEMO_COACH 為 true 時，學員清單走本機名單（UC_DEMO.roster），不碰後端。 */
+  var DEMO_COACH = false, DEMO_CUR = '', DEMO_STATES = {};
+
   function enterDemo() {
-    /* Logo 是本機檢查用的隱藏入口。先切成 demo，避免尚未開始的 LINE 流程
-       繼續蓋住畫面；資料仍使用同一份 UC_SAMPLE，不另造第二套示範資料。 */
+    /* Logo 是隱藏入口。先切成 demo，避免尚未開始的 LINE 流程繼續蓋住畫面。 */
     document.documentElement.dataset.ucBoot = 'demo';
     document.documentElement.dataset.ucLineState = 'ready';
     if (window.UC_STORE) {
       window.UC_STORE.endpoint('');
       window.UC_STORE.token('');
     }
-    /* ⚠️ 用 replaceState 就地換內容，**不要 `S = ...`** ——
-       教練報告那邊有 `var cr = S.coachReport` 的閉包別名，
-       換掉整個物件的話別名還指著舊的，畫面會寫到一份沒人看的資料。 */
-    replaceState(window.UC_SAMPLE ? window.UC_SAMPLE() : blank());
-    /* ⚠️ demo 就是**學員看到的畫面**（使用者 2026-09-24）。沒設身分的話 ACTOR_ROLE 是空的，
-       所有「ACTOR_ROLE !== 'student'」的教練功能都會露出來 —— 90 天起始日、編輯教練評測、
-       回報目前任務（2026-09-28 回報）。本機直接開（沒走 logo）仍是不鎖的開發模式。 */
+    startDemo();
+  }
+
+  function demoState(id) {
+    var R = (window.UC_DEMO && window.UC_DEMO.roster) || [];
+    var r = R.filter(function (x) { return x.id === id; })[0] || {};
+    if (DEMO_STATES[id]) return DEMO_STATES[id];
+    if (r.full) return window.UC_SAMPLE();
+    var st = blank();
+    st.name = r.name || '';
+    return st;
+  }
+
+  /* 進 demo：一位空白的學員、學員視角（使用者 2026-10-13）。
+     底部藍列可以切換學員／教練視角，也可以從「學員」挑阿哲或其他人。 */
+  function startDemo() {
+    DEMO_STATES = {};
+    DEMO_COACH = true;
+    DEMO_CUR = '';
+    /* ⚠️ 用 replaceState 就地換內容，**不要 `S = ...`** —— 教練報告那邊有閉包別名。 */
+    replaceState(blank());
+    /* ⚠️ demo 預設就是**學員看到的畫面**（使用者 2026-09-24）。沒設身分的話 ACTOR_ROLE 是空的，
+       所有「ACTOR_ROLE !== 'student'」的教練功能都會露出來（2026-09-28 回報）。
+       本機直接開（沒走 logo）仍是不鎖的開發模式。 */
     setRole('student');
     save();
-    nav('#/okr');
+    nav('#/assess');
   }
+
+  el('navRole').addEventListener('click', function () {
+    setRole(ACTOR_ROLE === 'coach' ? 'student' : 'coach');
+    toast(ACTOR_ROLE === 'coach' ? '切換成教練視角' : '切換成學員視角');
+    var h = location.hash || '#/assess';
+    if (!routeAllowed(h, ACTOR_ROLE === 'coach' ? 'coach' : 'student')) h = '#/assess';
+    go(h);
+  });
 
   /* ⚠️ demo 的入口**只有 logo**。首頁那顆「載入範例學員」拿掉了 ——
      看得見的 demo 鈕，學員一定會按到（使用者 2026-09-19）。 */
@@ -1773,9 +1809,68 @@
     };
   }
 
+  /* 一位學員一張卡（2026-10-13 從條狀改成卡片）。
+     ⚠️ .ststage 與 .stbar u 這兩個 class 不能改名 —— stBusy() 讀取中的進度靠它們。 */
+  function studentCardHTML(x, total, cur, tag) {
+    var pct = total ? Math.min(100, Math.round((x.answered || 0) / total * 100)) : 0;
+    var stage = x.reportComplete ? '報告已開放' : ((x.answered || 0) >= total ? '等你評測' : '填答中');
+    var name = x.name || x.lineName || x.id;
+    var day = x.growthStart ? isoDiff(isoToday(), x.growthStart) + 1 : 0;
+    return '<button type="button" class="stcard' + (x.id === cur ? ' is-cur' : '') + (tag ? ' is-demo' : '') + '"'
+      + ' data-student="' + esc(x.id) + '" title="' + esc(x.id) + '">'
+      + '<span class="stavatar" aria-hidden="true">' + esc(String(name).slice(0, 1)) + '</span>'
+      + '<span class="sthead"><b class="stname">' + esc(name) + '</b>'
+      + (tag ? '<i class="sttag">' + esc(tag) + '</i>' : '')
+      + (x.lineName && x.name && x.lineName !== x.name ? '<s class="stid">' + esc(x.lineName) + '</s>' : '')
+      + '</span>'
+      + '<em class="ststage' + (x.reportComplete ? ' is-open' : '') + '">' + esc(stage) + '</em>'
+      + '<span class="ststart">' + (x.growthStart
+          ? esc(x.growthStart.replace(/-/g, '.')) + ' 開始' + (day >= 1 ? '　·　冒險第 ' + day + ' 天' : '')
+          : '未設開始日') + '</span>'
+      + '<span class="stfoot"><i class="stbar"><u style="width:' + pct + '%"></u></i>'
+      + '<span class="stnum">評測 ' + (x.answered || 0) + '/' + total + '</span></span>'
+      + '</button>';
+  }
+
   function renderStudents() {
     var body = el('studentsBody');
-    if (!window.UC_STORE || !window.UC_STORE.isRemote()) {
+    var total = window.UC_SCORE.questions.length;
+    var remote = window.UC_STORE && window.UC_STORE.isRemote();
+
+    /* demo 教練模式：名單是本機的（UC_DEMO.roster），只有阿哲有內容。 */
+    if (!remote && DEMO_COACH) {
+      var R = (window.UC_DEMO && window.UC_DEMO.roster) || [];
+      var full = window.UC_SAMPLE ? window.UC_SAMPLE() : null;
+      var cards = R.map(function (r) {
+        var x = r.full && full ? {
+          id: r.id, name: r.name, growthStart: full.coachReport.growthStart,
+          answered: window.UC_SCORE.questions.filter(function (q) { var v = full.answers[q.id]; return v != null && v !== ''; }).length,
+          reportComplete: !!full.coachReport.complete
+        } : r;
+        return studentCardHTML(x, total, DEMO_CUR, r.full ? '範例' : '');
+      }).join('');
+      body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + R.length + ' 位</p>'
+        + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
+        + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。示範版只有阿哲有完整內容。</p></header>')
+        + wrap('<div class="stlist">' + cards + '</div>', 'rv');
+      [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
+        b.addEventListener('click', function () {
+          var id = b.dataset.student;
+          /* 切走之前把目前這位的狀態留在記憶體，切回來還在（重新整理就重來）。 */
+          DEMO_STATES[DEMO_CUR] = JSON.parse(JSON.stringify(S));
+          DEMO_CUR = id;
+          replaceState(demoState(id));
+          save();
+          var r = R.filter(function (x) { return x.id === id; })[0] || {};
+          toast('目前看的是 ' + (r.name || id));
+          nav('#/assess');
+        });
+      });
+      reveal(body);
+      return;
+    }
+
+    if (!remote) {
       body.innerHTML = wrap('<div class="empty"><p class="ey">Coach</p>'
         + '<h1>還沒連上後端</h1><div class="divider"><i></i><s></s></div>'
         + '<p>這一頁要從 LINE 登入才看得到。</p></div>');
@@ -1794,10 +1889,10 @@
       return;
     }
 
-    var total = window.UC_SCORE.questions.length;
     var cur = window.UC_STORE.studentId();
-    /* 範例學員只用下面那顆按鈕開，不在清單裡再出現一次（使用者 2026-09-17）。 */
+    /* 範例學員放第一張卡，不在後面的名單裡再出現一次。 */
     var demo = window.UC_STORE.demoStudentId();
+    var demoRow = STUDENTS.filter(function (x) { return x.id === demo; })[0];
     var list = STUDENTS.filter(function (x) { return x.id !== demo; });
     /* 排序只是看法，不存後端；沒設開始日的一律排最後。 */
     var by = ST_SORTS[ST_SORT] ? ST_SORT : 'start';
@@ -1811,41 +1906,42 @@
       return '<button type="button" data-stsort="' + k + '"' + (k === by ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"')
         + '>' + ST_SORTS[k] + '</button>';
     }).join('') + '</div>';
-    var rows = list.map(function (x) {
-      /* ⚠️ 上限 100 —— 後端如果又算進不是題目的列，至少不要讓進度條爆出格子外。
-         真正的修法在 studentList_ 的 NOT_A_QUESTION，這裡只是防線。 */
-      var pct = total ? Math.min(100, Math.round(x.answered / total * 100)) : 0;
-      var stage = x.reportComplete ? '報告已開放'
-                : (x.answered >= total ? '等你評測' : '填答中');
-      return '<button type="button" class="strow' + (x.id === cur ? ' is-cur' : '') + '"'
-        + ' data-student="' + esc(x.id) + '" title="' + esc(x.id) + '">'
-        /* ⚠️ 一列 = 一個人，塞得下就不要換行（使用者 2026-09-18：挑學員要更快）。
-           id 從主要位置拿掉 —— 挑人用的是名字，id 只有對帳時才需要。
-           LINE 名稱只在「跟姓名不一樣」時才補一句。 */
-        + '<b class="stname">' + esc(x.name || x.lineName || x.id) + '</b>'
-        + (x.lineName && x.name && x.lineName !== x.name
-            ? '<s class="stid">' + esc(x.lineName) + '</s>' : '')
-        + '<span class="ststart">' + (x.growthStart ? esc(x.growthStart.replace(/-/g, '.')) + ' 開始' : '未設開始日') + '</span>'
-        + '<em class="ststage">' + esc(stage) + '</em>'
-        + '<span class="stnum">' + x.answered + '/' + total + '</span>'
-        + '<i class="stbar"><u style="width:' + pct + '%"></u></i>'
-        + '</button>';
-    }).join('');
 
-    /* 範例學員：所有教練共用同一位，拿來練手或給人看都不會動到真學員。
+    /* 範例學員：所有教練共用同一位（2026-10-13 起內容是阿哲，見 data/demo.js）。
        id 由後端給（只有 manage 拿得到），前端不寫死。 */
-    var demoBtn = demo
-      ? '<button type="button" class="stdemo' + (demo === cur ? ' is-cur' : '') + '"'
-        + ' data-student="' + esc(demo) + '">開啟示範學員'
-        + '<s>' + esc(demo) + '　所有教練共用，可以隨便改</s></button>'
-      : '';
+    var demoName = (window.UC_DEMO && window.UC_DEMO.name) || '範例學員';
+    var demoCard = demo ? studentCardHTML({
+      id: demo, name: demoName,
+      growthStart: demoRow ? demoRow.growthStart : '', answered: demoRow ? demoRow.answered : 0,
+      reportComplete: demoRow ? demoRow.reportComplete : false
+    }, total, cur, '範例') : '';
+    var cards = demoCard + list.map(function (x) { return studentCardHTML(x, total, cur, ''); }).join('');
+    var resetBtn = demo ? '<button type="button" class="stdemoreset" data-demo-reset>把範例學員重設成' + esc(demoName) + '</button>' : '';
 
     body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + list.length + ' 位</p>'
       + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
       + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
-      /* 範例學員放最上面（使用者 2026-09-18）。 */
-      + wrap(demoBtn + (list.length > 1 ? sortBar : '') + '<div class="stlist">'
-             + (rows || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
+      + wrap('<div class="sttools">' + resetBtn + (list.length > 1 ? sortBar : '') + '</div>'
+             + '<div class="stlist">' + (cards || '<p class="bpnone">還沒有學員綁定。</p>') + '</div>', 'rv');
+
+    var reset = body.querySelector('[data-demo-reset]');
+    if (reset) reset.addEventListener('click', function () {
+      if (!confirm('把範例學員的資料全部清掉，換成' + demoName + '的完整內容？所有教練看到的範例學員都會一起換掉。')) return;
+      reset.disabled = true;
+      reset.textContent = '重設中…';
+      var go = window.UC_STORE.studentId() === demo ? Promise.resolve() : window.UC_STORE.switchStudent(demo);
+      go.then(function () { return window.UC_STORE.resetDemo(); }).then(function () {
+        replaceState(window.UC_SAMPLE());
+        save();                       /* 基準是空的，阿哲的每一格都會被送出去 */
+        STUDENTS = null;
+        toast('範例學員已重設成' + demoName + '，資料正在同步');
+        nav('#/okr');
+      }).catch(function (e) {
+        reset.disabled = false;
+        reset.textContent = '把範例學員重設成' + demoName;
+        toast('重設失敗：' + ((e && e.message) || '連不上伺服器'));
+      });
+    });
 
     [].forEach.call(body.querySelectorAll('[data-stsort]'), function (b) {
       b.addEventListener('click', function () {
