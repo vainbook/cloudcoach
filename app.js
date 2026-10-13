@@ -493,7 +493,8 @@
     var nr = el('navRole');
     if (nr) {
       nr.hidden = !DEMO_COACH;
-      nr.textContent = ACTOR_ROLE === 'coach' ? '教練視角 ⇄' : '學員視角 ⇄';
+      nr.textContent = '⇄';
+      nr.title = '目前是' + (ACTOR_ROLE === 'coach' ? '教練' : '學員') + '視角';
       nr.setAttribute('aria-label', '切換成' + (ACTOR_ROLE === 'coach' ? '學員' : '教練') + '視角');
     }
 
@@ -1847,11 +1848,12 @@
           answered: window.UC_SCORE.questions.filter(function (q) { var v = full.answers[q.id]; return v != null && v !== ''; }).length,
           reportComplete: !!full.coachReport.complete
         } : r;
-        return studentCardHTML(x, total, DEMO_CUR, r.full ? '範例' : '');
+        /* demo 裡阿哲要看起來像真的學員：不標「範例」（使用者 2026-10-13）。 */
+        return studentCardHTML(x, total, DEMO_CUR, '');
       }).join('');
       body.innerHTML = wrap('<header class="rhead"><p class="ey">Coach ・ ' + R.length + ' 位</p>'
         + '<h1>學員清單</h1><div class="divider"><i></i><s></s></div>'
-        + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。示範版只有阿哲有完整內容。</p></header>')
+        + '<p class="lead">點一位學員，下面每一頁看到的就是他的資料。</p></header>')
         + wrap('<div class="stlist">' + cards + '</div>', 'rv');
       [].forEach.call(body.querySelectorAll('[data-student]'), function (b) {
         b.addEventListener('click', function () {
@@ -4189,8 +4191,9 @@
     var homeOn = !selectedKey;
     return '<div class="assignment-pickers"><div class="assignment-theme-control" data-theme-picker>'
       + '<button type="button" class="assignment-theme-toggle" data-theme-toggle aria-expanded="false">'
-      + '<span class="assignment-theme-index">01</span><span class="assignment-theme-label">作業主題</span>'
-      + '<strong>' + esc(currentLabel || '選擇一個主題') + '</strong><i aria-hidden="true"></i></button>'
+      + '<span class="assignment-theme-index">01</span><span class="assignment-theme-label">作業主題・點這裡切換</span>'
+      /* ⚠️ 箭頭貼在名字右邊，不放整列最右邊 —— 離太遠就看不出整塊是可以按的（使用者 2026-10-13）。 */
+      + '<strong><span>' + esc(currentLabel || '選擇一個主題') + '</span><i aria-hidden="true"></i></strong></button>'
       + '<div class="assignment-theme-menu" data-theme-menu hidden><div class="assignment-theme-menu-head">'
       + '<span>Choose a mission</span><b>選擇作業主題</b></div>'
       + '<button type="button" data-theme-choice="__adventure__"'
@@ -4250,9 +4253,17 @@
     if (restPending()) return '';
     var tools = focusAssignmentTools();
     if (!tools.length) return '';
-    var done = 0, dots = tools.map(function (t) {
+    /* 寫完的點排前面、照完成時間由早到晚（使用者 2026-10-13）；沒寫完的照原本順序接在後面。 */
+    var rows = tools.map(function (t, i) {
       var saved = (S.assignments || {})[t.assignment.id];
       var ok = !!(saved && saved.answers && assignmentProgress(t.assignment, saved).complete);
+      return { t: t, ok: ok, at: ok ? String(saved.updatedAt || '') : '', i: i };
+    }).sort(function (a, b) {
+      if (a.ok !== b.ok) return a.ok ? -1 : 1;
+      return a.ok && a.at !== b.at ? (a.at < b.at ? -1 : 1) : a.i - b.i;
+    });
+    var done = 0, dots = rows.map(function (r) {
+      var t = r.t, ok = r.ok;
       if (ok) done++;
       return '<i class="' + (ok ? 'on' : '') + '" title="' + esc(t.t) + (ok ? '（完成）' : '') + '"></i>';
     }).join('');

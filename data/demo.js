@@ -121,15 +121,15 @@ window.UC_DEMO = {
   roster: [
     { id: 'demo-azhe', name: '阿哲', full: true },
     { id: 'demo-01', name: '大熊', growthStart: '2026-09-21', answered: 54, reportComplete: true },
-    { id: 'demo-02', name: '小傑', growthStart: '2026-09-07', answered: 54, reportComplete: true },
+    { id: 'demo-02', name: 'Leo', growthStart: '2026-09-07', answered: 54, reportComplete: true },
     { id: 'demo-03', name: 'Kevin', growthStart: '', answered: 54, reportComplete: false },
-    { id: 'demo-04', name: '胖虎', growthStart: '2026-08-03', answered: 54, reportComplete: true },
-    { id: 'demo-05', name: '小宇', growthStart: '', answered: 31, reportComplete: false },
-    { id: 'demo-06', name: '阿德', growthStart: '2026-07-20', answered: 54, reportComplete: true },
-    { id: 'demo-07', name: '小白', growthStart: '', answered: 12, reportComplete: false },
-    { id: 'demo-08', name: '鬍子', growthStart: '2026-09-28', answered: 54, reportComplete: true },
-    { id: 'demo-09', name: '阿Ben', growthStart: '', answered: 0, reportComplete: false },
-    { id: 'demo-10', name: '小馬', growthStart: '2026-08-31', answered: 54, reportComplete: true },
+    { id: 'demo-04', name: '小胖', growthStart: '2026-08-03', answered: 54, reportComplete: true },
+    { id: 'demo-05', name: '阿凱', growthStart: '', answered: 31, reportComplete: false },
+    { id: 'demo-06', name: '大頭', growthStart: '2026-07-20', answered: 54, reportComplete: true },
+    { id: 'demo-07', name: 'Jason', growthStart: '', answered: 12, reportComplete: false },
+    { id: 'demo-08', name: '小陳', growthStart: '2026-09-28', answered: 54, reportComplete: true },
+    { id: 'demo-09', name: '阿倫', growthStart: '', answered: 0, reportComplete: false },
+    { id: 'demo-10', name: '小安', growthStart: '2026-08-31', answered: 54, reportComplete: true },
     { id: 'demo-11', name: '老K', growthStart: '', answered: 46, reportComplete: false }
   ]
 };

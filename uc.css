@@ -166,11 +166,11 @@ a { color: var(--salmon); }
   transition: background .2s, color .2s;
 }
 .nav a[aria-current="page"] { background: var(--salmon); color: var(--navy); font-weight: 600; }
-/* demo 才有：學員／教練視角切換（使用者 2026-10-13：放在底部藍列裡，不做入口選單）。 */
-.nav #navRole { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; white-space: nowrap;
-  min-height: 44px; padding: 7px 13px; margin-left: 4px; border-radius: 30px; cursor: pointer;
-  color: var(--salmon); background: transparent; border: 1px dashed var(--salmon-30); }
-.nav #navRole:hover { border-color: var(--salmon); }
+/* demo 才有：學員／教練視角切換（使用者 2026-10-13：放在底部藍列裡、要隱蔽 —— 只有一個淡淡的 ⇄）。 */
+.nav #navRole { min-height: 44px; min-width: 30px; padding: 0 6px; cursor: pointer;
+  font-family: var(--mono); font-size: 12px; color: var(--beige-40); opacity: .35;
+  background: transparent; border: 0; transition: opacity .2s, color .2s; }
+.nav #navRole:hover, .nav #navRole:focus-visible { opacity: 1; color: var(--salmon); }
 .nav a[aria-disabled="true"] {
   color: var(--beige-40); opacity: .34; cursor: not-allowed;
 }
@@ -1370,21 +1370,29 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   font: 500 9px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
 }
 .assignment-theme-toggle strong {
-  grid-column: 2 / 4; grid-row: 2; min-width: 0; padding-right: 18px; overflow: hidden;
+  grid-column: 2 / 4; grid-row: 2; min-width: 0; display: flex; align-items: center; gap: 12px;
   color: var(--beige); font: 500 14px/1.45 var(--sans); letter-spacing: .025em;
-  text-overflow: ellipsis; white-space: nowrap;
 }
-.assignment-theme-toggle > i {
-  position: absolute; right: 17px; top: 50%; width: 7px; height: 7px; margin-top: -5px;
-  border-right: 1px solid var(--beige-40); border-bottom: 1px solid var(--beige-40);
+.assignment-theme-toggle strong > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 箭頭放在一個小圓框裡，緊貼名字 —— 一眼看得出「這裡可以展開」。 */
+.assignment-theme-toggle strong > i {
+  position: relative; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--beige-18); transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+.assignment-theme-toggle strong > i::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -4px 0 0 -3px;
+  border-right: 1px solid var(--beige-70); border-bottom: 1px solid var(--beige-70);
   transform: rotate(45deg); transition: transform .18s var(--ease), border-color .18s var(--ease);
 }
+.assignment-theme-toggle:hover strong > i { border-color: var(--salmon); background: rgba(232, 168, 152, .08); }
+.assignment-theme-toggle:hover strong > i::after { border-color: var(--salmon); }
 .assignment-theme-toggle:hover, .assignment-theme-toggle:focus-visible {
   background: rgba(232, 228, 220, .028); box-shadow: inset 0 -1.5px 0 var(--salmon); outline: none;
 }
 .assignment-theme-control.is-open .assignment-theme-toggle { background: rgba(232, 168, 152, .055); }
-.assignment-theme-control.is-open .assignment-theme-toggle > i {
-  margin-top: 0; border-color: var(--salmon); transform: rotate(225deg);
+.assignment-theme-control.is-open .assignment-theme-toggle strong > i { border-color: var(--salmon); }
+.assignment-theme-control.is-open .assignment-theme-toggle strong > i::after {
+  margin-top: -1px; border-color: var(--salmon); transform: rotate(225deg);
 }
 .assignment-theme-menu {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 1px); z-index: 10;
@@ -1742,7 +1750,6 @@ code { font-family: var(--mono); font-size: 11.5px; background: var(--navy-lift)
   .assignment-theme-toggle {
     grid-template-columns: 20px minmax(0, 1fr) 10px; gap: 3px 7px; min-height: 64px; padding: 13px 9px 14px;
   }
-  .assignment-theme-toggle > i { right: 12px; }
   .assignment-theme-menu { max-height: min(250px, 58vh); padding: 8px; }
   .assignment-theme-menu > button { min-height: 62px; }
   .assignment-idle { justify-content: flex-start; padding: 34px 10px 20px; }
