@@ -815,9 +815,13 @@
     return '<span class="qtxt">' + esc(String(v)) + '</span>';
   }
 
+  /* 考卷式：題號 → 短標題（小字）→ 完整題目（主角）→ 作答線（使用者 2026-10-14：要有測驗卷的感覺）。 */
   function qTitleHTML(q) {
-    return '<span class="qname">' + esc(q.name) + '</span>'
-      + (q.q && q.q !== q.name ? '<span class="qask">' + esc(q.q) + '</span>' : '');
+    var n = window.UC_SCORE.questions.indexOf(q) + 1;
+    return '<span class="qno">' + (n > 0 ? ('0' + n).slice(-2) : '') + '</span>'
+      /* 短標題跟題目一樣時（例如「星座」）只留一行，不要重複。 */
+      + (q.q && q.q !== q.name ? '<span class="qname">' + esc(q.name) + '</span>' : '')
+      + '<span class="qask">' + esc(q.q || q.name) + '</span>';
   }
 
   function qRow(q) {

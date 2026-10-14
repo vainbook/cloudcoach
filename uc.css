@@ -417,9 +417,20 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
   background: none; border: 0; padding: 12px 26px 12px 0; cursor: pointer;
   text-align: left; color: var(--navy); font-family: var(--sans);
 }
-/* 一題三行：短標題 → 完整題目（淡一點的描述）→ 答案（2026-10-13）。 */
-.qname { flex: 1 1 100%; font-size: 13.5px; font-weight: 500; opacity: .85; line-height: 1.5; }
-.qask { flex: 1 1 100%; margin-top: -2px; font-size: 12px; line-height: 1.6; opacity: .5; }
+/* 考卷式（2026-10-14）：左邊題號，右邊依序是短標題（小字）、完整題目（主角）、作答線。 */
+.qsum { display: grid !important; grid-template-columns: 2.4em minmax(0, 1fr); column-gap: 10px; row-gap: 3px;
+  align-items: start; }
+.qno { grid-column: 1; grid-row: 1 / 4; padding-top: 2px; font: 500 12px/1.4 var(--mono);
+  letter-spacing: .04em; color: var(--salmon-ink); }
+.qname { grid-column: 2; font: 500 10.5px/1.4 var(--mono); letter-spacing: .1em; opacity: .5; }
+.qask { grid-column: 2; font-size: 15px; font-weight: 500; line-height: 1.6; opacity: .92; }
+.qsum > .qval, .qsum > .qhint { grid-column: 2; }
+/* 作答線：答案寫在一條線上，「未填」就是還沒寫的空格。 */
+.qsum > .qval { justify-self: start; min-width: min(16em, 100%); max-width: 100%; margin-top: 4px;
+  padding: 3px 2px 4px; border-bottom: 1px solid var(--navy-12); }
+.qrow.free .qsum > .qval { justify-self: stretch; }   /* 填空題的格子要整欄寬 */
+.qsum:focus { outline: none; }
+.qsum:focus-visible { outline: 1px solid var(--salmon-ink); outline-offset: 3px; }
 .qval { flex: 1 1 100%; min-width: 0; font-size: 13px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .qtxt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .88; }
@@ -604,7 +615,7 @@ input.qfield::placeholder, textarea.qfield::placeholder { color: var(--navy); op
   .asbar { margin: 0 -18px; padding: 0 18px 10px; }
   /* 手機把短標題改成獨立一行 —— 8.5em 的固定欄寬在 375px 上會把答案擠到剩三個字。 */
   .qsum { flex-wrap: wrap; gap: 3px 12px; padding: 12px 34px 12px 0; }
-  .qname { width: auto; flex: 1 1 100%; font-size: 12px; }
+  .qask { font-size: 14px; }
   .qval { flex: 1 1 100%; }
   /* ⚠️ 箭頭要絕對定位。留在 flex 流裡的話，答案一長就被擠到下一行去，
      整排箭頭高低不一（踩過）。 */
