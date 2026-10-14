@@ -815,6 +815,11 @@
     return '<span class="qtxt">' + esc(String(v)) + '</span>';
   }
 
+  function qTitleHTML(q) {
+    return '<span class="qname">' + esc(q.name) + '</span>'
+      + (q.q && q.q !== q.name ? '<span class="qask">' + esc(q.q) + '</span>' : '');
+  }
+
   function qRow(q) {
     var v = S.answers[q.id];
     var has = hasValue(v);
@@ -828,19 +833,20 @@
       + '" data-field-owner="student" data-field-label="' + esc(q.name) + '"'
       + (q.col ? ' data-col="' + q.col + '"' : '') + '>';
     if (free) {
-      h += '<div class="qsum"><span class="qname">' + esc(q.name) + '</span>'
+      /* 短標題＋完整題目的描述（使用者 2026-10-13：只有題目「改過頭」，主題要留著）。 */
+      h += '<div class="qsum">' + qTitleHTML(q)
         + '<div class="qval">'
         + (q.input === 'number'
           ? '<input class="qfield" type="number" inputmode="numeric" step="1" data-q="' + q.id + '"'
             + (q.min != null ? ' min="' + q.min + '"' : '')
-            + ' placeholder="' + esc(q.ph || q.q) + '" value="' + esc(v == null ? '' : v) + '">'
+            + ' placeholder="' + esc(q.ph || '在此填寫') + '" value="' + esc(v == null ? '' : v) + '">'
           : '<textarea class="qfield" rows="1" data-q="' + q.id + '" placeholder="'
-            + esc(q.ph || q.q) + '">' + esc(v || '') + '</textarea>')
+            + esc(q.ph || '在此填寫') + '">' + esc(v || '') + '</textarea>')
         + (q.note ? '<p class="qhint">' + esc(q.note) + '</p>' : '')
         + '</div></div>';
     } else {
       h += '<button type="button" class="qsum" aria-haspopup="true" aria-expanded="false">'
-        + '<span class="qname">' + esc(q.name) + '</span>'
+        + qTitleHTML(q)
         + '<span class="qval">' + valHTML(q, v) + '</span>'
         + '<span class="qcar" aria-hidden="true"></span>'
         + '</button>';
@@ -2679,6 +2685,19 @@
     drawRadar(host, now, { comment: true, blueprint: true, ghost: grew ? start : null,
       comments: cr.notes, lead: coachReportLow(r, cr), animate: false });
     if (ACTOR_ROLE === 'coach') paintProgressEditor(root, r, cr);
+    /* 看完能力評語、點畫面上任何其他地方 → 人物回到正常亮度（使用者 2026-10-13）。
+       評語框自己也是點其他地方就收（drawRadar._off），這裡把人物那一半補上。
+       ⚠️ 只掛一次：這個函式每次重畫藍圖都會跑。 */
+    if (!paintBlueprintRadar._restore) {
+      paintBlueprintRadar._restore = function (e) {
+        if (!FIGDIM || (e.target.closest && e.target.closest('#bpcRadar .lbtn'))) return;
+        FIGDIM = null;
+        var f = document.getElementById('bpcFig');
+        if (f) f.removeAttribute('data-radar-open');
+        [].forEach.call(document.querySelectorAll('#bpcRadar .lbtn.sel'), function (x) { x.classList.remove('sel'); });
+      };
+      document.addEventListener('click', paintBlueprintRadar._restore);
+    }
     [].forEach.call(host.querySelectorAll('.lbtn'), function (b) {
       function toggle() {
         var fig = document.getElementById('bpcFig');

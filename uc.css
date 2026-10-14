@@ -413,12 +413,14 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 .qrow[data-col="3"] .qcar { position: absolute; right: 2px; top: 15px; margin: 0; }
 .qsum {
   position: relative;
-  display: flex; align-items: baseline; gap: 14px; width: 100%;
-  background: none; border: 0; padding: 11px 0; cursor: pointer;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; width: 100%;
+  background: none; border: 0; padding: 12px 26px 12px 0; cursor: pointer;
   text-align: left; color: var(--navy); font-family: var(--sans);
 }
-.qname { flex: none; width: 8.5em; font-size: 13px; opacity: .62; line-height: 1.5; }
-.qval { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap;
+/* 一題三行：短標題 → 完整題目（淡一點的描述）→ 答案（2026-10-13）。 */
+.qname { flex: 1 1 100%; font-size: 13.5px; font-weight: 500; opacity: .85; line-height: 1.5; }
+.qask { flex: 1 1 100%; margin-top: -2px; font-size: 12px; line-height: 1.6; opacity: .5; }
+.qval { flex: 1 1 100%; min-width: 0; font-size: 13px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .qtxt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .88; }
 .qnil { font-style: normal; font-family: var(--mono); font-size: 10px;
@@ -432,7 +434,8 @@ input::placeholder, textarea::placeholder { color: var(--beige-40); }
 }
 .qdots i.on { background: var(--salmon-ink); opacity: 1; }
 .qcar {
-  flex: none; width: 7px; height: 7px; margin-top: 2px; opacity: .3;
+  position: absolute; right: 4px; top: 18px;
+  flex: none; width: 7px; height: 7px; margin: 0; opacity: .3;
   border-right: 1.2px solid var(--navy); border-bottom: 1.2px solid var(--navy);
   transform: rotate(45deg); transition: transform .22s var(--ease), opacity .2s;
 }
