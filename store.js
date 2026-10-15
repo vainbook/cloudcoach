@@ -542,7 +542,7 @@
     var O = window.UC_OKR, D = window.UC_DIMENSIONS;
     if (!O || !D) return;
     var byLabel = {};
-    D.dims.forEach(function (d) { byLabel[d.label] = d.k; });
+    D.dims.forEach(function (d) { byLabel[d.label] = d.k; if (d.sheetLabel) byLabel[d.sheetLabel] = d.k; });   /* 試算表是舊名 */
     var byId = {};
     O.items.forEach(function (it) { byId[it.id] = it; });
 

@@ -1209,7 +1209,9 @@
         if (!d) return;
         var comment = opts.comments && typeof opts.comments[k] === 'string' ? opts.comments[k] : '';
         /* 報告只顯示教練親自填寫的維度說明，不再從 bands 自動生成評語。 */
-        box.innerHTML = '<b>' + esc(d.label) + '</b><p>' + esc(comment) + '</p>'
+        box.innerHTML = '<b>' + esc(d.label) + '</b>'
+          + (opts.extra ? opts.extra(k) : '')
+          + '<p>' + esc(comment) + '</p>'
           + '<button type="button" class="rx" aria-label="收起評語">×</button>';
         /* 換維度時要重播動畫。animation 不會因為改內容自己重跑，
            必須先拿掉 class、強迫重排、再加回去（.bands 那邊踩過同一個坑）。 */
@@ -1590,7 +1592,7 @@
   var GUIDES = {
     okr: [
       { sel: '#bpcRadar', area: 1, t: '能力圖',
-        b: '出發前，先看清楚自己帶了什麼。這張圖把你的魅力拆成五項能力：人格、形象、生活圈、情緒價值與調情升溫，分數來自教練的評測。凸出去的是你已經帶在身上的強項，凹進來的就是這趟旅程要補的裝備。點能力名稱可以看教練的評語；之後每一次進步，教練都會畫上去，你會看到這個形狀一點一點往外長。' },
+        b: '出發前，先看清楚自己帶了什麼。這張圖把你的魅力拆成五項能力：自信力、相處力、調情力、交友力與形象力，分數來自教練的評測。點中間的人物，可以看五大情感能力圖。凸出去的是你已經帶在身上的強項，凹進來的就是這趟旅程要補的裝備。點能力名稱可以看教練的評語；之後每一次進步，教練都會畫上去，你會看到這個形狀一點一點往外長。' },
       { sel: '.bpctaskdeck', area: 1, t: '任務卡',
         b: '整份藍圖是一段很長的路，任務卡是你現在這一段要抵達的地方。教練會依照你的能力圖和進度，挑出眼前最該做的幾件事，做完了再帶你往下一段走。點一張卡，可以看這個任務為什麼重要、該怎麼做；有對應的課程或作業，按「傳送」就能直接出發。' },
       { sel: '.edt', area: 1, t: '總覽',
@@ -1599,7 +1601,7 @@
             ? '這是整趟旅程的路線圖。從認識自己、打理形象、經營生活圈，到約會與升溫，所有任務都排在這裡。任務卡只會放你現在要做的那幾件，想知道前面還有哪些路、自己走到哪裡了，就回來這裡看看全貌。'
             : '這是學員整趟旅程的路線圖。勾「當前」的任務會出現在學員的任務卡上，後面的數字是排序，越晚勾的排越前面；勾「完成」代表這一段已經走過，就會收起來。';
         } },
-      { sel: '#bpcRadar .lbtn[data-k="emo"]', t: '能力名稱', b: '點一下，看教練寫的評語' },
+      { sel: '#bpcRadar .lbtn[data-k="image"]', t: '能力名稱', b: '點一下，看教練寫的評語' },
       { sel: '.bpc-report', t: '回報目前任務', b: '把目前任務複製成文字，貼給學員' },
       { sel: '.bpcswitch', t: '總覽／任務', b: '切換整份藍圖和目前任務' }
     ],
@@ -2603,6 +2605,8 @@
       h += '<img class="fxhi fx-' + r + '" src="' + FIGSRC + '" alt="" draggable="false">';
     });
     h += heartSVG();
+    /* 人物身上一塊透明的按鈕：點了看五力循環圖。只蓋身體中央，四周的能力名稱照常點得到。 */
+    h += '<button type="button" class="fxtap" data-cycle aria-label="看五大情感能力圖" title="點人物，看五大情感能力圖"></button>';
     return h + '<span class="vh">代表學員虛擬成長的中性人物線稿。'
       + '滑到或聚焦某一項能力，人物對應的部位會亮起來。</span></div>';
   }
@@ -2687,7 +2691,8 @@
       else now[d.k] = start[d.k];
     });
     drawRadar(host, now, { comment: true, blueprint: true, ghost: grew ? start : null,
-      comments: cr.notes, lead: coachReportLow(r, cr), animate: false });
+      comments: cr.notes, lead: coachReportLow(r, cr), animate: false,
+      extra: function (k) { return abilityLevelHTML(k, progressStar(k, r, cr)); } });
     if (ACTOR_ROLE === 'coach') paintProgressEditor(root, r, cr);
     /* 看完能力評語、點畫面上任何其他地方 → 人物回到正常亮度（使用者 2026-10-13）。
        評語框自己也是點其他地方就收（drawRadar._off），這裡把人物那一半補上。
@@ -2721,6 +2726,143 @@
       });
     });
   }
+
+  /* 點能力時的分級（使用者 2026-10-15）：副標＋「Lv.n 名稱・x% 的人在這一級」＋五段比例條。
+     級數＝教練給的星等（含進步），比例＝dimensions.js 的 levelShare。 */
+  function abilityLevelHTML(k, star) {
+    var D = window.UC_DIMENSIONS, d = D.dims.filter(function (x) { return x.k === k; })[0];
+    if (!d) return '';
+    var lv = Math.max(1, Math.min(5, star || 1)), shares = d.levelShare || [];
+    /* PR ＝ 比這一級低的人＋同一級裡的一半（落在這一級的中間），只顯示數字不加說辭（使用者 2026-10-15）。
+       這樣 Lv.1 也不會出現 PR 0。 */
+    var below = shares.slice(0, lv - 1).reduce(function (a, b) { return a + b; }, 0);
+    var beat = shares.length ? Math.round(below + (shares[lv - 1] || 0) / 2) : null;
+    var bar = shares.map(function (w, i) {
+      return '<i class="' + (i === lv - 1 ? 'on' : '') + '" style="flex:' + w + '"></i>';
+    }).join('');
+    return (d.tagline ? '<span class="rtag">' + esc(d.tagline) + '</span>' : '')
+      + '<span class="rlv"><em>Lv.' + lv + '</em>' + esc(D.levelNames[lv - 1] || '')
+      + (beat != null ? '<small>PR ' + beat + '</small>' : '') + '</span>'
+      + (bar ? '<span class="rlvbar" aria-hidden="true">' + bar + '</span>' : '');
+  }
+
+  /* 五大情感能力圖（使用者 2026-10-15）：星圖風格，固定的圖，不帶學員的程度。
+     自信力是實心的太陽；其他四項是細線行星，各在自己那圈傾斜的軌道上，越遠越小（透視）。
+     文字一律整齊排在星球下方（名稱／說明／→ 下一步的原理），不貼著線、不轉角度 ——
+     「說明詞在線旁邊」「字跟著斜線走」都被嫌過。最後一條淡虛線回到太陽，表示循環。
+     手機（vertical）改成太陽在上、軌道往下展開，字排在星球右邊。 */
+  function cycleSVG(vertical) {
+    var dims = window.UC_DIMENSIONS.dims, n = dims.length;
+    var W = vertical ? 360 : 900, H = vertical ? 800 : 524;
+    var f = function (v) { return v.toFixed(1); };
+    var sun = vertical ? { x: 64, y: 78, r: 40 } : { x: 140, y: 342, r: 52 };
+    var tilt = vertical ? 0 : -14, flat = vertical ? 1 : .36;
+    /* 位置直接指定（電腦版從左下斜到右上、越遠越小）；軌道是以太陽為中心、穿過那顆星球的傾斜橢圓。 */
+    var rad = Math.PI / 180, ct = Math.cos(tilt * rad), st = Math.sin(tilt * rad);
+    var pos = [sun].concat((vertical
+      ? [[98, 228, 24], [98, 368, 21], [98, 508, 19], [98, 648, 17]]
+      : [[345, 270, 30], [520, 206, 25], [672, 146, 21], [800, 92, 17]]).map(function (q) {
+      var dx = q[0] - sun.x, dy = q[1] - sun.y, u = dx * ct + dy * st, v = -dx * st + dy * ct;
+      return { x: q[0], y: q[1], r: q[2], R: Math.sqrt(u * u + v * v / (flat * flat)) };
+    }));
+    var seed = 7, rnd = function () { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    var stars = '';
+    for (var k = 0; k < 70; k++) {
+      stars += '<circle cx="' + f(rnd() * W) + '" cy="' + f(rnd() * H) + '" r="' + (rnd() < .1 ? 1.2 : .6)
+        + '" opacity="' + (.12 + rnd() * .4).toFixed(2) + '"/>';
+    }
+    var orbits = pos.slice(1).map(function (p) {
+      return vertical
+        ? '<circle class="gxorbit" cx="' + sun.x + '" cy="' + sun.y + '" r="' + f(Math.sqrt(Math.pow(p.x - sun.x, 2) + Math.pow(p.y - sun.y, 2))) + '"/>'
+        : '<ellipse class="gxorbit" cx="' + sun.x + '" cy="' + sun.y + '" rx="' + p.R + '" ry="' + f(p.R * flat) + '" transform="rotate(' + tilt + ' ' + sun.x + ' ' + sun.y + ')"/>';
+    }).join('');
+
+    /* 行星的細節收斂成天文圖的語彙：經緯線、光環、衛星、盈虧。 */
+    function art(i, p) {
+      var x = p.x, y = p.y, r = p.r, id = 'gxc' + (vertical ? 'v' : 'h') + i;
+      if (i === 0) {
+        return '<circle class="gxhalo" cx="' + x + '" cy="' + y + '" r="' + (r + 14) + '"/>'
+          + '<circle class="gxhalo gxhalo2" cx="' + x + '" cy="' + y + '" r="' + (r + 30) + '"/>'
+          + '<circle class="gxsun" cx="' + x + '" cy="' + y + '" r="' + r + '"/>';
+      }
+      var body = '<circle class="gxplanet" cx="' + x + '" cy="' + y + '" r="' + r + '"/>';
+      var clip = '<clipPath id="' + id + '"><circle cx="' + x + '" cy="' + y + '" r="' + r + '"/></clipPath>';
+      if (i === 1) {          /* 形象力：經緯線的球 */
+        return body + clip + '<g class="gxfine" clip-path="url(#' + id + ')">'
+          + '<ellipse cx="' + x + '" cy="' + y + '" rx="' + f(r * .45) + '" ry="' + r + '"/>'
+          + '<ellipse cx="' + x + '" cy="' + y + '" rx="' + r + '" ry="' + f(r * .32) + '"/>'
+          + '<line x1="' + f(x - r) + '" y1="' + f(y - r * .62) + '" x2="' + f(x + r) + '" y2="' + f(y - r * .62) + '"/></g>';
+      }
+      if (i === 2) {          /* 交友力：一圈細光環，後半藏在星球後面 */
+        var rx = r * 1.9, ry = r * .38, tr = ' transform="rotate(-14 ' + x + ' ' + y + ')"';
+        return '<path class="gxring" d="M' + f(x - rx) + ' ' + y + ' A' + f(rx) + ' ' + f(ry) + ' 0 0 1 ' + f(x + rx) + ' ' + y + '"' + tr + '/>'
+          + '<circle class="gxplanet gxmask" cx="' + x + '" cy="' + y + '" r="' + r + '"/>'
+          + '<path class="gxring" d="M' + f(x - rx) + ' ' + y + ' A' + f(rx) + ' ' + f(ry) + ' 0 0 0 ' + f(x + rx) + ' ' + y + '"' + tr + '/>';
+      }
+      if (i === 3) {          /* 相處力：一顆衛星陪著繞 */
+        return '<circle class="gxfine gxorb" cx="' + x + '" cy="' + y + '" r="' + f(r * 1.75) + '"/>' + body
+          + '<circle class="gxmoon" cx="' + f(x + r * 1.75 * Math.cos(-.7)) + '" cy="' + f(y + r * 1.75 * Math.sin(-.7)) + '" r="3"/>';
+      }
+      var hatch = '', dark = 'M' + x + ' ' + f(y - r) + ' A' + f(r * .45) + ' ' + r + ' 0 0 1 ' + x + ' ' + f(y + r)
+        + ' A' + r + ' ' + r + ' 0 0 0 ' + x + ' ' + f(y - r) + 'Z';   /* 調情力：右半邊在暗處的盈虧 */
+      for (var j = -5; j <= 5; j++) hatch += '<line x1="' + f(x + j * r * .22) + '" y1="' + f(y - r) + '" x2="' + f(x + j * r * .22 + r * .6) + '" y2="' + f(y + r) + '"/>';
+      return body + '<clipPath id="' + id + '"><path d="' + dark + '"/></clipPath>'
+        + '<g class="gxhatch" clip-path="url(#' + id + ')">' + hatch + '</g>'
+        + '<path class="gxfine" d="M' + x + ' ' + f(y - r) + ' A' + f(r * .45) + ' ' + r + ' 0 0 1 ' + x + ' ' + f(y + r) + '"/>';
+    }
+
+    /* 先後順序：一條很淡的軌跡把五顆依序串起來，最後一顆回到太陽。 */
+    var pts = pos.map(function (p) { return [p.x, p.y]; }), trail = 'M' + pts[0][0] + ' ' + pts[0][1];
+    for (var i = 1; i < n; i++) {
+      var a0 = pts[Math.max(i - 2, 0)], a1 = pts[i - 1], a2 = pts[i], a3 = pts[Math.min(i + 1, n - 1)];
+      trail += ' C' + f(a1[0] + (a2[0] - a0[0]) / 6) + ' ' + f(a1[1] + (a2[1] - a0[1]) / 6) + ' '
+        + f(a2[0] - (a3[0] - a1[0]) / 6) + ' ' + f(a2[1] - (a3[1] - a1[1]) / 6) + ' ' + a2[0] + ' ' + a2[1];
+    }
+    var last = pos[n - 1], back = vertical
+      ? 'M' + f(last.x - last.r - 6) + ' ' + last.y + ' C14 ' + last.y + ' 14 ' + f(sun.y + sun.r + 40) + ' ' + f(sun.x - 30) + ' ' + f(sun.y + sun.r + 22)
+      : 'M' + last.x + ' ' + f(last.y + last.r + 6) + ' C' + f(last.x + 40) + ' ' + (H - 30) + ' ' + f(sun.x + 260) + ' ' + (H - 14) + ' ' + f(sun.x + sun.r + 34) + ' ' + f(sun.y + sun.r + 18);
+
+    var depth = vertical ? [1, 1, 1, 1, 1] : [1, .94, .88, .82, .76];
+    var labels = dims.map(function (d, i) {
+      var p = pos[i], s = depth[i], ln = d.taglineLines || [d.tagline || '', ''];
+      var x = vertical ? p.x + p.r + (i === 0 ? 30 : i === 3 ? 34 : i === 2 ? 30 : 18) : p.x - Math.min(p.r, 26);
+      var y = vertical ? p.y - 22 : p.y + p.r + (i === 0 ? 50 : i === 2 ? 26 : 22) * s;
+      if (vertical && i === 0) { x = sun.x + sun.r + 44; y = sun.y - 24; }
+      var lead = vertical ? '' : '<line class="gxlead" x1="' + p.x + '" y1="' + f(p.y + p.r + (i === 0 ? 34 : i === 2 ? 10 : 5)) + '" x2="' + p.x + '" y2="' + f(y - 20 * s) + '"/>';
+      var fs = function (v) { return ' style="font-size:' + f(v * s) + 'px"'; };
+      return lead
+        + '<text class="gxname" x="' + f(x) + '" y="' + f(y) + '"' + fs(i === 0 ? 24 : 20) + '>' + esc(d.label) + '</text>'
+        + '<text class="gxtag" x="' + f(x) + '" y="' + f(y + 21 * s) + '"' + fs(13) + '>' + esc(ln[0]) + '</text>'
+        + '<text class="gxtag" x="' + f(x) + '" y="' + f(y + 38 * s) + '"' + fs(13) + '>' + esc(ln[1] || '') + '</text>'
+        + '<text class="gxlink" x="' + f(x) + '" y="' + f(y + 60 * s) + '"' + fs(13) + '>→ ' + esc(d.link || '') + '</text>';
+    }).join('');
+    return '<svg class="cycle galaxy' + (vertical ? ' is-v' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="五大情感能力圖：'
+      + dims.map(function (d) { return d.label; }).join(' → ') + '，最後回到' + dims[0].label + '">'
+      + '<g class="gxstars">' + stars + '</g>' + orbits
+      + '<path class="gxtrail" d="' + trail + '"/><path class="gxback" d="' + back + '"/>'
+      + pos.map(function (p, i) { return art(i, p); }).join('') + labels + '</svg>';
+  }
+
+  function openCycle() {
+    var m = ensureTaskModal();
+    TASKRETURN = document.activeElement;
+    m.innerHTML = '<section class="taskpanel cyclepanel" role="dialog" aria-modal="true" aria-labelledby="cycleTitle" tabindex="-1">'
+      + '<i class="taskbrk taskbrk-tl" aria-hidden="true"></i><i class="taskbrk taskbrk-tr" aria-hidden="true"></i>'
+      + '<i class="taskbrk taskbrk-bl" aria-hidden="true"></i><i class="taskbrk taskbrk-br" aria-hidden="true"></i>'
+      + '<button type="button" class="taskx" data-task-close="1" aria-label="關閉">×</button>'
+      + '<p class="taskey">Five Abilities</p><h2 id="cycleTitle">五大情感能力圖</h2>'
+      + '<div class="taskrule"><i></i><s></s></div>'
+      + cycleSVG(window.matchMedia('(max-width: 600px)').matches)
+      + '<div class="taskactions"><button type="button" class="btn pri" data-task-close="1">關閉</button></div></section>';
+    m.hidden = false;
+    m.classList.add('on');
+    document.documentElement.classList.add('task-open');
+    var panel = m.querySelector('.taskpanel');
+    if (panel) panel.focus();
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-cycle]')) openCycle();
+  });
 
   function figLit(k) {
     var fig = document.getElementById('bpcFig');

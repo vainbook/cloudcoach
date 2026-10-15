@@ -3337,7 +3337,9 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 .bpcradar .rcmt p { margin-top: 9px; font-size: 12.5px; line-height: 1.9; }
 /* 人物跟雷達同一格、疊在雷達上面 —— 評語打開時整塊雷達要浮到人物之上，不然線條會壓在字上。 */
 .bpcradar:has(.rcmt.on) { z-index: 6; }
-.bpcradar .rcmt { background: rgba(19, 27, 46, .9); }
+.bpcradar .rcmt { background: rgba(19, 27, 46, .9); box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(18px) saturate(110%); -webkit-backdrop-filter: blur(18px) saturate(110%); }
+/* ↑ 留一點透明比較有質感，但模糊要夠重：後面的雷達線讀不出來，才不會干擾閱讀。 */
 .bpcradar .rcmt p:empty::before { content: '教練還沒寫這一項的說明。'; opacity: .6; }
 .bpcover-task .bpcfigure {
   /* ⚠️ 不要 `width: 100%` —— 它跟下面的 margin-left 一起會讓框**溢出格線**
@@ -4028,3 +4030,59 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
   .guidecard p { font-size: 12.5px; line-height: 1.7; }
   .guidetag { max-width: 210px; font-size: 11.5px; }
 }
+
+/* ═══ 能力分級（點能力時，2026-10-15）＋ 五力循環圖 ═══ */
+.rcmt .rtag { display: block; margin-top: 4px; font-size: 12px; color: var(--beige-70); letter-spacing: .04em; }
+.rcmt .rlv { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 8px;
+  margin-top: 12px; font-size: 14px; color: var(--beige); }
+.rcmt .rlv em { font: 600 12px/1 var(--mono); font-style: normal; color: var(--salmon); letter-spacing: .06em; }
+.rcmt .rlv small { font-size: 11.5px; color: var(--beige-70); }
+.rcmt .rlvbar { display: flex; gap: 2px; width: 100%; max-width: 280px; margin: 8px auto 0; }
+.rcmt .rlvbar i { position: relative; height: 6px; background: var(--beige-18); }
+.rcmt .rlvbar i.on { background: var(--salmon); }
+.rcmt .rlvbar s { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); text-decoration: none;
+  font: 500 8.5px/1 var(--mono); color: var(--beige-40); white-space: nowrap; }
+.rcmt .rlvbar i.on s { color: var(--salmon); }
+.rcmt .rlvbar + p { margin-top: 14px !important; }
+
+.bpcfigure .fxtap { position: absolute; left: 50%; top: 18%; width: 34%; height: 62%; transform: translateX(-50%);
+  z-index: 3; pointer-events: auto; cursor: pointer; background: transparent; border: 0; border-radius: 40%; }
+.bpcfigure .fxtap:focus-visible { outline: 1px dashed var(--salmon); outline-offset: 4px; }
+
+.cycle { display: block; width: 100%; height: auto; max-height: 66vh; margin: 8px auto 0; }
+.cytrack { fill: none; stroke: var(--beige-08); stroke-width: 1; stroke-dasharray: 2 6; }
+.cyarrows path { fill: none; stroke: var(--salmon); stroke-width: 1.6; stroke-linecap: round; }
+#cyArrow path { fill: none; stroke: var(--salmon); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cynode circle { fill: var(--navy-lift); stroke: var(--salmon-30); stroke-width: 1; }
+.cynode circle.cyhalo { fill: none; stroke: var(--beige-08); stroke-width: 1; }
+.cynode text { text-anchor: middle; }
+.cyno { font: 500 9px var(--mono); fill: var(--salmon); letter-spacing: .14em; }
+.cyname { font: 700 18px var(--serif); fill: var(--beige); letter-spacing: .06em; }
+.cytag { font: 400 10.5px var(--sans); fill: var(--beige-70); }
+.cycenter { text-anchor: middle; font: 700 16px var(--serif); fill: var(--beige); letter-spacing: .08em; }
+.cycenter2 { text-anchor: middle; font: 400 11px var(--sans); fill: var(--beige-40); }
+
+/* 五大情感能力圖：太陽系（2026-10-15） */
+.taskpanel.cyclepanel { width: min(94vw, 980px); max-width: none; }
+.galaxy { background: radial-gradient(ellipse at 20% 50%, rgba(232, 168, 152, .07), transparent 60%); border-radius: 4px; }
+.galaxy .gxstars circle { fill: var(--beige); }
+.gxorbit { fill: none; stroke: var(--beige-18); stroke-width: 1; }
+.gxtrail { fill: none; stroke: var(--salmon-30); stroke-width: 1; stroke-dasharray: 2 5; }
+.gxback { fill: none; stroke: var(--salmon-30); stroke-width: 1; stroke-dasharray: 2 5; }
+.gxsun { fill: var(--salmon); }
+.gxhalo { fill: none; stroke: var(--salmon); stroke-width: 1; opacity: .35; }
+.gxhalo2 { opacity: .15; }
+.gxplanet { fill: var(--navy); stroke: var(--beige-70); stroke-width: 1.2; }
+.gxfine, .gxfine * { fill: none; stroke: var(--beige-40); stroke-width: .8; }
+.gxorb { stroke-dasharray: 1.5 3; }
+.gxmoon { fill: var(--beige); }
+.gxring { fill: none; stroke: var(--salmon); stroke-width: 1.1; opacity: .85; }
+.gxhatch line { stroke: var(--beige-40); stroke-width: .7; }
+.gxshade { fill: none; }
+.gxlead { stroke: var(--beige-18); stroke-width: 1; }
+/* 字壓在軌道線上時，用深藍描邊把線讓開。 */
+.galaxy text { text-anchor: start; paint-order: stroke; stroke: var(--navy); stroke-width: 4px; stroke-linejoin: round; }
+.gxname { font: 700 20px var(--serif); fill: var(--beige); letter-spacing: .06em; }
+.gxtag { font: 400 13px var(--sans); fill: var(--beige-70); }
+.gxlink { font: 500 13px var(--sans); fill: var(--salmon); letter-spacing: .03em; }
+.galaxy.is-v { max-height: none; }

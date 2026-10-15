@@ -106,11 +106,11 @@ window.UC_OKR = {
   ],
 
   themes: [
-    { dim: 'values', label: '人格魅力' },
-    { dim: 'image',  label: '形象魅力', also: '攝影能力' },
-    { dim: 'circle', label: '生活圈' },
-    { dim: 'emo',    label: '情緒價值' },
-    { dim: 'flirt',  label: '調情升溫' }
+    { dim: 'values', label: '自信力' },
+    { dim: 'image',  label: '形象力', also: '攝影能力' },
+    { dim: 'circle', label: '交友力' },
+    { dim: 'emo',    label: '相處力' },
+    { dim: 'flirt',  label: '調情力' }
   ],
 
   /* ch = 章節（對應 epigraphs 索引）。
