@@ -4064,9 +4064,25 @@ input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: .7; }
 
 /* 五大情感能力圖：太陽系（2026-10-15） */
 .taskpanel.cyclepanel { width: min(94vw, 980px); max-width: none; }
+.bpcover-task { position: relative; }
+.taskpanel.cycleinline { position: absolute; inset: 0; z-index: 5; width: auto; max-height: none;
+  display: flex; flex-direction: column; padding: 28px 40px 20px 56px; background-color: var(--navy); box-shadow: none; animation: taskpanel-in .32s var(--ease) both; }
+.cycleinline h2 { margin: 0 0 4px; font-size: 28px; }
+.cycleinline .galaxy { flex: 1; min-height: 0; width: 100%; height: 100%; }
 .galaxy { background: radial-gradient(ellipse at 20% 50%, rgba(232, 168, 152, .07), transparent 60%); border-radius: 4px; }
 .galaxy .gxstars circle { fill: var(--beige); }
 .gxorbit { fill: none; stroke: var(--beige-18); stroke-width: 1; }
+/* 動態：軌道上的光、閃爍的星、飄過的星光。減少動態時全部靜止（規則 9）。 */
+.gxsweep { fill: none; stroke: var(--salmon); stroke-width: 1.4; stroke-linecap: round; opacity: .55;
+  stroke-dasharray: 70 930; animation: gx-sweep linear infinite; }
+@keyframes gx-sweep { to { stroke-dashoffset: -1000; } }
+.galaxy .gxstars .gxtw { animation: gx-tw 4s ease-in-out infinite; }
+@keyframes gx-tw { 50% { opacity: .9; } }
+.gxspark { fill: var(--beige); opacity: 0; transform-box: fill-box; transform-origin: center; animation: gx-spark linear infinite; }
+@keyframes gx-spark { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 20% { opacity: .8; } 50% { opacity: .35; transform: translate(60px, -12px) scale(1); } 80% { opacity: .7; } 100% { opacity: 0; transform: translate(120px, -24px) scale(.6); } }
+.gxtrail { animation: gx-flow 3s linear infinite; }
+@keyframes gx-flow { to { stroke-dashoffset: -14; } }
+@media (prefers-reduced-motion: reduce) { .gxsweep, .gxspark { display: none; } .gxtw, .gxtrail { animation: none; } }
 .gxtrail { fill: none; stroke: var(--salmon-30); stroke-width: 1; stroke-dasharray: 2 5; }
 .gxback { fill: none; stroke: var(--salmon-30); stroke-width: 1; stroke-dasharray: 2 5; }
 .gxsun { fill: var(--salmon); }

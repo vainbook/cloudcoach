@@ -2768,13 +2768,25 @@
     var seed = 7, rnd = function () { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     var stars = '';
     for (var k = 0; k < 70; k++) {
-      stars += '<circle cx="' + f(rnd() * W) + '" cy="' + f(rnd() * H) + '" r="' + (rnd() < .1 ? 1.2 : .6)
+      var tw = rnd() < .3;   /* 三成的星星會閃，各自錯開 */
+      stars += '<circle' + (tw ? ' class="gxtw" style="animation-delay:-' + f(rnd() * 4) + 's"' : '')
+        + ' cx="' + f(rnd() * W) + '" cy="' + f(rnd() * H) + '" r="' + (rnd() < .1 ? 1.2 : .6)
         + '" opacity="' + (.12 + rnd() * .4).toFixed(2) + '"/>';
     }
-    var orbits = pos.slice(1).map(function (p) {
-      return vertical
-        ? '<circle class="gxorbit" cx="' + sun.x + '" cy="' + sun.y + '" r="' + f(Math.sqrt(Math.pow(p.x - sun.x, 2) + Math.pow(p.y - sun.y, 2))) + '"/>'
-        : '<ellipse class="gxorbit" cx="' + sun.x + '" cy="' + sun.y + '" rx="' + p.R + '" ry="' + f(p.R * flat) + '" transform="rotate(' + tilt + ' ' + sun.x + ' ' + sun.y + ')"/>';
+    /* 幾顆十字星光從左往右慢慢飄過。 */
+    var sparks = '';
+    for (k = 0; k < 7; k++) {
+      var sx = rnd() * W * .8, sy = rnd() * H, sz = 2.5 + rnd() * 3;
+      sparks += '<path class="gxspark" style="animation-duration:' + f(9 + rnd() * 8) + 's;animation-delay:-' + f(rnd() * 16) + 's" d="M'
+        + f(sx) + ' ' + f(sy - sz) + ' L' + f(sx + sz * .22) + ' ' + f(sy - sz * .22) + ' L' + f(sx + sz) + ' ' + f(sy) + ' L' + f(sx + sz * .22) + ' ' + f(sy + sz * .22)
+        + ' L' + f(sx) + ' ' + f(sy + sz) + ' L' + f(sx - sz * .22) + ' ' + f(sy + sz * .22) + ' L' + f(sx - sz) + ' ' + f(sy) + ' L' + f(sx - sz * .22) + ' ' + f(sy - sz * .22) + 'Z"/>';
+    }
+    /* 每圈軌道疊一道沿著跑的光（越外圈越慢），看起來像在公轉。 */
+    var orbits = pos.slice(1).map(function (p, i) {
+      var shape = vertical
+        ? '<circle cx="' + sun.x + '" cy="' + sun.y + '" r="' + f(Math.sqrt(Math.pow(p.x - sun.x, 2) + Math.pow(p.y - sun.y, 2))) + '"'
+        : '<ellipse cx="' + sun.x + '" cy="' + sun.y + '" rx="' + f(p.R) + '" ry="' + f(p.R * flat) + '" transform="rotate(' + tilt + ' ' + sun.x + ' ' + sun.y + ')"';
+      return shape + ' class="gxorbit"/>' + shape + ' class="gxsweep" pathLength="1000" style="animation-duration:' + (14 + i * 6) + 's;animation-delay:-' + (i * 5) + 's"/>';
     }).join('');
 
     /* 行星的細節收斂成天文圖的語彙：經緯線、光環、衛星、盈虧。 */
@@ -2838,12 +2850,29 @@
     }).join('');
     return '<svg class="cycle galaxy' + (vertical ? ' is-v' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="五大情感能力圖：'
       + dims.map(function (d) { return d.label; }).join(' → ') + '，最後回到' + dims[0].label + '">'
-      + '<g class="gxstars">' + stars + '</g>' + orbits
+      + '<g class="gxstars">' + stars + '</g>' + orbits + '<g class="gxsparks">' + sparks + '</g>'
       + '<path class="gxtrail" d="' + trail + '"/><path class="gxback" d="' + back + '"/>'
       + pos.map(function (p, i) { return art(i, p); }).join('') + labels + '</svg>';
   }
 
+  /* 桌機：直接蓋在藍圖內容區上（大標題下面那一塊），不開全螢幕面板（使用者 2026-10-16）。 */
+  function closeCycleInline() {
+    var c = document.querySelector('.cycleinline');
+    if (c) c.remove();
+  }
   function openCycle() {
+    var host = !window.matchMedia('(max-width: 600px)').matches && document.querySelector('.bpcover-task');
+    if (host) {
+      closeCycleInline();
+      host.insertAdjacentHTML('beforeend', '<section class="taskpanel cyclepanel cycleinline" role="dialog" aria-labelledby="cycleTitle" tabindex="-1">'
+        + '<i class="taskbrk taskbrk-tl" aria-hidden="true"></i><i class="taskbrk taskbrk-tr" aria-hidden="true"></i>'
+        + '<i class="taskbrk taskbrk-bl" aria-hidden="true"></i><i class="taskbrk taskbrk-br" aria-hidden="true"></i>'
+        + '<button type="button" class="taskx" data-cycle-close aria-label="關閉">×</button>'
+        + '<p class="taskey">Five Abilities</p><h2 id="cycleTitle">五大情感能力圖</h2>'
+        + cycleSVG(false) + '</section>');
+      host.querySelector('.cycleinline').focus();
+      return;
+    }
     var m = ensureTaskModal();
     TASKRETURN = document.activeElement;
     m.innerHTML = '<section class="taskpanel cyclepanel" role="dialog" aria-modal="true" aria-labelledby="cycleTitle" tabindex="-1">'
@@ -2862,7 +2891,9 @@
   }
   document.addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('[data-cycle]')) openCycle();
+    if (e.target.closest && e.target.closest('[data-cycle-close]')) closeCycleInline();
   });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCycleInline(); });
 
   function figLit(k) {
     var fig = document.getElementById('bpcFig');
