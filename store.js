@@ -543,6 +543,7 @@
     if (!O || !D) return;
     var byLabel = {};
     D.dims.forEach(function (d) { byLabel[d.label] = d.k; if (d.sheetLabel) byLabel[d.sheetLabel] = d.k; });   /* 試算表是舊名 */
+    byLabel['相處力'] = 'emo';   /* 2026-10-16 改名共情力之前的名稱 */
     var byId = {};
     O.items.forEach(function (it) { byId[it.id] = it; });
 

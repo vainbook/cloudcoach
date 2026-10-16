@@ -1592,7 +1592,7 @@
   var GUIDES = {
     okr: [
       { sel: '#bpcRadar', area: 1, t: '能力圖',
-        b: '出發前，先看清楚自己帶了什麼。這張圖把你的魅力拆成五項能力：自信力、相處力、調情力、交友力與形象力，分數來自教練的評測。點中間的人物，可以看五大情感能力圖。凸出去的是你已經帶在身上的強項，凹進來的就是這趟旅程要補的裝備。點能力名稱可以看教練的評語；之後每一次進步，教練都會畫上去，你會看到這個形狀一點一點往外長。' },
+        b: '出發前，先看清楚自己帶了什麼。這張圖把你的魅力拆成五項能力：自信力、形象力、交友力、共情力與調情力，分數來自教練的評測。點中間的人物，可以看五大情感能力圖。凸出去的是你已經帶在身上的強項，凹進來的就是這趟旅程要補的裝備。點能力名稱可以看教練的評語；之後每一次進步，教練都會畫上去，你會看到這個形狀一點一點往外長。' },
       { sel: '.bpctaskdeck', area: 1, t: '任務卡',
         b: '整份藍圖是一段很長的路，任務卡是你現在這一段要抵達的地方。教練會依照你的能力圖和進度，挑出眼前最該做的幾件事，做完了再帶你往下一段走。點一張卡，可以看這個任務為什麼重要、該怎麼做；有對應的課程或作業，按「傳送」就能直接出發。' },
       { sel: '.edt', area: 1, t: '總覽',
@@ -2811,7 +2811,7 @@
           + '<circle class="gxplanet gxmask" cx="' + x + '" cy="' + y + '" r="' + r + '"/>'
           + '<path class="gxring" d="M' + f(x - rx) + ' ' + y + ' A' + f(rx) + ' ' + f(ry) + ' 0 0 0 ' + f(x + rx) + ' ' + y + '"' + tr + '/>';
       }
-      if (i === 3) {          /* 相處力：一顆衛星陪著繞 */
+      if (i === 3) {          /* 共情力：一顆衛星陪著繞 */
         return '<circle class="gxfine gxorb" cx="' + x + '" cy="' + y + '" r="' + f(r * 1.75) + '"/>' + body
           + '<circle class="gxmoon" cx="' + f(x + r * 1.75 * Math.cos(-.7)) + '" cy="' + f(y + r * 1.75 * Math.sin(-.7)) + '" r="3"/>';
       }
@@ -2835,19 +2835,24 @@
       : 'M' + last.x + ' ' + f(last.y + last.r + 6) + ' C' + f(last.x + 40) + ' ' + (H - 30) + ' ' + f(sun.x + 260) + ' ' + (H - 14) + ' ' + f(sun.x + sun.r + 34) + ' ' + f(sun.y + sun.r + 18);
 
     var depth = vertical ? [1, 1, 1, 1, 1] : [1, .94, .88, .82, .76];
+    var bottom = 0;
     var labels = dims.map(function (d, i) {
-      var p = pos[i], s = depth[i], ln = d.taglineLines || [d.tagline || '', ''];
+      var p = pos[i], s = depth[i], ln = d.taglineLines || [d.tagline || ''];
       var x = vertical ? p.x + p.r + (i === 0 ? 30 : i === 3 ? 34 : i === 2 ? 30 : 18) : p.x - Math.min(p.r, 26);
       var y = vertical ? p.y - 22 : p.y + p.r + (i === 0 ? 50 : i === 2 ? 26 : 22) * s;
       if (vertical && i === 0) { x = sun.x + sun.r + 44; y = sun.y - 24; }
       var lead = vertical ? '' : '<line class="gxlead" x1="' + p.x + '" y1="' + f(p.y + p.r + (i === 0 ? 34 : i === 2 ? 10 : 5)) + '" x2="' + p.x + '" y2="' + f(y - 20 * s) + '"/>';
       var fs = function (v) { return ' style="font-size:' + f(v * s) + 'px"'; };
+      var tags = ln.map(function (t, j) {
+        return '<text class="gxtag" x="' + f(x) + '" y="' + f(y + (21 + j * 17) * s) + '"' + fs(13) + '>' + esc(t) + '</text>';
+      }).join('');
+      var ly = y + (21 + ln.length * 17 + 5) * s;
+      bottom = Math.max(bottom, ly + 8);
       return lead
         + '<text class="gxname" x="' + f(x) + '" y="' + f(y) + '"' + fs(i === 0 ? 24 : 20) + '>' + esc(d.label) + '</text>'
-        + '<text class="gxtag" x="' + f(x) + '" y="' + f(y + 21 * s) + '"' + fs(13) + '>' + esc(ln[0]) + '</text>'
-        + '<text class="gxtag" x="' + f(x) + '" y="' + f(y + 38 * s) + '"' + fs(13) + '>' + esc(ln[1] || '') + '</text>'
-        + '<text class="gxlink" x="' + f(x) + '" y="' + f(y + 60 * s) + '"' + fs(13) + '>→ ' + esc(d.link || '') + '</text>';
+        + tags + '<text class="gxlink" x="' + f(x) + '" y="' + f(ly) + '"' + fs(13) + '>→ ' + esc(d.link || '') + '</text>';
     }).join('');
+    H = Math.max(H, Math.ceil(bottom));   /* 說明變長時，圖跟著長高，不切字 */
     return '<svg class="cycle galaxy' + (vertical ? ' is-v' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="五大情感能力圖：'
       + dims.map(function (d) { return d.label; }).join(' → ') + '，最後回到' + dims[0].label + '">'
       + '<g class="gxstars">' + stars + '</g>' + orbits + '<g class="gxsparks">' + sparks + '</g>'

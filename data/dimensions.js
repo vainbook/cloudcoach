@@ -32,7 +32,7 @@ window.UC_DIMENSIONS = {
 
   dims: [
     {
-      k: 'values', link: '願意打理自己', label: '自信力', sheetLabel: '人格魅力', tagline: '你的心態是否準備好社交', taglineLines: ['你的心態是否', '準備好社交'],
+      k: 'values', link: '願意打理自己', label: '自信力', sheetLabel: '人格魅力', tagline: '是否了解自身優勢、盲點和狀態，並予以提升。接觸異性時，是內核穩定的自己。', taglineLines: ['是否了解自身優勢、', '盲點和狀態，並予以提升', '接觸異性時，', '是內核穩定的自己'],
       levelShare: [34, 29, 21, 12, 4], en: 'Personal Character',
       facets: ['自信（有目標）', '自信（認識自己）', '自信（不受限）', '同理心與負責任', '情感價值觀'],
       blurb: '你知道自己要去哪裡、是誰，以及願不願意為自己的選擇負責。藍圖把它排在第一章。',
@@ -103,7 +103,7 @@ window.UC_DIMENSIONS = {
     },
 
     {
-      k: 'circle', link: '有機會好好相處', label: '交友力', sheetLabel: '生活圈', tagline: '有沒有機會認識新朋友', taglineLines: ['有沒有機會', '認識新朋友'],
+      k: 'circle', link: '有機會好好相處', label: '交友力', sheetLabel: '生活圈', tagline: '能主動創造社交機會、拓寬生活型態。掌握談話的聊天高手。', taglineLines: ['能主動創造社交機會、', '拓寬生活型態', '掌握談話的聊天高手'],
       levelShare: [40, 30, 18, 9, 3], en: 'Social Circle',
       facets: ['交友軟體', '想去清單', '興趣活動', '活動參與', '人際關係'],
       blurb: '你能遇到人的場合有多少，以及那些場合是誰創造的。',
@@ -140,7 +140,7 @@ window.UC_DIMENSIONS = {
     },
 
     {
-      k: 'emo', link: '關係往前走', label: '相處力', sheetLabel: '情緒價值', tagline: '別人會不會喜歡和你相處', taglineLines: ['別人會不會', '喜歡和你相處'],
+      k: 'emo', link: '關係往前走', label: '共情力', sheetLabel: '情緒價值', tagline: '走入心房，深度連結。', taglineLines: ['走入心房，', '深度連結'],
       levelShare: [31, 29, 23, 13, 4], en: 'Emotional Value',
       facets: ['欣賞', '幽默', '同理心', '好奇心', '感受力'],
       blurb: '你在場的時候，對方的情緒被接住了嗎。藍圖把它拆成五個可以練的動作。',
@@ -177,7 +177,7 @@ window.UC_DIMENSIONS = {
     },
 
     {
-      k: 'flirt', link: '能力完整，更有自信', label: '調情力', sheetLabel: '調情升溫', tagline: '能不能主動推進關係', taglineLines: ['能不能主動', '推進關係'],
+      k: 'flirt', link: '能力完整，更有自信', label: '調情力', sheetLabel: '調情升溫', tagline: '能主動創造曖昧氛圍。懂約會，讓愛情常保新鮮。', taglineLines: ['能主動創造曖昧氛圍', '懂約會，', '讓愛情常保新鮮'],
       levelShare: [44, 30, 16, 8, 2], en: 'Escalation',
       facets: ['約會行程', '聊天（升溫／釋放）', '推拉', '約會', '肢體與眼神接觸'],
       blurb: '兩個人成為戀人之前的那場彩排。',

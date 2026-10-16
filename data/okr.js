@@ -109,7 +109,7 @@ window.UC_OKR = {
     { dim: 'values', label: '自信力' },
     { dim: 'image',  label: '形象力', also: '攝影能力' },
     { dim: 'circle', label: '交友力' },
-    { dim: 'emo',    label: '相處力' },
+    { dim: 'emo',    label: '共情力' },
     { dim: 'flirt',  label: '調情力' }
   ],
 
