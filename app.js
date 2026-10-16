@@ -2755,13 +2755,13 @@
     var dims = window.UC_DIMENSIONS.dims, n = dims.length;
     var W = vertical ? 360 : 900, H = vertical ? 800 : 524;
     var f = function (v) { return v.toFixed(1); };
-    var sun = vertical ? { x: 64, y: 78, r: 40 } : { x: 140, y: 342, r: 52 };
+    var sun = vertical ? { x: 64, y: 78, r: 40 } : { x: 140, y: 342, r: 62 };
     var tilt = vertical ? 0 : -14, flat = vertical ? 1 : .36;
     /* 位置直接指定（電腦版從左下斜到右上、越遠越小）；軌道是以太陽為中心、穿過那顆星球的傾斜橢圓。 */
     var rad = Math.PI / 180, ct = Math.cos(tilt * rad), st = Math.sin(tilt * rad);
     var pos = [sun].concat((vertical
       ? [[98, 228, 24], [98, 368, 21], [98, 508, 19], [98, 648, 17]]
-      : [[345, 270, 30], [520, 206, 25], [672, 146, 21], [800, 92, 17]]).map(function (q) {
+      : [[350, 268, 36], [528, 202, 30], [684, 142, 25], [814, 88, 21]]).map(function (q) {
       var dx = q[0] - sun.x, dy = q[1] - sun.y, u = dx * ct + dy * st, v = -dx * st + dy * ct;
       return { x: q[0], y: q[1], r: q[2], R: Math.sqrt(u * u + v * v / (flat * flat)) };
     }));
@@ -2832,28 +2832,24 @@
     }
     var last = pos[n - 1], back = vertical
       ? 'M' + f(last.x - last.r - 6) + ' ' + last.y + ' C14 ' + last.y + ' 14 ' + f(sun.y + sun.r + 40) + ' ' + f(sun.x - 30) + ' ' + f(sun.y + sun.r + 22)
-      : 'M' + last.x + ' ' + f(last.y + last.r + 6) + ' C' + f(last.x + 40) + ' ' + (H - 30) + ' ' + f(sun.x + 260) + ' ' + (H - 14) + ' ' + f(sun.x + sun.r + 34) + ' ' + f(sun.y + sun.r + 18);
+      : 'M' + last.x + ' ' + f(last.y + last.r + 6) + ' C' + f(last.x + 40) + ' ' + f(sun.y + 110) + ' ' + f(sun.x + 260) + ' ' + f(sun.y + 124) + ' ' + f(sun.x + sun.r + 34) + ' ' + f(sun.y + sun.r + 18);
 
     var depth = vertical ? [1, 1, 1, 1, 1] : [1, .94, .88, .82, .76];
+    /* 圖上只放能力名稱（使用者 2026-10-16：說明字太多反而看不清，說明留在點能力的面板）。 */
     var bottom = 0;
     var labels = dims.map(function (d, i) {
-      var p = pos[i], s = depth[i], ln = d.taglineLines || [d.tagline || ''];
-      var x = vertical ? p.x + p.r + (i === 0 ? 30 : i === 3 ? 34 : i === 2 ? 30 : 18) : p.x - Math.min(p.r, 26);
-      var y = vertical ? p.y - 22 : p.y + p.r + (i === 0 ? 50 : i === 2 ? 26 : 22) * s;
-      if (vertical && i === 0) { x = sun.x + sun.r + 44; y = sun.y - 24; }
-      var lead = vertical ? '' : '<line class="gxlead" x1="' + p.x + '" y1="' + f(p.y + p.r + (i === 0 ? 34 : i === 2 ? 10 : 5)) + '" x2="' + p.x + '" y2="' + f(y - 20 * s) + '"/>';
-      var fs = function (v) { return ' style="font-size:' + f(v * s) + 'px"'; };
-      var tags = ln.map(function (t, j) {
-        return '<text class="gxtag" x="' + f(x) + '" y="' + f(y + (21 + j * 17) * s) + '"' + fs(13) + '>' + esc(t) + '</text>';
-      }).join('');
-      var ly = y + (21 + ln.length * 17 + 5) * s;
-      bottom = Math.max(bottom, ly + 8);
-      return lead
-        + '<text class="gxname" x="' + f(x) + '" y="' + f(y) + '"' + fs(i === 0 ? 24 : 20) + '>' + esc(d.label) + '</text>'
-        + tags + '<text class="gxlink" x="' + f(x) + '" y="' + f(ly) + '"' + fs(13) + '>→ ' + esc(d.link || '') + '</text>';
+      var p = pos[i], s = depth[i], fz = (i === 0 ? 32 : 26) * s;
+      var x = vertical ? p.x + p.r + (i === 0 ? 34 : i === 2 || i === 3 ? 34 : 20) : p.x - Math.min(p.r, 26);
+      var y = vertical ? p.y + fz * .36 - 8 : p.y + p.r + (i === 0 ? 40 : i === 2 ? 20 : 16) * s + fz;
+      if (vertical && i === 0) x = sun.x + sun.r + 40;
+      var ty = y + (vertical ? 22 : 24 * s);   /* 名稱下一行小字：dims[].short（五大情感能力圖專用） */
+      bottom = Math.max(bottom, ty + 12);
+      var lead = vertical ? '' : '<line class="gxlead" x1="' + p.x + '" y1="' + f(p.y + p.r + (i === 0 ? 34 : i === 2 ? 10 : 5)) + '" x2="' + p.x + '" y2="' + f(y - fz - 4) + '"/>';
+      return lead + '<text class="gxname" x="' + f(x) + '" y="' + f(y) + '" style="font-size:' + f(fz) + 'px">' + esc(d.label) + '</text>'
+        + (d.short ? '<text class="gxtag" x="' + f(x) + '" y="' + f(ty) + '" style="font-size:' + f(vertical ? 13 : 15 * s) + 'px">' + esc(d.short) + '</text>' : '');
     }).join('');
-    H = Math.max(H, Math.ceil(bottom));   /* 說明變長時，圖跟著長高，不切字 */
-    return '<svg class="cycle galaxy' + (vertical ? ' is-v' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="五大情感能力圖：'
+    H = Math.ceil(bottom);   /* 字拿掉之後收緊高度，圖在同一個框裡就會放大 */
+    return '<svg class="cycle galaxy' + (vertical ? ' is-v' : '') + '" viewBox="' + (vertical ? '0 0 ' + W + ' ' + H : '48 40 ' + (W - 34) + ' ' + (H - 40)) + '" role="img" aria-label="五大情感能力圖：'
       + dims.map(function (d) { return d.label; }).join(' → ') + '，最後回到' + dims[0].label + '">'
       + '<g class="gxstars">' + stars + '</g>' + orbits + '<g class="gxsparks">' + sparks + '</g>'
       + '<path class="gxtrail" d="' + trail + '"/><path class="gxback" d="' + back + '"/>'
